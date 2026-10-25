@@ -95,3 +95,4 @@ After implementation, explain:
 - Prioritize a working end-to-end vertical slice over broad unfinished scaffolding.
 - Never add Claude attribution to commits or pull requests.
 - Never write comments in code or config files. Explanations go in the docs or the chat, not the source.
+- Write minimal, concise code: the fewest files and lines that do the job. Add structure only when a real need appears.

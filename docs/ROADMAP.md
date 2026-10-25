@@ -160,11 +160,11 @@ _Learn:_ Git, monorepos, package management, TypeScript compilation, module reso
 _Learn:_ React composition, client-side routing, SPA vs server rendering, Vite builds, semantic HTML, responsive design, accessibility.
 
 ### 1.3 — Backend application foundation
-- [x] 1.3.1 Bootstrap Express + TypeScript (app factory `createApp()`, server entry point)
+- [x] 1.3.1 Bootstrap Express + TypeScript (single `server.ts`; listens only when run directly)
 - [ ] 1.3.2 Explain Node.js runtime and process lifecycle
 - [x] 1.3.3 Configure environment validation (Zod schema, fail fast at startup)
 - [x] 1.3.4 Create `GET /health/live`
-- [x] 1.3.5 Create `GET /health/ready` (pluggable checks with timeout; database check added in 1.4.5)
+- [x] 1.3.5 Create `GET /health/ready` (returns ok until the database check is added in 1.4.5)
 - [ ] 1.3.6 Configure global validation and exception handling
 - [ ] 1.3.7 Add structured request logging
 - [ ] 1.3.8 Add API versioning and OpenAPI documentation

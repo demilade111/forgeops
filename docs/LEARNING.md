@@ -83,18 +83,17 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   pinned TypeScript 6.0: typescript-eslint doesn't support 7 yet.
 
 ### Express API bootstrap (1.1.5 + 1.3.1, done)
-- **`createApp()` vs `server.ts`:** `createApp()` builds the app (routes, middleware) without opening a port,
-  so tests can use it directly. `server.ts` is the only file that calls `listen()`.
+- **One file, still testable:** `server.ts` exports `app` and only calls `listen()` when run directly
+  (`import.meta.main`), so tests can import `app` without opening a port.
 - **Express 5 `listen` callback** also receives startup errors (e.g. `EADDRINUSE`, port already in use).
-  Ignoring that argument printed "listening" for a server that had failed. Found by testing the failure case.
+  Ignoring it prints "listening" for a server that failed. Found by testing the failure case.
 - **pnpm blocks install scripts** of dependencies by default, a defence against malicious packages. Only allow
   the ones that need them.
 
 ### Health checks and tests (1.3.4, 1.3.5, 1.3.9, done)
 - **Liveness** (`/health/live`): "is the process running?" If it fails, restart the process.
 - **Readiness** (`/health/ready`): "can it serve requests now?" If it fails (503), stop sending traffic
-  but don't restart. It runs each check with a **timeout**, so a hung database can't hang the probe.
-- Readiness reports only `ok` / `fail` per check, never the error text, which could leak internals.
+  but don't restart. Until the database exists it returns the same as liveness.
 - **Sabotage test:** break the code on purpose and confirm the tests fail. Proves the tests test something.
 
 ### Environment validation (1.3.3, done)
@@ -103,8 +102,6 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   with a clear message instead of crashing later on the first request that needs it.
 - Error messages name the setting but never print its value, so secrets can't leak into logs.
 - `.env.example` documents which settings exist; the real `.env` is never committed.
-- **`app.ts` vs `server.ts`:** `app.ts` builds the app (tests use it with no port); `server.ts` reads
-  config, opens the port and handles startup failures.
 
 ## Interview question bank
 

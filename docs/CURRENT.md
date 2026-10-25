@@ -65,6 +65,7 @@ Run the API locally: `nvm use`, then `pnpm --filter @forgeops/api dev` (port 400
 | FGO-01.01.05 + 01.03.01 | Create API workspace and bootstrap Express | Done | Verified: typecheck, lint, format, build pass; server answers HTTP; busy port exits with code 1 and a clear error; `tsx watch` dev mode works |
 | FGO-01.03.04–05, 01.03.09 | Health endpoints + test setup | Done | Verified: 7 tests pass (live, ready, failing check, timeout, no error leak, 404); sabotaging readiness makes 2 tests fail; real server answers both endpoints |
 | FGO-01.03.03 | Environment validation | Done | Verified: 15 tests pass; real server refuses PORT=abc/0/70000 with a clear message and exit 1; unset PORT uses 4000; error messages never echo the rejected value |
+| — | Simplify API to a single `server.ts` | Done | Owner request: removed `app.ts` and the health module; readiness returns ok until 1.4.5. Verified: 11 tests pass, sabotage test caught a leaked value, built and dev servers answer 200, bad PORT and busy port exit 1 |
 | FGO-01.03.06 | Global validation and exception handling | Design discussion | Next |
 
 ## Open decisions to watch

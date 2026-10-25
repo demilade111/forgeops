@@ -149,7 +149,7 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-021 | Source of basic CPU/memory metrics | Not selected (relates to ADR-013) | **Open** |
 | ADR-022 | Failed-rollout criteria that trigger automatic rollback | Not selected (relates to ADR-015) | **Open** |
 | ADR-023 | Repository layout | One Git monorepo with pnpm workspaces: `apps/web`, `apps/api`, `apps/worker`, `packages/shared` | **Accepted** (2026-10-25) |
-| ADR-025 | Test tooling | Vitest (runner) + Supertest (HTTP tests against `createApp()`) | **Accepted** (2026-10-25) |
+| ADR-025 | Test tooling | Vitest (runner) + Supertest (HTTP tests against the Express app, no open port) | **Accepted** (2026-10-25) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer
@@ -209,7 +209,7 @@ Template:
   error middleware, which removes the main async pitfall of Express 4.
 - **Consequences:**
   - We must define and keep our own layering: `routes → controllers → services → repositories`.
-  - No built-in DI: dependencies are wired explicitly in one composition root (e.g. `createApp(deps)`),
+  - No built-in DI: dependencies are wired explicitly in one place at startup,
     which also makes testing easy.
   - Validation, config checking, error format, request logging and OpenAPI docs are chosen per task
     (likely Zod, pino-http, helmet, cors, express-rate-limit, Supertest), each approved when introduced.

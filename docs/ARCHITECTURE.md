@@ -81,8 +81,9 @@ forgeops/                         pnpm workspace
 ├─ apps/web/                      React + Vite SPA (static files)
 ├─ apps/api/                      Express modular monolith
 │   └─ src/
-│       ├─ app.ts                 createApp(deps): composition root
-│       └─ modules/
+│       ├─ server.ts              builds the app; listens only when run directly
+│       ├─ config.ts              validated settings
+│       └─ modules/               (added with the first real feature)
 │           ├─ auth/              routes → controllers → services → repositories
 │           ├─ organizations/
 │           ├─ projects/
@@ -97,6 +98,8 @@ forgeops/                         pnpm workspace
   public service functions and never query its tables directly.
 - **Prisma only in repositories:** keeps database access in one layer per module and testable with fakes.
 - The module list above is the starting point; final boundaries are set in ticket 0.3.4.
+- **Start minimal:** today the API is one `server.ts` with the health routes. Feature modules, and a
+  separate app factory if dependencies need wiring, are added when the first real feature arrives.
 
 ## Access control (PD-008, PD-010, PD-012)
 
@@ -189,7 +192,7 @@ Rule: **abstract only what actually changes between environments.** Everything e
 
 The build engine (ADR-017) also sits behind an interface, but because of PD-002, not because of the environment.
 
-The composition root (`createApp(config)`) reads config once at startup and wires the right adapters.
+Config is read once at startup, and the right adapters are wired in one place.
 No module outside the adapters imports `amqplib` or `@aws-sdk/*` directly.
 
 ## Sections still to be written (Phase 0.3)
