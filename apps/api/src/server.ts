@@ -1,11 +1,24 @@
 import { createApp } from "./app.js";
+import { ConfigError, loadConfig } from "./config.js";
 
-const port = Number(process.env.PORT ?? 4000);
+function start(): void {
+  const config = loadConfig(process.env);
 
-createApp().listen(port, (error) => {
-  if (error) {
-    console.error("ForgeOps API failed to start:", error);
+  createApp().listen(config.port, (error) => {
+    if (error) {
+      console.error("ForgeOps API failed to start:", error);
+      process.exit(1);
+    }
+    console.log(`ForgeOps API listening on http://localhost:${config.port}`);
+  });
+}
+
+try {
+  start();
+} catch (error) {
+  if (error instanceof ConfigError) {
+    console.error(error.message);
     process.exit(1);
   }
-  console.log(`ForgeOps API listening on http://localhost:${port}`);
-});
+  throw error;
+}
