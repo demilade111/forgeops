@@ -2,5 +2,6 @@ pnpm-lock.yaml
 dist/
 build/
 coverage/
+generated/
 
 *.md

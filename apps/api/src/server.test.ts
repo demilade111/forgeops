@@ -1,13 +1,28 @@
 import request from "supertest";
 import { expect, it } from "vitest";
-import { app } from "./server.js";
+import { createApp } from "./server.js";
 
-it.each(["/health/live", "/health/ready"])("GET %s returns ok", async (path) => {
-  const res = await request(app).get(path);
+const dbUp = createApp(async () => {});
+const dbDown = createApp(() => Promise.reject(new Error("connection refused")));
+
+it("GET /health/live returns ok even when the database is down", async () => {
+  const res = await request(dbDown).get("/health/live");
   expect(res.status).toBe(200);
   expect(res.body).toEqual({ status: "ok" });
 });
 
+it("GET /health/ready returns ok when the database answers", async () => {
+  const res = await request(dbUp).get("/health/ready");
+  expect(res.status).toBe(200);
+  expect(res.body).toEqual({ status: "ok" });
+});
+
+it("GET /health/ready returns 503 when the database is down", async () => {
+  const res = await request(dbDown).get("/health/ready");
+  expect(res.status).toBe(503);
+  expect(res.body).toEqual({ status: "unavailable" });
+});
+
 it("returns 404 for unknown routes", async () => {
-  expect((await request(app).get("/nope")).status).toBe(404);
+  expect((await request(dbUp).get("/nope")).status).toBe(404);
 });
