@@ -135,7 +135,7 @@ _Learn:_ system design, bounded contexts, service boundaries, trade-offs, data o
 **Deliverable:** Browser → React (Vite) → Express API → PostgreSQL (Prisma), running locally in a pnpm monorepo.
 
 ### 1.1 — Repository and workspace setup
-- [ ] 1.1.1 Create the Git repository
+- [x] 1.1.1 Create the Git repository (private GitHub repo `demilade111/forgeops`)
 - [x] 1.1.2 Choose monorepo structure and package manager (pnpm workspaces, ADR-023)
 - [ ] 1.1.3 Configure TypeScript and shared linting
 - [ ] 1.1.4 Create frontend application workspace

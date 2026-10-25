@@ -38,11 +38,15 @@ locally / SQS in the cloud), ADR-023 (pnpm monorepo). ADR-016 (secrets) directio
 (0.1.3–0.1.10, 0.2, 0.3, 0.4) are **deferred, not dropped**: each is done just-in-time before the M1
 slice that needs it (e.g. 0.2.1 auth requirements before M1-S1).
 
-**Next phase:** Phase 1 / **M1-S0 Foundation**. First ticket: **FGO-01.01.01 Create the Git repository**
-· Status: Design discussion (awaiting go-ahead).
+**Active phase:** Phase 1 / **M1-S0 Foundation**.
 
-Local environment check (2026-10-25): git 2.50.1 ✅ · Docker 29.8.2 ✅ · Node v18.17.1 ⚠️ end-of-life,
-needs upgrade · pnpm ❌ not installed.
+**Next ticket:** FGO-01.01.03 Configure TypeScript and shared linting (1.1.2 was decided by ADR-023) ·
+Status: Design discussion.
+
+Local environment (2026-10-25): git 2.50.1 · Docker 29.8.2 · Node 24.22.1 LTS via nvm (pinned in
+`.nvmrc`; system default left unchanged, run `nvm use` in this folder) · pnpm 11.5.2 via corepack.
+
+Repository: private GitHub repo https://github.com/demilade111/forgeops, default branch `main`.
 
 ## Task log
 
@@ -52,7 +56,8 @@ needs upgrade · pnpm ❌ not installed.
 | FGO-00.01.01 | Define the first deployable application | Done | PD-001 to PD-007 |
 | FGO-00.01.02 | User personas and workflows (incl. access control) | Done | PD-008 to PD-012 |
 | FGO-00.01.03–00.04.08 | Remaining Phase 0 tickets | Deferred | Done just-in-time before the slice that needs them |
-| FGO-01.01.01 | Create the Git repository | Design discussion | Next |
+| FGO-01.01.01 | Create the Git repository | Done | Verified: repo private, `origin/main` = local `main`, `.env` and `.DS_Store` ignored |
+| FGO-01.01.03 | Configure TypeScript and shared linting | Design discussion | Next |
 
 ## Open decisions to watch
 

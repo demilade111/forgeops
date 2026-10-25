@@ -65,6 +65,16 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Monorepo + workspaces:** several apps in one Git repo. pnpm workspaces let `apps/api` import
   `packages/shared` as if it were an installed package, without publishing it.
 
+## Phase 1 — Foundation
+
+### Git repository setup (1.1.1, done)
+- **Commit:** a saved snapshot of the project with a message saying what changed and why.
+- **`.gitignore`:** files git must never track: `node_modules/` (reinstallable), build output, and **`.env`
+  files (secrets)**. A secret that gets committed stays in the git history even after you delete the file;
+  the fix is to rotate (replace) the secret, not just delete it.
+- **Remote (`origin`):** the copy on GitHub. `push` sends local commits there.
+- **`.nvmrc`:** pins the Node version for the project, so everyone (and CI later) uses the same one.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement
