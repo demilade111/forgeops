@@ -1,24 +1,16 @@
-import { createApp } from "./app.js";
-import { ConfigError, loadConfig } from "./config.js";
+import express from "express";
+import { loadConfig } from "./config.js";
 
-function start(): void {
-  const config = loadConfig(process.env);
+export const app = express();
 
-  createApp().listen(config.port, (error) => {
-    if (error) {
-      console.error("ForgeOps API failed to start:", error);
-      process.exit(1);
-    }
-    console.log(`ForgeOps API listening on http://localhost:${config.port}`);
+app.disable("x-powered-by");
+app.get("/health/live", (_req, res) => res.json({ status: "ok" }));
+app.get("/health/ready", (_req, res) => res.json({ status: "ok" }));
+
+if (import.meta.main) {
+  const { port } = loadConfig(process.env);
+  app.listen(port, (error) => {
+    if (error) throw error;
+    console.log(`API listening on http://localhost:${port}`);
   });
-}
-
-try {
-  start();
-} catch (error) {
-  if (error instanceof ConfigError) {
-    console.error(error.message);
-    process.exit(1);
-  }
-  throw error;
 }
