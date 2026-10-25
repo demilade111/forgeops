@@ -1,24 +1,18 @@
-# Dependencies
 node_modules/
 
-# Build output
 dist/
 build/
 *.tsbuildinfo
 
-# Environment and secrets — never commit real values (ADR-016)
 .env
 .env.*
 !.env.example
 
-# Test and coverage output
 coverage/
 
-# Logs
 *.log
 logs/
 
-# OS and editor files
 .DS_Store
 .idea/
 *.swp

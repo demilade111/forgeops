@@ -3,5 +3,4 @@ dist/
 build/
 coverage/
 
-# Planning docs are hand-formatted; keep Prettier from rewrapping their tables.
 *.md
