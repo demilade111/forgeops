@@ -13,6 +13,5 @@ export default defineConfig(
       globals: { ...globals.node },
     },
   },
-  // Must stay last: turns off rules that conflict with Prettier's formatting.
   prettier,
 );

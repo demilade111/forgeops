@@ -94,3 +94,4 @@ After implementation, explain:
 - Ask for approval only when a decision materially affects architecture, security, cost, or product behavior.
 - Prioritize a working end-to-end vertical slice over broad unfinished scaffolding.
 - Never add Claude attribution to commits or pull requests.
+- Never write comments in code or config files. Explanations go in the docs or the chat, not the source.
