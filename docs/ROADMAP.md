@@ -162,7 +162,7 @@ _Learn:_ React composition, client-side routing, SPA vs server rendering, Vite b
 ### 1.3 — Backend application foundation
 - [x] 1.3.1 Bootstrap Express + TypeScript (app factory `createApp()`, server entry point)
 - [ ] 1.3.2 Explain Node.js runtime and process lifecycle
-- [ ] 1.3.3 Configure environment validation
+- [x] 1.3.3 Configure environment validation (Zod schema, fail fast at startup)
 - [x] 1.3.4 Create `GET /health/live`
 - [x] 1.3.5 Create `GET /health/ready` (pluggable checks with timeout; database check added in 1.4.5)
 - [ ] 1.3.6 Configure global validation and exception handling

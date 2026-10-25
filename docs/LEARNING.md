@@ -97,6 +97,15 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - Readiness reports only `ok` / `fail` per check, never the error text, which could leak internals.
 - **Sabotage test:** break the code on purpose and confirm the tests fail. Proves the tests test something.
 
+### Environment validation (1.3.3, done)
+- **Env vars** are settings read from outside the code (`PORT`, later `DATABASE_URL`).
+- **Fail fast:** check every setting once at startup with a Zod schema; if one is wrong, refuse to start
+  with a clear message instead of crashing later on the first request that needs it.
+- Error messages name the setting but never print its value, so secrets can't leak into logs.
+- `.env.example` documents which settings exist; the real `.env` is never committed.
+- **`app.ts` vs `server.ts`:** `app.ts` builds the app (tests use it with no port); `server.ts` reads
+  config, opens the port and handles startup failures.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement
