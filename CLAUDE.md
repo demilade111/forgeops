@@ -59,7 +59,8 @@ If implementation reveals a requirement that changes the architecture, the ticke
 
 ## Learning mode
 
-Learning is just-in-time: teach a concept when the task that needs it starts, not in advance.
+Learning is just-in-time and practical: teach only what the current task needs, when it needs it.
+Skip deep internals and theory unless the product owner asks for them. A few lines per concept is enough.
 
 Before implementing a task, briefly explain:
 
