@@ -139,7 +139,7 @@ _Learn:_ system design, bounded contexts, service boundaries, trade-offs, data o
 - [x] 1.1.2 Choose monorepo structure and package manager (pnpm workspaces, ADR-023)
 - [x] 1.1.3 Configure TypeScript and shared linting (pnpm workspace, `tsconfig.base.json`, ESLint, Prettier)
 - [ ] 1.1.4 Create frontend application workspace
-- [ ] 1.1.5 Create backend application workspace
+- [x] 1.1.5 Create backend application workspace (`apps/api`, Express 5 + TypeScript, ES modules)
 - [ ] 1.1.6 Create shared types/contracts workspace if justified
 - [ ] 1.1.7 Configure formatting and pre-commit checks
 - [ ] 1.1.8 Write local setup documentation
@@ -160,7 +160,7 @@ _Learn:_ Git, monorepos, package management, TypeScript compilation, module reso
 _Learn:_ React composition, client-side routing, SPA vs server rendering, Vite builds, semantic HTML, responsive design, accessibility.
 
 ### 1.3 — Backend application foundation
-- [ ] 1.3.1 Bootstrap Express + TypeScript (app factory, layered folder structure)
+- [x] 1.3.1 Bootstrap Express + TypeScript (app factory `createApp()`, server entry point)
 - [ ] 1.3.2 Explain Node.js runtime and process lifecycle
 - [ ] 1.3.3 Configure environment validation
 - [ ] 1.3.4 Create `GET /health/live`

@@ -40,13 +40,17 @@ slice that needs it (e.g. 0.2.1 auth requirements before M1-S1).
 
 **Active phase:** Phase 1 / **M1-S0 Foundation**.
 
-**Next ticket:** FGO-01.01.05 Create backend application workspace (Express API) · Status: Design discussion.
-(1.1.4, the frontend workspace, follows; the API comes first because the dashboard's first job is to show API health.)
+**Next ticket:** FGO-01.03.04 / 01.03.05 Health endpoints `GET /health/live` and `GET /health/ready` · Status: Design discussion.
 
 Local environment (2026-10-25): git 2.50.1 · Docker 29.8.2 · Node 24.22.1 LTS via nvm (pinned in
 `.nvmrc`; system default left unchanged, run `nvm use` in this folder) · pnpm 11.5.2 via corepack.
 
 Repository: private GitHub repo https://github.com/demilade111/forgeops, default branch `main`.
+
+Dependency install scripts are blocked by default (pnpm). `esbuild` (used by tsx) is explicitly denied in
+`pnpm-workspace.yaml` because tsx works without it.
+
+Run the API locally: `nvm use`, then `pnpm --filter @forgeops/api dev` (port 4000, override with `PORT`).
 
 ## Task log
 
@@ -58,7 +62,8 @@ Repository: private GitHub repo https://github.com/demilade111/forgeops, default
 | FGO-00.01.03–00.04.08 | Remaining Phase 0 tickets | Deferred | Done just-in-time before the slice that needs them |
 | FGO-01.01.01 | Create the Git repository | Done | Verified: repo private, `origin/main` = local `main`, `.env` and `.DS_Store` ignored |
 | FGO-01.01.03 | Configure TypeScript and shared linting | Done | Verified: lint and format checks pass; lint rejects `any` and unused vars; strict tsconfig rejects unchecked index access and implicit `any` |
-| FGO-01.01.05 | Create backend application workspace | Design discussion | Next |
+| FGO-01.01.05 + 01.03.01 | Create API workspace and bootstrap Express | Done | Verified: typecheck, lint, format, build pass; server answers HTTP; busy port exits with code 1 and a clear error; `tsx watch` dev mode works |
+| FGO-01.03.04–05 | Health endpoints | Design discussion | Next |
 
 ## Open decisions to watch
 

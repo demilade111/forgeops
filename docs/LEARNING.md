@@ -82,6 +82,14 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Peer dependency:** a package saying "I only work with versions X–Y of another package". That's why we
   pinned TypeScript 6.0: typescript-eslint doesn't support 7 yet.
 
+### Express API bootstrap (1.1.5 + 1.3.1, done)
+- **`createApp()` vs `server.ts`:** `createApp()` builds the app (routes, middleware) without opening a port,
+  so tests can use it directly. `server.ts` is the only file that calls `listen()`.
+- **Express 5 `listen` callback** also receives startup errors (e.g. `EADDRINUSE`, port already in use).
+  Ignoring that argument printed "listening" for a server that had failed. Found by testing the failure case.
+- **pnpm blocks install scripts** of dependencies by default, a defence against malicious packages. Only allow
+  the ones that need them.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement
