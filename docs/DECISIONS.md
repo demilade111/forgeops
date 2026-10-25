@@ -149,6 +149,7 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-021 | Source of basic CPU/memory metrics | Not selected (relates to ADR-013) | **Open** |
 | ADR-022 | Failed-rollout criteria that trigger automatic rollback | Not selected (relates to ADR-015) | **Open** |
 | ADR-023 | Repository layout | One Git monorepo with pnpm workspaces: `apps/web`, `apps/api`, `apps/worker`, `packages/shared` | **Accepted** (2026-10-25) |
+| ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer
 
@@ -266,6 +267,15 @@ Template:
   review and lint rules. Whether the Prisma schema gets its own `packages/db` package instead of living in
   `packages/shared` is decided in ticket 1.4.3. A build orchestrator (e.g. Turborepo) is not adopted unless
   justified later.
+
+### ADR-024 — Code-quality toolchain
+- **Status:** Accepted (2026-10-25), approved by the product owner in ticket 1.1.3.
+- **Decision:** TypeScript 6.0.x with a shared strict `tsconfig.base.json` that each app extends; ESLint
+  (flat config) with `typescript-eslint` recommended rules; Prettier for formatting, with
+  `eslint-config-prettier` so the two never disagree. Markdown docs are excluded from Prettier.
+- **Why TypeScript 6.0, not 7:** TypeScript 7 (the new native compiler) is the latest release, but
+  `typescript-eslint` 8.72 only supports TypeScript `<6.1`. Revisit when typescript-eslint supports 7.
+- **Not yet:** type-aware lint rules (need per-app tsconfigs; add once apps exist) and pre-commit hooks (ticket 1.1.7).
 
 ### ADR-006 — Message queue: RabbitMQ locally, AWS SQS in the cloud
 - **Status:** Accepted (2026-10-24)

@@ -137,7 +137,7 @@ _Learn:_ system design, bounded contexts, service boundaries, trade-offs, data o
 ### 1.1 — Repository and workspace setup
 - [x] 1.1.1 Create the Git repository (private GitHub repo `demilade111/forgeops`)
 - [x] 1.1.2 Choose monorepo structure and package manager (pnpm workspaces, ADR-023)
-- [ ] 1.1.3 Configure TypeScript and shared linting
+- [x] 1.1.3 Configure TypeScript and shared linting (pnpm workspace, `tsconfig.base.json`, ESLint, Prettier)
 - [ ] 1.1.4 Create frontend application workspace
 - [ ] 1.1.5 Create backend application workspace
 - [ ] 1.1.6 Create shared types/contracts workspace if justified

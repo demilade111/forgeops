@@ -75,6 +75,13 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Remote (`origin`):** the copy on GitHub. `push` sends local commits there.
 - **`.nvmrc`:** pins the Node version for the project, so everyone (and CI later) uses the same one.
 
+### TypeScript, ESLint, Prettier (1.1.3, done)
+- **TypeScript compiler (`tsc`)** checks types; **ESLint** catches risky patterns (unused vars, `any`);
+  **Prettier** only formats. Three tools, three jobs.
+- **Shared base config:** apps extend `tsconfig.base.json`, so strictness is defined once.
+- **Peer dependency:** a package saying "I only work with versions X–Y of another package". That's why we
+  pinned TypeScript 6.0: typescript-eslint doesn't support 7 yet.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement
