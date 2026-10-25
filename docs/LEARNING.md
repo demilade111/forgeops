@@ -111,6 +111,14 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   `docker compose down -v` deletes it.
 - **Port conflicts:** two programs can't listen on the same port. `lsof -iTCP:5432 -sTCP:LISTEN` shows who owns it.
 
+### Prisma and the database readiness check (1.4.3, 1.4.5, done)
+- **Prisma schema** (`prisma/schema.prisma`) describes the database; `prisma generate` turns it into a
+  typed client; **migrations** (`prisma migrate dev`) are versioned SQL changes. No tables yet.
+- **Driver adapter** (`@prisma/adapter-pg`): Prisma 7 talks to PostgreSQL through the `pg` driver.
+- **Readiness = can I reach the database?** `/health/ready` runs `SELECT 1`; if it fails it returns 503,
+  while `/health/live` stays 200, because restarting the API won't fix a stopped database.
+- **Generated code isn't committed:** it's rebuilt from the schema on install (`postinstall`).
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement

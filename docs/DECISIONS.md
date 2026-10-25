@@ -251,7 +251,10 @@ Template:
     outbox row atomically.
   - Raw SQL is allowed where Prisma can't express something cleanly (e.g. row locking for job claiming),
     kept inside repositories.
-  - Prisma version and generator settings are pinned when the database is set up (ticket 1.4.3).
+  - Set up in ticket 1.4.3: Prisma 7.10.1 (CLI pinned; `latest` briefly resolved to an 8.0 release candidate),
+    `prisma-client` generator writing to `src/generated/prisma` (git-ignored, regenerated on install),
+    the `@prisma/adapter-pg` driver with a 2 s connection timeout, and `.env` loaded with Node's built-in
+    `process.loadEnvFile` instead of the `dotenv` package. Prisma's install scripts are denied; the CLI works without them.
 
 ### ADR-023 — Repository layout: pnpm monorepo
 - **Status:** Accepted (2026-10-25). Chosen by the product owner.
@@ -268,6 +271,8 @@ Template:
   review and lint rules. Whether the Prisma schema gets its own `packages/db` package instead of living in
   `packages/shared` is decided in ticket 1.4.3. A build orchestrator (e.g. Turborepo) is not adopted unless
   justified later.
+- **Update (2026-10-25, ticket 1.4.3):** Prisma lives in `apps/api/prisma` for now; it moves to a shared
+  package when the worker needs database access.
 
 ### ADR-024 — Code-quality toolchain
 - **Status:** Accepted (2026-10-25), approved by the product owner in ticket 1.1.3.

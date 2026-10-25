@@ -40,7 +40,8 @@ slice that needs it (e.g. 0.2.1 auth requirements before M1-S1).
 
 **Active phase:** Phase 1 / **M1-S0 Foundation**.
 
-**Next ticket:** FGO-01.04.03 Configure database connection and migrations (Prisma) · Status: Design discussion.
+**Next ticket:** FGO-01.01.04 Create the frontend workspace (React + Vite), then 1.4.6–1.4.8 show API
+status in the dashboard. That completes M1-S0. · Status: Design discussion.
 (1.3.6 error handling is deferred until the first real feature needs it.)
 
 Local environment (2026-10-25): git 2.50.1 · Docker 29.8.2 · Node 24.22.1 LTS via nvm (pinned in
@@ -56,6 +57,10 @@ Run the API locally: `nvm use`, then `pnpm --filter @forgeops/api dev` (port 400
 Local database: `docker compose up -d` starts PostgreSQL 18 on `127.0.0.1:5433` (user, password and database
 all `forgeops`; local development only). Port 5433 because Homebrew PostgreSQL 14 already uses 5432.
 Stop with `docker compose stop`; `docker compose down -v` also deletes the data.
+
+API settings live in `apps/api/.env` (git-ignored; copy from `.env.example`). The Prisma client is generated
+into `apps/api/src/generated/` on install; after editing `schema.prisma`, run
+`pnpm --filter @forgeops/api exec prisma generate`.
 
 ## Task log
 
@@ -73,7 +78,9 @@ Stop with `docker compose stop`; `docker compose down -v` also deletes the data.
 | — | Simplify API to a single `server.ts` | Done | Owner request: removed `app.ts` and the health module; readiness returns ok until 1.4.5. Verified: 11 tests pass, sabotage test caught a leaked value, built and dev servers answer 200, bad PORT and busy port exit 1 |
 | FGO-01.03.06 | Global validation and exception handling | Deferred | Added when the first real feature needs it |
 | FGO-01.04.01 | Start PostgreSQL locally | Done | Verified: PostgreSQL 18.6 reachable on 127.0.0.1:5433 only; data survives a container restart; Homebrew PostgreSQL 14 on 5432 untouched |
-| FGO-01.04.03 | Prisma connection and migrations | Design discussion | Next |
+| FGO-01.04.03, 01.04.05 | Prisma + database readiness check | Done | Verified: 15 tests pass; real server returns ready 200 with DB up, 503 instantly with DB stopped (live stays 200), back to 200 ~3 s after DB restart; missing DATABASE_URL refused; fresh install regenerates the client; dev mode reads `.env` |
+| FGO-01.04.04 | Initial database schema | Deferred | Comes with M1-S1 identity tables |
+| FGO-01.01.04 | Frontend workspace | Design discussion | Next |
 
 ## Open decisions to watch
 

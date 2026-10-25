@@ -176,9 +176,9 @@ _Learn:_ HTTP, ports, processes, the Express request lifecycle, middleware order
 ### 1.4 — Database and frontend integration
 - [x] 1.4.1 Start PostgreSQL locally (Docker Compose, PostgreSQL 18, host port 5433)
 - [x] 1.4.2 Compare database access libraries (Prisma chosen, ADR-005)
-- [ ] 1.4.3 Configure database connection and migrations
-- [ ] 1.4.4 Define an initial database schema
-- [ ] 1.4.5 Add a database readiness check
+- [x] 1.4.3 Configure database connection and migrations (Prisma 7 + `@prisma/adapter-pg`; first migration comes with the first model)
+- [ ] 1.4.4 Define an initial database schema (deferred to M1-S1: identity and organization tables)
+- [x] 1.4.5 Add a database readiness check
 - [ ] 1.4.6 Configure frontend API client
 - [ ] 1.4.7 Display live API status in the dashboard
 - [ ] 1.4.8 Handle API unavailable and timeout states
