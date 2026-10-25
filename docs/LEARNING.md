@@ -103,6 +103,14 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - Error messages name the setting but never print its value, so secrets can't leak into logs.
 - `.env.example` documents which settings exist; the real `.env` is never committed.
 
+### Local PostgreSQL with Docker Compose (1.4.1, done)
+- **Docker Compose** starts containers from one file (`docker-compose.yml`) with `docker compose up -d`.
+- **Port mapping** `127.0.0.1:5433:5432`: the Mac's port 5433 forwards to Postgres's 5432 inside the container,
+  and `127.0.0.1` means only this machine can connect, not others on the Wi-Fi.
+- **Named volume** (`postgres-data`): where the data lives, so it survives container restarts.
+  `docker compose down -v` deletes it.
+- **Port conflicts:** two programs can't listen on the same port. `lsof -iTCP:5432 -sTCP:LISTEN` shows who owns it.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement

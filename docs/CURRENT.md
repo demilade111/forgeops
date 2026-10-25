@@ -40,7 +40,8 @@ slice that needs it (e.g. 0.2.1 auth requirements before M1-S1).
 
 **Active phase:** Phase 1 / **M1-S0 Foundation**.
 
-**Next ticket:** FGO-01.03.06 Configure global validation and exception handling · Status: Design discussion.
+**Next ticket:** FGO-01.04.03 Configure database connection and migrations (Prisma) · Status: Design discussion.
+(1.3.6 error handling is deferred until the first real feature needs it.)
 
 Local environment (2026-10-25): git 2.50.1 · Docker 29.8.2 · Node 24.22.1 LTS via nvm (pinned in
 `.nvmrc`; system default left unchanged, run `nvm use` in this folder) · pnpm 11.5.2 via corepack.
@@ -51,6 +52,10 @@ Dependency install scripts are blocked by default (pnpm). `esbuild` (used by tsx
 `pnpm-workspace.yaml` because tsx works without it.
 
 Run the API locally: `nvm use`, then `pnpm --filter @forgeops/api dev` (port 4000, override with `PORT`).
+
+Local database: `docker compose up -d` starts PostgreSQL 18 on `127.0.0.1:5433` (user, password and database
+all `forgeops`; local development only). Port 5433 because Homebrew PostgreSQL 14 already uses 5432.
+Stop with `docker compose stop`; `docker compose down -v` also deletes the data.
 
 ## Task log
 
@@ -66,7 +71,9 @@ Run the API locally: `nvm use`, then `pnpm --filter @forgeops/api dev` (port 400
 | FGO-01.03.04–05, 01.03.09 | Health endpoints + test setup | Done | Verified: 7 tests pass (live, ready, failing check, timeout, no error leak, 404); sabotaging readiness makes 2 tests fail; real server answers both endpoints |
 | FGO-01.03.03 | Environment validation | Done | Verified: 15 tests pass; real server refuses PORT=abc/0/70000 with a clear message and exit 1; unset PORT uses 4000; error messages never echo the rejected value |
 | — | Simplify API to a single `server.ts` | Done | Owner request: removed `app.ts` and the health module; readiness returns ok until 1.4.5. Verified: 11 tests pass, sabotage test caught a leaked value, built and dev servers answer 200, bad PORT and busy port exit 1 |
-| FGO-01.03.06 | Global validation and exception handling | Design discussion | Next |
+| FGO-01.03.06 | Global validation and exception handling | Deferred | Added when the first real feature needs it |
+| FGO-01.04.01 | Start PostgreSQL locally | Done | Verified: PostgreSQL 18.6 reachable on 127.0.0.1:5433 only; data survives a container restart; Homebrew PostgreSQL 14 on 5432 untouched |
+| FGO-01.04.03 | Prisma connection and migrations | Design discussion | Next |
 
 ## Open decisions to watch
 

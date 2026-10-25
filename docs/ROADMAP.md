@@ -174,7 +174,7 @@ _Learn:_ React composition, client-side routing, SPA vs server rendering, Vite b
 _Learn:_ HTTP, ports, processes, the Express request lifecycle, middleware order, manual dependency wiring, controllers, services, error middleware, event loop.
 
 ### 1.4 — Database and frontend integration
-- [ ] 1.4.1 Start PostgreSQL locally
+- [x] 1.4.1 Start PostgreSQL locally (Docker Compose, PostgreSQL 18, host port 5433)
 - [x] 1.4.2 Compare database access libraries (Prisma chosen, ADR-005)
 - [ ] 1.4.3 Configure database connection and migrations
 - [ ] 1.4.4 Define an initial database schema
