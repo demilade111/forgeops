@@ -149,6 +149,7 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-021 | Source of basic CPU/memory metrics | Not selected (relates to ADR-013) | **Open** |
 | ADR-022 | Failed-rollout criteria that trigger automatic rollback | Not selected (relates to ADR-015) | **Open** |
 | ADR-023 | Repository layout | One Git monorepo with pnpm workspaces: `apps/web`, `apps/api`, `apps/worker`, `packages/shared` | **Accepted** (2026-10-25) |
+| ADR-025 | Test tooling | Vitest (runner) + Supertest (HTTP tests against `createApp()`) | **Accepted** (2026-10-25) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer

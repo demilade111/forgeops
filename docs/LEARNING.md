@@ -90,6 +90,13 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **pnpm blocks install scripts** of dependencies by default, a defence against malicious packages. Only allow
   the ones that need them.
 
+### Health checks and tests (1.3.4, 1.3.5, 1.3.9, done)
+- **Liveness** (`/health/live`): "is the process running?" If it fails, restart the process.
+- **Readiness** (`/health/ready`): "can it serve requests now?" If it fails (503), stop sending traffic
+  but don't restart. It runs each check with a **timeout**, so a hung database can't hang the probe.
+- Readiness reports only `ok` / `fail` per check, never the error text, which could leak internals.
+- **Sabotage test:** break the code on purpose and confirm the tests fail. Proves the tests test something.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement
