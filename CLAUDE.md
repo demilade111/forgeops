@@ -84,7 +84,8 @@ After implementation, explain:
 
 - Update `docs/CURRENT.md` at the end of each completed task.
 - Keep task statuses accurate (see Task contract above).
-- Record significant architecture decisions in `docs/DECISIONS.md`.
+- Record **every** technical decision in `docs/DECISIONS.md`, including small ones (libraries, formats,
+  conventions): the options considered, the trade-offs, the choice and its consequences.
 - Update `docs/LEARNING.md` with concise explanations and concepts encountered.
 - Log every real issue hit (failed install, bug, misleading test, environment problem) in `docs/ISSUES.md`
   as it happens, in STAR form (Situation, Task, Action, Result) plus a one-line lesson, first person.

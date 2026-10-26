@@ -132,7 +132,7 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-004 | Primary database | PostgreSQL | **Accepted** (2026-10-25) |
 | ADR-005 | ORM / data access and migrations | Prisma | **Accepted** (2026-10-25) |
 | ADR-006 | Message queue | RabbitMQ locally, AWS SQS in the cloud, behind one queue interface | **Accepted** (2026-10-24) |
-| ADR-007 | Authentication mechanism | Leaning: server-side sessions in httpOnly cookies + email/password (not decided; Phase 2.1). Must support PD-010 in M1 | Open |
+| ADR-007 | Authentication mechanism | Server-side sessions in PostgreSQL, httpOnly cookie, email + password (not JWT) | **Accepted** (2026-10-25) |
 | ADR-008 | Repository integration | GitHub App with least-privilege permissions; must support many repositories per project (PD-001) | Proposed |
 | ADR-009 | Build execution | Controlled CI-based builds before self-hosted runners; applies to both build methods (PD-002) | Proposed |
 | ADR-010 | Workload orchestration | Local Kubernetes first; managed cluster later if justified | Proposed |
@@ -150,6 +150,9 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-022 | Failed-rollout criteria that trigger automatic rollback | Not selected (relates to ADR-015) | **Open** |
 | ADR-023 | Repository layout | One Git monorepo with pnpm workspaces: `apps/frontend`, `apps/api`, `apps/worker`, `packages/shared` | **Accepted** (2026-10-25) |
 | ADR-025 | Test tooling | Vitest (runner) + Supertest (HTTP tests against the Express app, no open port) | **Accepted** (2026-10-25) |
+| ADR-026 | Password hashing | Node's built-in `crypto.scrypt` (not argon2 / bcrypt packages) | **Accepted** (2026-10-25) |
+| ADR-027 | API route prefix | Application routes under `/api/...`; health checks stay at `/health/...`; no version prefix yet | **Accepted** (2026-10-25) |
+| ADR-028 | Error responses | One JSON shape `{ "error": { "code", "message" } }`; no stack traces or internal details | **Accepted** (2026-10-25) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer
@@ -284,6 +287,59 @@ Template:
 - **Why TypeScript 6.0, not 7:** TypeScript 7 (the new native compiler) is the latest release, but
   `typescript-eslint` 8.72 only supports TypeScript `<6.1`. Revisit when typescript-eslint supports 7.
 - **Not yet:** type-aware lint rules (need per-app tsconfigs; add once apps exist) and pre-commit hooks (ticket 1.1.7).
+
+### ADR-007 — Authentication: server-side sessions, not JWT
+- **Status:** Accepted (2026-10-25). Approved by the product owner.
+- **Context:** M1 needs real sign-up, login and logout (PD-010) for one browser app talking to one API with
+  its own PostgreSQL database. ForgeOps can trigger deployments, so being able to cut off access instantly matters.
+- **Options considered:**
+  | | Server-side sessions | JWT (stateless tokens) |
+  | --- | --- | --- |
+  | Browser holds | Random opaque ID in a cookie | Signed token containing user data |
+  | Logout / revoke | Delete the row: immediate | Valid until expiry unless you add a blocklist (a session table again) |
+  | Per-request cost | One indexed DB lookup | Signature check only |
+  | Fits | One app + one API + one DB | Many services verifying identity without a shared store |
+  | Main risks | Session store availability | Token theft can't be revoked; key management; storing tokens in JS-readable storage |
+- **Decision:** Server-side sessions stored in PostgreSQL.
+  - **Token:** 32 random bytes (`crypto.randomBytes`), sent to the browser in a cookie. The database stores only
+    its **SHA-256 hash**, so a leaked database can't be used to log in as anyone.
+  - **Cookie:** `forgeops_session`, `HttpOnly` (JavaScript can't read it), `SameSite=Lax`, `Secure` in
+    production, `Path=/`.
+  - **Lifetime:** 7 days from login, fixed (not sliding). Logout deletes the row.
+  - **Storage:** a `sessions` table in PostgreSQL, not Redis: no new infrastructure, and revocation is a `DELETE`.
+  - **CSRF:** `SameSite=Lax` stops browsers from sending the cookie on cross-site POSTs, and state-changing
+    endpoints only accept `application/json`, which cross-site forms can't send without a CORS preflight.
+- **Consequences:** Every authenticated request does one DB lookup (fine at our scale; cacheable later).
+  Sessions survive API restarts. A future mobile client or third-party API access would need tokens, which
+  would be a new decision.
+- **Deferred:** rate limiting on login and sign-up (ticket 2.2.9), "log out everywhere", sliding expiry.
+
+### ADR-026 — Password hashing: Node's built-in scrypt
+- **Status:** Accepted (2026-10-25)
+- **Options considered:**
+  - **argon2 (package):** OWASP's first choice, but a native add-on with install scripts. pnpm blocks those
+    by default (ISS-005), and it adds a compiled dependency.
+  - **bcrypt (package):** widely used, but also native, and truncates passwords at 72 bytes.
+  - **scrypt (Node built-in `crypto.scrypt`):** OWASP-recommended memory-hard algorithm, zero dependencies.
+- **Decision:** scrypt with OWASP's parameters (N = 2^17, r = 8, p = 1), a random 16-byte salt per password,
+  stored as `scrypt$N$r$p$salt$hash` so parameters can be raised later. Comparison uses `timingSafeEqual`.
+- **Consequences:** No native dependencies and no install scripts. Each hash takes about 0.1–0.3 s by design,
+  which slows brute-force attempts and also means sign-up and login are not instant.
+
+### ADR-027 — API route prefix
+- **Status:** Accepted (2026-10-25)
+- **Decision:** Product endpoints live under `/api/...` (e.g. `/api/auth/login`, `/api/me`). Health checks stay
+  at `/health/...` because infrastructure probes call them, not the product UI.
+- **Why:** One prefix gives one Vite proxy rule in development and one routing rule behind a load balancer later.
+- **Not yet:** a version prefix like `/api/v1`. Only our own frontend calls the API, so versioning would add
+  ceremony with no consumer to protect. Revisit before any external client exists (ticket 1.3.8).
+
+### ADR-028 — Error response format
+- **Status:** Accepted (2026-10-25)
+- **Decision:** Every error is JSON: `{ "error": { "code": "INVALID_CREDENTIALS", "message": "..." } }` with the
+  matching HTTP status (400 validation, 401 not logged in or wrong credentials, 409 conflict, 404, 500).
+  Unexpected errors return a generic 500 and are logged on the server; stack traces never reach the client.
+- **Why:** The frontend can branch on a stable `code` instead of parsing English, and nothing internal leaks.
 
 ### ADR-006 — Message queue: RabbitMQ locally, AWS SQS in the cloud
 - **Status:** Accepted (2026-10-24)

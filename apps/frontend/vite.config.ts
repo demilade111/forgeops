@@ -3,5 +3,5 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [react()],
-  server: { proxy: { "/health": "http://localhost:4000" } },
+  server: { proxy: { "/api": "http://localhost:4000", "/health": "http://localhost:4000" } },
 });
