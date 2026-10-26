@@ -19,7 +19,7 @@ accepted ADR) or **Under evaluation** (proposed or open). See `docs/DECISIONS.md
 | Operations | Logs, history, commit/image tracking, health, manual + automatic rollback, CPU/memory metrics, alerts (PD-006) | Metrics source (ADR-021), alert channel (ADR-020), failed-rollout criteria (ADR-022) |
 | Frontend | React + Vite + TypeScript SPA calling the Express API (ADR-002) | Router and data-fetching libraries (Phase 1.2) |
 | Database | PostgreSQL as the source of truth (ADR-004); Prisma for schema, migrations and queries (ADR-005) | — |
-| Repository layout | pnpm monorepo: `apps/web`, `apps/api`, `apps/worker`, `packages/shared` (ADR-023) | Separate `packages/db` for Prisma? (ticket 1.4.3) |
+| Repository layout | pnpm monorepo: `apps/frontend`, `apps/api`, `apps/worker`, `packages/shared` (ADR-023) | Separate `packages/db` for Prisma? (ticket 1.4.3) |
 | Workload environment | One controlled deployment environment in V1 | Kubernetes, local first (ADR-010, proposed); managed URLs and routing (ADR-019, open) |
 | Access control | Org-scoped authorization, single `owner` role in V1, several orgs per user (PD-008); real accounts in M1 (PD-010) | Authentication mechanism (ADR-007); workload-side isolation (ADR-014) |
 
@@ -78,7 +78,7 @@ Rules that follow from PD-001:
 
 ```
 forgeops/                         pnpm workspace
-├─ apps/web/                      React + Vite SPA (static files)
+├─ apps/frontend/                 React + Vite SPA (static files)
 ├─ apps/api/                      Express modular monolith
 │   └─ src/
 │       ├─ server.ts              builds the app; listens only when run directly

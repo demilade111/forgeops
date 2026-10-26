@@ -40,8 +40,11 @@ slice that needs it (e.g. 0.2.1 auth requirements before M1-S1).
 
 **Active phase:** Phase 1 / **M1-S0 Foundation**.
 
-**Next ticket:** FGO-01.01.04 Create the frontend workspace (React + Vite), then 1.4.6–1.4.8 show API
-status in the dashboard. That completes M1-S0. · Status: Design discussion.
+**M1-S0 status:** the foundation runs end to end (browser → React → Express → PostgreSQL) and reports
+failures correctly. To formally pass the Phase 1 gate, the setup commands still need a README (1.1.8).
+
+**Next ticket:** FGO-01.01.08 Write local setup documentation (README) · Status: Design discussion.
+Then M1-S1 (identity), which first needs ADR-007 (authentication mechanism).
 (1.3.6 error handling is deferred until the first real feature needs it.)
 
 Local environment (2026-10-25): git 2.50.1 · Docker 29.8.2 · Node 24.22.1 LTS via nvm (pinned in
@@ -62,6 +65,9 @@ API settings live in `apps/api/.env` (git-ignored; copy from `.env.example`). Th
 into `apps/api/src/generated/` on install; after editing `schema.prisma`, run
 `pnpm --filter @forgeops/api exec prisma generate`.
 
+Run the frontend: `pnpm --filter @forgeops/frontend dev` (http://localhost:5173). Vite forwards `/health`
+to the API on port 4000, so start the API and database first.
+
 ## Task log
 
 | Ticket | Title | Status | Notes |
@@ -80,7 +86,9 @@ into `apps/api/src/generated/` on install; after editing `schema.prisma`, run
 | FGO-01.04.01 | Start PostgreSQL locally | Done | Verified: PostgreSQL 18.6 reachable on 127.0.0.1:5433 only; data survives a container restart; Homebrew PostgreSQL 14 on 5432 untouched |
 | FGO-01.04.03, 01.04.05 | Prisma + database readiness check | Done | Verified: 15 tests pass; real server returns ready 200 with DB up, 503 instantly with DB stopped (live stays 200), back to 200 ~3 s after DB restart; missing DATABASE_URL refused; fresh install regenerates the client; dev mode reads `.env` |
 | FGO-01.04.04 | Initial database schema | Deferred | Comes with M1-S1 identity tables |
-| FGO-01.01.04 | Frontend workspace | Design discussion | Next |
+| FGO-01.01.04, 01.04.06–08 | Frontend workspace + live API status | Done | Verified: 20 tests pass (5 frontend, 15 API); typecheck, lint, format, build pass; in a real browser the page showed "healthy", then "database unavailable" with Postgres stopped, "API unreachable" with the API stopped, and recovered on its own when both came back |
+| — | Rename `apps/web` to `apps/frontend` | Done | Owner request; docs and lockfile updated |
+| FGO-01.01.08 | Local setup documentation (README) | Design discussion | Next |
 
 ## Open decisions to watch
 

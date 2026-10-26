@@ -100,3 +100,4 @@ After implementation, explain:
 - Never add Claude attribution to commits or pull requests.
 - Never write comments in code or config files. Explanations go in the docs or the chat, not the source.
 - Write minimal, concise code: the fewest files and lines that do the job. Add structure only when a real need appears.
+- No emoji anywhere in frontend or backend code, UI text or API responses.

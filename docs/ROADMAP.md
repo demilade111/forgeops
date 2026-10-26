@@ -138,7 +138,7 @@ _Learn:_ system design, bounded contexts, service boundaries, trade-offs, data o
 - [x] 1.1.1 Create the Git repository (private GitHub repo `demilade111/forgeops`)
 - [x] 1.1.2 Choose monorepo structure and package manager (pnpm workspaces, ADR-023)
 - [x] 1.1.3 Configure TypeScript and shared linting (pnpm workspace, `tsconfig.base.json`, ESLint, Prettier)
-- [ ] 1.1.4 Create frontend application workspace
+- [x] 1.1.4 Create frontend application workspace (`apps/frontend`, React 19 + Vite 8)
 - [x] 1.1.5 Create backend application workspace (`apps/api`, Express 5 + TypeScript, ES modules)
 - [ ] 1.1.6 Create shared types/contracts workspace if justified
 - [ ] 1.1.7 Configure formatting and pre-commit checks
@@ -179,9 +179,9 @@ _Learn:_ HTTP, ports, processes, the Express request lifecycle, middleware order
 - [x] 1.4.3 Configure database connection and migrations (Prisma 7 + `@prisma/adapter-pg`; first migration comes with the first model)
 - [ ] 1.4.4 Define an initial database schema (deferred to M1-S1: identity and organization tables)
 - [x] 1.4.5 Add a database readiness check
-- [ ] 1.4.6 Configure frontend API client
-- [ ] 1.4.7 Display live API status in the dashboard
-- [ ] 1.4.8 Handle API unavailable and timeout states
+- [x] 1.4.6 Configure frontend API client (Vite dev proxy for `/health`, fetch with 3 s timeout)
+- [x] 1.4.7 Display live API status in the dashboard (polls every 5 s)
+- [x] 1.4.8 Handle API unavailable and timeout states
 - [ ] 1.4.9 Write end-to-end health flow tests
 
 _Learn:_ database servers, connections, pools, SQL migrations, fetch, CORS, timeouts, error propagation.

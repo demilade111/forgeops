@@ -8,6 +8,34 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-015 — A clicked file link said "Couldn't find this file" after a rename (1.1.4)
+- **Situation:** Mid-ticket, the product owner asked to rename the frontend folder from `apps/web` to
+  `apps/frontend`. Afterwards, opening a file from an earlier link failed: the path no longer existed.
+- **Task:** Make the rename complete, so nothing in the repo still pointed at the old path.
+- **Action:** I searched the whole repo for `apps/web` and `@forgeops/web` (code, docs, config, lockfile),
+  updated each match, regenerated the lockfile, and reran every check. Links already sent in chat can't be
+  edited, so I pointed to the new path.
+- **Result:** Zero references to the old path in the repo; all 20 tests, typecheck, lint and build passed.
+- **Lesson:** A rename isn't done when the folder moves. Search for every reference, including docs and lockfiles.
+
+## ISS-014 — The dashboard said "API unreachable" while the API was running (1.4.7)
+- **Situation:** On the first browser test, the page showed "API unreachable" even though the API logs said
+  "listening" and `curl` returned 200.
+- **Task:** Find out whether the frontend's API connection was broken.
+- **Action:** I compared a direct call, a call through Vite's proxy, and the Vite logs. The logs showed
+  `ECONNREFUSED`: the page's first request arrived before the API had finished starting.
+- **Result:** Nothing was broken. Because the page polls every 5 s, it switched to "healthy" on its own. I
+  then verified all three states by stopping the database and the API in turn.
+- **Lesson:** Distributed systems start in a race. Clients should retry instead of trusting one first result.
+
+## ISS-013 — Shell commands failed because of zsh, not the code (1.1.4)
+- **Situation:** Two verification commands failed with `=== not found` and `no matches found: --include=*.md`.
+- **Task:** Tell a real failure apart from a tooling quirk.
+- **Action:** I found two zsh behaviours: a word starting with `=` is treated as a command lookup, and an
+  unquoted glob that matches nothing aborts the command. I quoted the patterns and reran.
+- **Result:** Both commands worked; the install they were checking had actually succeeded.
+- **Lesson:** Read the error source. A failing check script doesn't mean the thing it checks failed.
+
 ## ISS-012 — The generated database client "disappeared" (1.4.3)
 - **Situation:** After setting Prisma to regenerate its client on install, I deleted the client and ran
   `pnpm install`. The dev server then crashed with `ERR_MODULE_NOT_FOUND`.
@@ -71,6 +99,7 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
   watcher first, then the child, and confirmed with `lsof` that the port was free.
 - **Result:** Clean shutdowns, and no leftover processes interfering with later checks.
 - **Lesson:** Understand the process tree. Supervisors restart children, so always verify cleanup.
+  Also: `lsof -ti tcp:PORT` lists clients too; use `-sTCP:LISTEN` to see only the server holding the port.
 
 ## ISS-005 — Dependencies asked to run code at install time (1.1.5, 1.4.3)
 - **Situation:** pnpm refused to run install scripts for `esbuild`, `prisma` and `@prisma/engines`.

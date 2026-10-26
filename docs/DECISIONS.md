@@ -148,7 +148,7 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-020 | Failure alert delivery channel(s) | Not selected | **Open** |
 | ADR-021 | Source of basic CPU/memory metrics | Not selected (relates to ADR-013) | **Open** |
 | ADR-022 | Failed-rollout criteria that trigger automatic rollback | Not selected (relates to ADR-015) | **Open** |
-| ADR-023 | Repository layout | One Git monorepo with pnpm workspaces: `apps/web`, `apps/api`, `apps/worker`, `packages/shared` | **Accepted** (2026-10-25) |
+| ADR-023 | Repository layout | One Git monorepo with pnpm workspaces: `apps/frontend`, `apps/api`, `apps/worker`, `packages/shared` | **Accepted** (2026-10-25) |
 | ADR-025 | Test tooling | Vitest (runner) + Supertest (HTTP tests against the Express app, no open port) | **Accepted** (2026-10-25) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
@@ -261,7 +261,7 @@ Template:
 - **Decision:** One Git repository with pnpm workspaces:
   ```
   forgeops/
-  ├─ apps/web/       React + Vite frontend
+  ├─ apps/frontend/  React + Vite frontend
   ├─ apps/api/       Express modular monolith (src/modules/<feature>/)
   ├─ apps/worker/    deployment worker
   └─ packages/shared/  shared types and the Prisma client
@@ -271,6 +271,8 @@ Template:
   review and lint rules. Whether the Prisma schema gets its own `packages/db` package instead of living in
   `packages/shared` is decided in ticket 1.4.3. A build orchestrator (e.g. Turborepo) is not adopted unless
   justified later.
+- **Update (2026-10-25, ticket 1.1.4):** the frontend folder is `apps/frontend` (renamed from `apps/web` at the
+  product owner's request).
 - **Update (2026-10-25, ticket 1.4.3):** Prisma lives in `apps/api/prisma` for now; it moves to a shared
   package when the worker needs database access.
 

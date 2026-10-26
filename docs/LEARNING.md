@@ -119,6 +119,14 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   while `/health/live` stays 200, because restarting the API won't fix a stopped database.
 - **Generated code isn't committed:** it's rebuilt from the schema on install (`postinstall`).
 
+### Frontend status page (1.1.4, 1.4.6–1.4.8, done)
+- **Vite dev proxy:** the page calls `/health/ready` on its own origin (5173) and Vite forwards it to the API
+  (4000). Same origin means no CORS setup is needed in development.
+- **Three states from one request:** 200 = healthy, 503 = API up but database down, anything else or no
+  answer within 3 s (`AbortSignal.timeout`) = API unreachable.
+- **Polling every 5 s** lets the page recover by itself when the API or database comes back.
+- `useEffect` returns a cleanup that stops the timer when the component unmounts.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement
