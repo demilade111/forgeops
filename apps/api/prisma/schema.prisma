@@ -8,3 +8,45 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model User {
+  id           String       @id @default(uuid(7)) @db.Uuid
+  email        String       @unique
+  passwordHash String
+  createdAt    DateTime     @default(now())
+  memberships  Membership[]
+  sessions     Session[]
+}
+
+model Organization {
+  id          String       @id @default(uuid(7)) @db.Uuid
+  name        String
+  createdAt   DateTime     @default(now())
+  memberships Membership[]
+}
+
+enum Role {
+  owner
+}
+
+model Membership {
+  userId         String       @db.Uuid
+  organizationId String       @db.Uuid
+  role           Role
+  createdAt      DateTime     @default(now())
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, organizationId])
+  @@index([organizationId])
+}
+
+model Session {
+  tokenHash String   @id
+  userId    String   @db.Uuid
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

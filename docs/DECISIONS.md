@@ -153,6 +153,10 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-026 | Password hashing | Node's built-in `crypto.scrypt` (not argon2 / bcrypt packages) | **Accepted** (2026-10-25) |
 | ADR-027 | API route prefix | Application routes under `/api/...`; health checks stay at `/health/...`; no version prefix yet | **Accepted** (2026-10-25) |
 | ADR-028 | Error responses | One JSON shape `{ "error": { "code", "message" } }`; no stack traces or internal details | **Accepted** (2026-10-25) |
+| ADR-029 | Identity data model | `User`, `Organization`, `Membership` (role on the membership), `Session` (hashed token); UUIDv7 ids; lowercase emails | **Accepted** (2026-10-26) |
+| ADR-030 | Database tests | Integration tests run against a real PostgreSQL test database (`forgeops_test`), not mocks | **Accepted** (2026-10-26) |
+| ADR-031 | Health status in the UI | No health display in the dashboard; `/health/live` and `/health/ready` stay for infrastructure probes | **Accepted** (2026-10-26) |
+| ADR-032 | Unused-argument lint rule | Allow unused parameters that start with `_` | **Accepted** (2026-10-26) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer
@@ -321,10 +325,13 @@ Template:
     by default (ISS-005), and it adds a compiled dependency.
   - **bcrypt (package):** widely used, but also native, and truncates passwords at 72 bytes.
   - **scrypt (Node built-in `crypto.scrypt`):** OWASP-recommended memory-hard algorithm, zero dependencies.
-- **Decision:** scrypt with OWASP's parameters (N = 2^17, r = 8, p = 1), a random 16-byte salt per password,
+- **Decision:** scrypt with OWASP's parameters N = 2^14, r = 8, p = 5, a random 16-byte salt per password,
   stored as `scrypt$N$r$p$salt$hash` so parameters can be raised later. Comparison uses `timingSafeEqual`.
-- **Consequences:** No native dependencies and no install scripts. Each hash takes about 0.1–0.3 s by design,
-  which slows brute-force attempts and also means sign-up and login are not instant.
+- **Why these parameters:** OWASP lists several equally strong settings. N = 2^17, p = 1 needs 128 MiB of
+  memory per hash, so a few simultaneous logins could exhaust a small server (a denial-of-service risk).
+  N = 2^14, p = 5 uses 16 MiB and makes up the difference with CPU work.
+- **Consequences:** No native dependencies and no install scripts. Each hash takes a noticeable fraction of a
+  second by design, which slows brute-force attempts and also means sign-up and login are not instant.
 
 ### ADR-027 — API route prefix
 - **Status:** Accepted (2026-10-25)
@@ -340,6 +347,52 @@ Template:
   matching HTTP status (400 validation, 401 not logged in or wrong credentials, 409 conflict, 404, 500).
   Unexpected errors return a generic 500 and are logged on the server; stack traces never reach the client.
 - **Why:** The frontend can branch on a stable `code` instead of parsing English, and nothing internal leaks.
+
+### ADR-029 — Identity data model
+- **Status:** Accepted (2026-10-26)
+- **Tables:** `User` (email, password hash) · `Organization` (name) · `Membership` (user + organization + role)
+  · `Session` (token hash, user, expiry).
+- **Choices and trade-offs:**
+  - **Role lives on `Membership`, not `User`:** a person can own one organization and later be a viewer in
+    another (PD-008). The `Role` enum has only `owner` today; V1.5 adds values, not tables.
+  - **Composite primary key `(userId, organizationId)`** on `Membership`: the database itself prevents
+    duplicate memberships. An index on `organizationId` serves "who is in this org?" lookups.
+  - **UUIDv7 ids** (`uuid(7)`): not guessable like 1, 2, 3, and time-ordered so inserts stay index-friendly,
+    unlike random UUIDv4. Trade-off: 16 bytes instead of 4–8 for an integer.
+  - **Emails stored trimmed and lowercased**, enforced in the API before saving, with a unique index.
+    Alternative: PostgreSQL `citext`, which needs an extension and is less portable.
+  - **`Session` keyed by the SHA-256 of the token:** lookups need no extra index, and the raw token never
+    touches the database (ADR-007).
+  - **`ON DELETE CASCADE`** from users and organizations to memberships and sessions: deleting a user can't
+    leave orphan sessions that still grant access.
+  - **Prisma's default naming** (`"User"`, `passwordHash`) instead of mapping to snake_case. Fewer lines;
+    the cost is double-quoting identifiers in hand-written SQL. Cheap to change now, expensive later.
+- **Sign-up creates user, personal organization and owner membership in one nested write**, which Prisma
+  runs as a single transaction, so a half-created account can't exist.
+
+### ADR-030 — Integration tests against a real PostgreSQL database
+- **Status:** Accepted (2026-10-26)
+- **Options considered:** mocking Prisma (fast, but can't catch unique-constraint, transaction or SQL
+  mistakes); SQLite in memory (different database, different behaviour); a real PostgreSQL test database.
+- **Decision:** Tests that touch data run against `forgeops_test` in the same Docker container, set by
+  `TEST_DATABASE_URL`. Vitest applies migrations once before the run (`prisma migrate deploy`), each test file
+  empties the tables first, and test files run one at a time so they never share rows.
+- **Consequences:** Tests need Docker running locally, and CI will need a PostgreSQL service (ticket 7.2.5).
+  In exchange, the database's real constraints are part of what's tested.
+
+### ADR-031 — No health status in the dashboard
+- **Status:** Accepted (2026-10-26). Product owner decision.
+- **Decision:** The dashboard doesn't show API or database health; the status page code and its tests were
+  removed. The API keeps `/health/live` and `/health/ready`, because Docker and Kubernetes use them to decide
+  when to restart the API and when to send it traffic (Phase 9).
+- **Trade-off:** One less screen to maintain; a developer checks health with `curl` or the logs instead.
+
+### ADR-032 — Allow unused parameters prefixed with `_`
+- **Status:** Accepted (2026-10-26)
+- **Context:** Express recognises an error handler only by its four parameters `(error, req, res, next)`, so
+  `next` must be declared even when unused, which the default lint rule rejects.
+- **Decision:** `@typescript-eslint/no-unused-vars` ignores parameters starting with `_` (`_req`, `_next`).
+- **Alternative:** a per-line lint-disable, rejected because the project avoids comments in code.
 
 ### ADR-006 — Message queue: RabbitMQ locally, AWS SQS in the cloud
 - **Status:** Accepted (2026-10-24)

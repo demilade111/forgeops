@@ -165,7 +165,7 @@ _Learn:_ React composition, client-side routing, SPA vs server rendering, Vite b
 - [x] 1.3.3 Configure environment validation (Zod schema, fail fast at startup)
 - [x] 1.3.4 Create `GET /health/live`
 - [x] 1.3.5 Create `GET /health/ready` (returns ok until the database check is added in 1.4.5)
-- [ ] 1.3.6 Configure global validation and exception handling
+- [x] 1.3.6 Configure global validation and exception handling (JSON errors, ADR-028)
 - [ ] 1.3.7 Add structured request logging
 - [ ] 1.3.8 Add API versioning and OpenAPI documentation
 - [x] 1.3.9 Add unit and HTTP integration test setup (Vitest + Supertest)
@@ -203,28 +203,28 @@ _Learn:_ database servers, connections, pools, SQL migrations, fetch, CORS, time
 **Deliverable:** Secure registration, login, sessions, organizations and membership-aware access.
 
 ### 2.1 — Authentication requirements and design
-- [ ] 2.1.1 Define registration and login flows
-- [ ] 2.1.2 Compare sessions versus JWT-based authentication
-- [ ] 2.1.3 Define password storage and verification
-- [ ] 2.1.4 Define session expiration and logout
-- [ ] 2.1.5 Define CSRF, XSS and cookie protections
+- [x] 2.1.1 Define registration and login flows
+- [x] 2.1.2 Compare sessions versus JWT-based authentication (ADR-007)
+- [x] 2.1.3 Define password storage and verification (ADR-026)
+- [x] 2.1.4 Define session expiration and logout
+- [x] 2.1.5 Define CSRF, XSS and cookie protections
 - [ ] 2.1.6 Define rate limits and account enumeration protection
-- [ ] 2.1.7 Design identity tables and constraints
-- [ ] 2.1.8 Approve the authentication ADR
+- [x] 2.1.7 Design identity tables and constraints (ADR-029)
+- [x] 2.1.8 Approve the authentication ADR
 
 _Learn:_ authn vs authz, cookies, sessions, hashing, token lifecycle, common web attacks.
 
 ### 2.2 — Backend identity implementation
-- [ ] 2.2.1 Create user migration and entity
-- [ ] 2.2.2 Implement registration DTO validation
-- [ ] 2.2.3 Implement registration service
-- [ ] 2.2.4 Implement password hashing
-- [ ] 2.2.5 Implement login verification
-- [ ] 2.2.6 Implement session creation
-- [ ] 2.2.7 Implement authenticated `GET /me`
-- [ ] 2.2.8 Implement logout and session invalidation
+- [x] 2.2.1 Create user migration and entity
+- [x] 2.2.2 Implement registration DTO validation
+- [x] 2.2.3 Implement registration service
+- [x] 2.2.4 Implement password hashing
+- [x] 2.2.5 Implement login verification
+- [x] 2.2.6 Implement session creation
+- [x] 2.2.7 Implement authenticated `GET /me`
+- [x] 2.2.8 Implement logout and session invalidation
 - [ ] 2.2.9 Add rate limiting
-- [ ] 2.2.10 Test invalid credentials and concurrent requests
+- [ ] 2.2.10 Test invalid credentials and concurrent requests (invalid credentials done; concurrency open)
 
 ### 2.3 — Frontend authentication
 - [ ] 2.3.1 Build registration form
@@ -250,7 +250,7 @@ _Learn:_ forms, validation, controlled inputs, route protection, state synchroni
 - [ ] 2.4.8 Implement workspace switcher
 - [ ] 2.4.9 Test cross-organization access denial
 - [ ] 2.4.10 Document tenant isolation assumptions
-- [ ] 2.4.11 Create a personal organization automatically on sign-up
+- [x] 2.4.11 Create a personal organization automatically on sign-up
 
 _Learn:_ relational modeling, foreign keys, authorization, RBAC, tenancy, IDOR.
 

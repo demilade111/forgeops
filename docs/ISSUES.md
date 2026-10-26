@@ -8,6 +8,38 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-018 — Logout worked in tests but not from a real client (M1-S1)
+- **Situation:** All 34 auth tests passed, but a smoke test with `curl` against the running API showed logout
+  returning **415** and the session staying valid.
+- **Task:** Find why a passing test suite missed it, and make sure it can't come back.
+- **Action:** Logout sends no body, and my JSON-only guard (a CSRF defence) rejected any POST that wasn't
+  JSON. The test passed only because Supertest happened to send a body. I changed the guard to check the
+  content type only when there is content, and rewrote the test to send logout exactly like a browser.
+- **Result:** Logout returns 204 and the session is deleted; with the old guard the new test fails, so the
+  bug is now covered.
+- **Lesson:** Tests can share the code's blind spots. Always finish with a real client against the real server.
+
+## ISS-017 — A password-hashing setting could have let a few logins exhaust the server's memory (M1-S1)
+- **Situation:** I first recorded scrypt with N = 2^17, a common recommendation, for password hashing.
+- **Task:** Check the cost of that choice before implementing it.
+- **Action:** That setting needs 128 MiB of memory per hash, so a few simultaneous logins, or an attacker
+  hammering the login endpoint, could exhaust a small server. OWASP lists equally strong settings, and I chose
+  N = 2^14, p = 5 (16 MiB), updating the decision record with the reason.
+- **Result:** Same brute-force resistance at an eighth of the memory, caught before any code shipped.
+- **Lesson:** Security settings have operational costs. Size them for the machine they'll run on.
+
+## ISS-016 — The test runner crashed while reporting an error, hiding the real one (M1-S1)
+- **Situation:** After adding database tests, Vitest stopped at startup with `code.charCodeAt is not a
+  function`, an error from inside Vitest's own error printer.
+- **Task:** Find the real failure underneath.
+- **Action:** The only thing running at startup was my setup step, so I ran it by hand: the migration worked.
+  The real cause was that `prisma` wasn't on the PATH when Vitest was started directly, and the failed
+  command's raw byte output broke Vitest's error printer. I called Prisma by its exact path and turned any
+  failure into a plain-text message.
+- **Result:** Tests run the same way directly and through `pnpm test`, and setup failures now show readable
+  errors.
+- **Lesson:** When the error message makes no sense, isolate each step and run it alone.
+
 ## ISS-015 — A clicked file link said "Couldn't find this file" after a rename (1.1.4)
 - **Situation:** Mid-ticket, the product owner asked to rename the frontend folder from `apps/web` to
   `apps/frontend`. Afterwards, opening a file from an earlier link failed: the path no longer existed.

@@ -127,6 +127,18 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Polling every 5 s** lets the page recover by itself when the API or database comes back.
 - `useEffect` returns a cleanup that stops the timer when the component unmounts.
 
+### Sign-up, login and sessions (M1-S1 backend, done)
+- **Session login:** the server makes a random token, stores only its SHA-256 hash, and puts the token in an
+  `HttpOnly` cookie. Every request sends the cookie; the server hashes it and looks the session up.
+- **Why hash the token:** someone who steals a database backup can't log in as anyone.
+- **Why `HttpOnly` + `SameSite=Lax`:** JavaScript (and so an XSS attack) can't read the cookie, and other
+  sites can't make the browser send it on a POST (CSRF).
+- **Password hashing with scrypt:** deliberately slow and memory-hungry so guessing is expensive; a random salt
+  makes identical passwords hash differently.
+- **Same error for "wrong password" and "no such email"**, plus a dummy hash for unknown emails so both take
+  the same time. Otherwise attackers can find out which emails have accounts.
+- **Transactions:** user + personal organization + membership are created in one write, all or nothing.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement
