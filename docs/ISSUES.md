@@ -1,105 +1,116 @@
-# ForgeOps — Issues Log
+# ForgeOps — Behavioural Interview Stories (STAR)
 
-Every real problem hit while building ForgeOps, written so it can be told in an interview:
-**what happened → why → how it was fixed → the lesson.** Newest first.
+Every real problem hit while building ForgeOps, written in **STAR** form so it can be told in a behavioural
+interview: **Situation → Task → Action → Result**, plus the lesson. First person. Newest first.
+
+Good for questions like: *"Tell me about a bug you found"*, *"a time you debugged something unclear"*,
+*"a time you made a trade-off"*, *"a time you prevented a security problem"*.
 
 ---
 
-## ISS-012 — `pnpm install` didn't regenerate the Prisma client (1.4.3)
-- **What happened:** After deleting the generated Prisma client, `pnpm install` finished but didn't regenerate
-  it, and the dev server crashed with `ERR_MODULE_NOT_FOUND: generated/prisma/client.js`.
-- **Why:** pnpm skips lifecycle scripts like `postinstall` when nothing needs installing. On a fresh checkout
-  (new clone, CI) `postinstall` does run; that was confirmed by removing `node_modules` and reinstalling.
-- **Fix:** No code change. Documented that after editing `schema.prisma` you run `prisma generate` manually.
-- **Lesson:** Test the scenario you actually care about (fresh clone), not a shortcut that only looks similar.
-- **Interview line:** "My test simulated a fresh install wrongly. Reproducing the real case showed the setup
-  was fine and the gap was documentation."
+## ISS-012 — The generated database client "disappeared" (1.4.3)
+- **Situation:** After setting Prisma to regenerate its client on install, I deleted the client and ran
+  `pnpm install`. The dev server then crashed with `ERR_MODULE_NOT_FOUND`.
+- **Task:** Work out whether automatic generation was broken, because a new clone or CI run would hit the same crash.
+- **Action:** I found pnpm skips install scripts when nothing needs installing, so my test was wrong. I
+  reproduced the real case by removing `node_modules` and reinstalling.
+- **Result:** Generation ran correctly on a true fresh install. No code change was needed; I documented the
+  manual `prisma generate` step for schema edits.
+- **Lesson:** Test the scenario you care about, not a shortcut that only looks like it.
 
-## ISS-011 — Prisma 7 templates add files and dependencies we didn't want (1.4.3)
-- **What happened:** Prisma 7 no longer reads `.env` itself; its template adds the `dotenv` package.
-  `prisma init` also creates AI-agent config folders (`.claude`, `.agents`, `.windsurf`).
-- **Fix:** Ran `prisma init` in a scratch folder to read the template, copied only what we needed, and loaded
-  `.env` with Node's built-in `process.loadEnvFile()` instead of adding `dotenv`.
-- **Lesson:** Generators and templates change between major versions. Inspect what they produce before
-  letting them write into your repo.
-- **Interview line:** "I sandboxed the scaffolding tool, kept two config files, and avoided a dependency by
-  using a Node built-in."
+## ISS-011 — A scaffolding tool wanted to write more than we needed (1.4.3)
+- **Situation:** Setting up Prisma 7, whose behaviour changed from earlier versions: it no longer reads `.env`
+  itself, and its template adds the `dotenv` package.
+- **Task:** Follow the current conventions without adding unneeded files or dependencies to the repo.
+- **Action:** I ran `prisma init` in a scratch folder first. It also created AI-agent config folders
+  (`.claude`, `.agents`, `.windsurf`). I copied only the two config files we needed and loaded `.env` with
+  Node's built-in `process.loadEnvFile()`.
+- **Result:** A clean setup with one less dependency and no stray files in the repo.
+- **Lesson:** Sandbox code generators and inspect their output before letting them touch your project.
 
-## ISS-010 — Installing the Prisma CLI timed out and picked a pre-release (1.4.3)
-- **What happened:** The install took over 5 minutes, then failed with a registry timeout while resolving
-  `prisma@8.0.0-rc.27`, a release candidate, not the stable 7.x the client was on.
-- **Fix:** Pinned the CLI to `prisma@7.10.1`, exactly matching `@prisma/client`, and retried in the background.
-- **Lesson:** Keep tightly coupled packages (CLI + client) on the exact same version, and don't let
-  `latest` pull in pre-releases.
-- **Interview line:** "A version mismatch between a CLI and its runtime library is a classic source of
-  confusing bugs, so I pinned them together."
+## ISS-010 — A dependency install timed out and pulled a pre-release (1.4.3)
+- **Situation:** Installing the Prisma CLI on a slow network took over 5 minutes, then failed with a timeout
+  while resolving `prisma@8.0.0-rc.27`, a release candidate.
+- **Task:** Get a working install that matched the runtime library already installed (7.10.1).
+- **Action:** I pinned the CLI to exactly `7.10.1`, the same version as `@prisma/client`, and ran the install
+  in the background while I carried on with config work that didn't depend on it.
+- **Result:** The install succeeded, CLI and client matched, and no time was lost waiting.
+- **Lesson:** Pin tightly coupled packages to the same version, and never let `latest` pull in pre-releases.
 
-## ISS-009 — PostgreSQL said "the database system is shutting down" right after starting (1.4.1)
-- **What happened:** The first `docker compose up` looked broken: queries failed with "the database system is
+## ISS-009 — The database looked broken right after starting (1.4.1)
+- **Situation:** On the first `docker compose up`, PostgreSQL rejected queries with "the database system is
   shutting down" for about 30 seconds.
-- **Why:** On first start the Postgres image runs a temporary server to initialise the database, then
-  restarts. The logs showed the shutdown's disk sync took **26.8 s** on Docker Desktop for Mac.
-- **Fix:** Nothing was broken. Waited, confirmed from the logs, then added real checks (connect from the
-  Mac, data survives a restart).
-- **Lesson:** Read the logs before "fixing" anything. Startup is a sequence, and a check can run mid-sequence.
-- **Interview line:** "The logs showed a one-time slow disk sync during initialisation, not a failure, so the
-  right fix was waiting and adding a readiness wait, not changing config."
+- **Task:** Decide whether the setup was misconfigured before changing anything.
+- **Action:** I read the container logs instead of guessing. On first start the image initialises with a
+  temporary server, then restarts, and the shutdown's disk sync took **26.8 s** on Docker Desktop.
+- **Result:** Nothing was wrong, so I changed no config. I added real checks (connect from the host, data
+  survives a restart), and later starts take a few seconds.
+- **Lesson:** Read the logs before "fixing" things. A check can land in the middle of a startup sequence.
 
-## ISS-008 — Port 5432 was already taken (1.4.1)
-- **What happened:** Before starting Postgres in Docker, `lsof` showed port 5432 in use.
-- **Why:** A Homebrew PostgreSQL 14 service had been running on the machine for two weeks.
-- **Fix:** Left the existing service alone and mapped ForgeOps to host port **5433**, bound to `127.0.0.1` only.
-- **Lesson:** Check ports before assuming defaults. Don't break other software on a shared machine.
-- **Interview line:** "I found the conflict with `lsof`, traced it to a launchd service, and avoided it
-  instead of stopping someone else's database."
+## ISS-008 — The default database port was already taken (1.4.1)
+- **Situation:** Before starting ForgeOps' PostgreSQL, I checked port 5432 and it was in use.
+- **Task:** Run our database without breaking anything else on the machine.
+- **Action:** I used `lsof` to trace the port to a Homebrew PostgreSQL 14 service that had been running
+  for two weeks. Instead of stopping it, I mapped ForgeOps to port **5433**, bound to `127.0.0.1` only.
+- **Result:** Both databases ran side by side, ForgeOps' was reachable only from the machine itself, and the
+  existing service was untouched.
+- **Lesson:** Check before assuming defaults, and don't break other people's software to make yours work.
 
-## ISS-007 — Dev server "failed" a check that it actually passed (1.3.x, 1.4.3)
-- **What happened:** A test script curled the dev server after a fixed 3-second sleep and got no answer.
-  The log later showed the server had started; it just took longer than 3 seconds.
-- **Fix:** Replaced fixed sleeps with a **poll loop**: retry until the endpoint answers, with a time limit.
-- **Lesson:** Fixed sleeps make flaky checks. Wait for the condition, not for a guess of the time.
-- **Interview line:** "Same idea as Kubernetes readiness probes: poll for ready instead of assuming a startup time."
+## ISS-007 — A health check "failed" when the server was actually fine (1.3.x, 1.4.3)
+- **Situation:** My verification script waited a fixed 3 seconds, then called the dev server, and got no answer.
+- **Task:** Find out whether dev mode was broken.
+- **Action:** The log showed the server had started; it just took longer than 3 seconds. I replaced fixed
+  sleeps with a **poll loop** that retries until the endpoint answers, with a time limit.
+- **Result:** The checks became reliable, and I stopped chasing a bug that didn't exist.
+- **Lesson:** Wait for a condition, not a guessed amount of time. It's the same idea as Kubernetes readiness probes.
 
-## ISS-006 — Stopping the dev server didn't stop it (1.4.3)
-- **What happened:** After `kill`, port 4000 was still busy. `tsx watch` restarts its child process when it dies.
-- **Fix:** Stop the watcher process first, then the child. Check `lsof` afterwards to confirm the port is free.
-- **Lesson:** Know your process tree: supervisors restart children. Always verify cleanup.
+## ISS-006 — A server kept running after I stopped it (1.4.3)
+- **Situation:** After stopping the dev server, port 4000 was still busy.
+- **Task:** Clean up test processes reliably so later tests didn't collide.
+- **Action:** I found `tsx watch` is a supervisor that restarts its child when it dies. I stopped the
+  watcher first, then the child, and confirmed with `lsof` that the port was free.
+- **Result:** Clean shutdowns, and no leftover processes interfering with later checks.
+- **Lesson:** Understand the process tree. Supervisors restart children, so always verify cleanup.
 
-## ISS-005 — pnpm blocked install scripts from esbuild and Prisma (1.1.5, 1.4.3)
-- **What happened:** pnpm refused to run install scripts for `esbuild`, `prisma` and `@prisma/engines`.
-- **Why:** pnpm blocks dependency install scripts by default, because malicious packages often attack
-  through `postinstall` (a supply-chain risk).
-- **Fix:** Denied each one explicitly in `pnpm-workspace.yaml` and confirmed the tools still work without them.
-- **Lesson:** Least privilege applies to dependencies too: allow a script only if it's proven necessary.
-- **Interview line:** "I treated install scripts as untrusted code and only allow-listed what was required,
-  which turned out to be nothing."
+## ISS-005 — Dependencies asked to run code at install time (1.1.5, 1.4.3)
+- **Situation:** pnpm refused to run install scripts for `esbuild`, `prisma` and `@prisma/engines`.
+- **Task:** Decide whether to allow them. Install scripts are a common supply-chain attack route.
+- **Action:** I kept each one blocked, recorded the decision explicitly in `pnpm-workspace.yaml`, and
+  verified the tools still worked (dev server, Prisma generate, migrations).
+- **Result:** Zero install scripts allowed, and everything works.
+- **Lesson:** Least privilege applies to dependencies: allow a script only when it's proven necessary.
 
-## ISS-004 — The server printed "listening" even when it failed to start (1.1.5)
-- **What happened:** Starting a second API on a busy port printed `listening on http://localhost:4102`, then
-  crashed with `EADDRINUSE`.
-- **Why:** In **Express 5**, the `app.listen()` callback also runs on failure and receives the error. The
-  code ignored that argument.
-- **Fix:** Check the `error` argument first; if present, fail with a non-zero exit code.
-- **Lesson:** Read the API contract after major version upgrades. Test the failure path, not just the happy path.
-- **Interview line:** "Testing the failure case showed a misleading log line that would have confused anyone
-  debugging a production start-up."
+## ISS-004 — The server said "listening" when it had actually failed (1.1.5)
+- **Situation:** I was testing the API's failure path by starting a second server on a port already in use.
+- **Task:** Make sure a failed start is obvious, both to a person and to a supervisor such as Docker or Kubernetes.
+- **Action:** The log printed `listening on http://localhost:4102` and then crashed with `EADDRINUSE`. I found
+  that in **Express 5** the `listen()` callback also runs on failure and receives the error, which my code
+  ignored. I handled the error first and exited with a non-zero code.
+- **Result:** A busy port now gives a clear error and exit code 1, with no false "listening" message.
+- **Lesson:** Re-read API contracts after major version upgrades, and always test the failure path.
 
-## ISS-003 — A test was wrong, not the code (1.1.5)
-- **What happened:** To simulate a busy port, a helper bound `127.0.0.1:4101`, but the API still started.
-- **Why:** Node listened on `::` (all addresses, IPv6 dual-stack), which doesn't collide with a socket bound
-  only to `127.0.0.1` on macOS.
-- **Fix:** Simulated the conflict properly by starting the API twice on the same port.
-- **Lesson:** When a test result surprises you, check the test first.
+## ISS-003 — My test was wrong, not the code (1.1.5)
+- **Situation:** To simulate a busy port, I had a helper occupy `127.0.0.1:4101`, but the API still started.
+- **Task:** Work out why the conflict didn't happen.
+- **Action:** I found Node listens on `::` (all addresses), which on macOS doesn't clash with a socket bound only
+  to `127.0.0.1`. I recreated the conflict properly by starting the API twice on the same port.
+- **Result:** The proper test exposed a real bug (ISS-004).
+- **Lesson:** When a result surprises you, check the test before the code.
 
-## ISS-002 — TypeScript 7 broke the linting setup (1.1.3)
-- **What happened:** Installing the latest TypeScript gave **7.0.2**, and pnpm reported an unmet peer dependency.
-- **Why:** `typescript-eslint` 8.72 only supports TypeScript `<6.1`.
-- **Fix:** Pinned TypeScript to `~6.0` (6.0.3). Recorded in ADR-024 with a note to upgrade later.
-- **Lesson:** "Latest" isn't always compatible. Peer-dependency warnings are real errors waiting to happen.
-- **Interview line:** "I chose the newest version the whole toolchain supports, recorded why, and set a revisit trigger."
+## ISS-002 — Upgrading to the newest TypeScript broke linting (1.1.3)
+- **Situation:** Setting up the toolchain, the install picked **TypeScript 7.0.2**, and pnpm warned about an
+  unmet peer dependency.
+- **Task:** Get a stable toolchain without silently ignoring the warning.
+- **Action:** I checked the peer range: `typescript-eslint` 8.72 supports TypeScript `<6.1` only. I pinned
+  TypeScript `~6.0` and recorded why in ADR-024, with a trigger to upgrade later.
+- **Result:** Zero peer-dependency issues, lint and typecheck both working, and a documented upgrade path.
+- **Lesson:** "Latest" isn't always compatible. Treat peer warnings as errors and record version decisions.
 
-## ISS-001 — Node 18 was out of support (1.1.1)
-- **What happened:** The machine had Node v18.17.1, end-of-life since April 2025; current Vite and Prisma need newer.
-- **Fix:** Switched to Node 24 LTS with nvm and pinned it in `.nvmrc`, leaving the system default unchanged
-  so other projects aren't affected.
-- **Lesson:** Pin runtime versions per project so laptops and CI match.
+## ISS-001 — The machine's runtime was out of support (1.1.1)
+- **Situation:** The machine had Node v18.17.1, end-of-life since April 2025, and current Vite and Prisma
+  need a newer version.
+- **Task:** Upgrade for ForgeOps without breaking other projects on the same machine.
+- **Action:** I used nvm to run Node 24 LTS for this project only and pinned it in `.nvmrc`, leaving the
+  system default unchanged.
+- **Result:** ForgeOps runs on a supported runtime, and other projects keep working.
+- **Lesson:** Pin runtime versions per project so laptops and CI behave the same.

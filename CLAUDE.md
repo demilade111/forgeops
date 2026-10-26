@@ -15,7 +15,7 @@ Read these files when relevant:
 - `docs/CURRENT.md` — active task and progress
 - `docs/DECISIONS.md` — approved architecture decisions
 - `docs/LEARNING.md` — learning and interview notes
-- `docs/ISSUES.md` — every problem hit while building, written as interview stories
+- `docs/ISSUES.md` — every problem hit while building, as STAR behavioural-interview stories
 
 Check the actual repository before claiming anything is implemented.
 
@@ -87,7 +87,8 @@ After implementation, explain:
 - Record significant architecture decisions in `docs/DECISIONS.md`.
 - Update `docs/LEARNING.md` with concise explanations and concepts encountered.
 - Log every real issue hit (failed install, bug, misleading test, environment problem) in `docs/ISSUES.md`
-  as it happens: what happened, why, fix, lesson, and a one-line interview answer. Newest first, `ISS-xxx` IDs.
+  as it happens, in STAR form (Situation, Task, Action, Result) plus a one-line lesson, first person.
+  Newest first, `ISS-xxx` IDs.
 - Do not mark a task done until its acceptance criteria have been verified.
 
 ## Working style
