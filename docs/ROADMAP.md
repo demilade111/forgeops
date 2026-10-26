@@ -142,7 +142,7 @@ _Learn:_ system design, bounded contexts, service boundaries, trade-offs, data o
 - [x] 1.1.5 Create backend application workspace (`apps/api`, Express 5 + TypeScript, ES modules)
 - [ ] 1.1.6 Create shared types/contracts workspace if justified
 - [ ] 1.1.7 Configure formatting and pre-commit checks
-- [ ] 1.1.8 Write local setup documentation
+- [x] 1.1.8 Write local setup documentation (`README.md`, verified on a fresh clone)
 
 _Learn:_ Git, monorepos, package management, TypeScript compilation, module resolution, developer tooling.
 
