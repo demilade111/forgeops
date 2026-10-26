@@ -379,6 +379,9 @@ Template:
   empties the tables first, and test files run one at a time so they never share rows.
 - **Consequences:** Tests need Docker running locally, and CI will need a PostgreSQL service (ticket 7.2.5).
   In exchange, the database's real constraints are part of what's tested.
+- **Update (2026-10-26):** API tests allow 30 s per test instead of Vitest's default 5 s. Tests use the real
+  scrypt settings (ADR-026), which take 0.6–0.8 s per hash on a busy laptop, and one login test hashes about
+  five times. Weakening the settings in tests was rejected because then the tests wouldn't test what ships (ISS-019).
 
 ### ADR-031 — No health status in the dashboard
 - **Status:** Accepted (2026-10-26). Product owner decision.

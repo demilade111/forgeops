@@ -8,6 +8,20 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-019 — A failing test got committed because the check looked at the wrong exit code (M1-S1)
+- **Situation:** My commit command ran the tests and only committed if they passed, but it piped the output
+  through `grep` to shorten it. One test failed and the commit still went through and was pushed.
+- **Task:** Find the failing test, fix it, and stop failed checks from ever being committed again.
+- **Action:** The chain checked `grep`'s exit code (it found the summary line, so "success"), not the test
+  runner's. The test itself was flaky: it passed three times in a row. Measuring showed one password hash took
+  0.6–0.8 s on a heavily loaded machine (load average 27–53 on 8 cores), and the login test hashes about five
+  times, which sometimes exceeded Vitest's 5 s per-test limit. I raised the API test limit to 30 s, kept the
+  real hashing settings, and pushed the fix straight away.
+- **Result:** The test suite is stable, and the fix landed in the next commit. I now check the test command's
+  own exit status before committing.
+- **Lesson:** A pipe hides the exit code of everything but the last command. This is exactly why the CI
+  pipeline (Phase 7) should block merges on failed checks, instead of relying on a person's command line.
+
 ## ISS-018 — Logout worked in tests but not from a real client (M1-S1)
 - **Situation:** All 34 auth tests passed, but a smoke test with `curl` against the running API showed logout
   returning **415** and the session staying valid.
