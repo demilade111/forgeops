@@ -160,7 +160,7 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-033 | Frontend structure | Feature folders mirroring API modules (`src/auth/`); plain React state and `fetch`; no router, form or data-fetching library yet | **Accepted** (2026-10-27) |
 | ADR-034 | Frontend API layer | One axios instance and every API call in `src/api/index.ts`; `useRequest` hook for loading and errors; shared types in `src/types/` | **Accepted** (2026-10-28) |
 | ADR-035 | Frontend shared state | Zustand store for state several screens share (the session); `useState` for state one component owns | **Accepted** (2026-10-28) |
-| ADR-036 | Styling | Tailwind CSS 4 through its Vite plugin; component library not chosen yet | **Accepted** (2026-10-28) |
+| ADR-036 | Styling | Tailwind CSS 4 + shadcn/ui (Radix base, Nova preset, Geist font, Lucide icons) | **Accepted** (2026-10-28) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer
@@ -453,7 +453,11 @@ Template:
 - **Status:** Accepted (2026-10-28). Requested by the product owner.
 - **Decision:** Tailwind CSS 4 via `@tailwindcss/vite`, one `@import "tailwindcss"` in `src/index.css`. Repeated
   class lists are kept in a local constant (e.g. `input` in `AuthForm`).
-- **Open:** a component library on top of Tailwind (shadcn/ui, daisyUI, or none). Product owner to choose.
+- **Update (2026-10-28):** the product owner chose **shadcn/ui**: Radix base, Nova preset, Geist font, Lucide
+  icons. Components are copied into `src/components/ui/` (we own and can edit them), `@/` imports point to
+  `src/`. Considered daisyUI (fewer files, more generic look) and plain Tailwind (fine for two screens).
+  shadcn wins for the dashboard ahead: accessible dialogs, tables and dropdowns. Cost: about 7 new packages
+  and roughly +17 KB gzipped JavaScript and a self-hosted font.
 
 ### ADR-006 — Message queue: RabbitMQ locally, AWS SQS in the cloud
 - **Status:** Accepted (2026-10-24)

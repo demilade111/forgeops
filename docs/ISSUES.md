@@ -8,6 +8,16 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-024 — A UI library's installer behaved differently from its docs and my memory (shadcn setup)
+- **Situation:** Setting up shadcn/ui, the installer failed with `unknown option '--base-color'`.
+- **Task:** Install it correctly for a Vite app without guessing again.
+- **Action:** I read the installer's own `--help`. The option was gone, and `--defaults` now meant "assume a
+  Next.js project", which would have set up the wrong framework. With explicit flags it then stopped at an
+  interactive preset prompt that can't be answered in a script, so I passed the preset by name (`-p nova`).
+- **Result:** shadcn installed for Vite with the intended preset in three attempts, without ever writing a
+  wrong configuration.
+- **Lesson:** CLIs change fast. Check the tool's own help for the installed version before trusting docs or memory.
+
 ## ISS-023 — Every API test failed with the same vague message (M1-S1 frontend refactor)
 - **Situation:** After moving the frontend to axios, all API tests failed with "Something went wrong. Try
   again.", the friendly fallback message, which said nothing about the cause.
