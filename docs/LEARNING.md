@@ -147,6 +147,15 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Feedback while waiting:** slow requests (password hashing is slow on purpose) need a visible state
   ("Please wait..."), or users click again.
 
+### Frontend structure: api, hooks, stores, types (done)
+- **One API client:** all calls go through one axios instance, so base URL, timeout and error handling are
+  configured once. An **interceptor** runs on every response, here turning errors into readable messages.
+- **Custom hook (`useRequest`):** wraps any API call with `isLoading` and `error`, so every form behaves
+  the same without repeating `useState` code.
+- **Zustand store:** shared state (who is logged in) that any component can read without passing props down.
+  Local state (which tab of a form is open) stays in `useState`.
+- **Tailwind:** style with small utility classes in the markup (`rounded-md px-3 py-2`) instead of CSS files.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement

@@ -158,6 +158,9 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-031 | Health status in the UI | No health display in the dashboard; `/health/live` and `/health/ready` stay for infrastructure probes | **Accepted** (2026-10-26) |
 | ADR-032 | Unused-argument lint rule | Allow unused parameters that start with `_` | **Accepted** (2026-10-26) |
 | ADR-033 | Frontend structure | Feature folders mirroring API modules (`src/auth/`); plain React state and `fetch`; no router, form or data-fetching library yet | **Accepted** (2026-10-27) |
+| ADR-034 | Frontend API layer | One axios instance and every API call in `src/api/index.ts`; `useRequest` hook for loading and errors; shared types in `src/types/` | **Accepted** (2026-10-28) |
+| ADR-035 | Frontend shared state | Zustand store for state several screens share (the session); `useState` for state one component owns | **Accepted** (2026-10-28) |
+| ADR-036 | Styling | Tailwind CSS 4 through its Vite plugin; component library not chosen yet | **Accepted** (2026-10-28) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer
@@ -403,19 +406,50 @@ Template:
 
 ### ADR-033 — Frontend structure: feature folders, no extra libraries yet
 - **Status:** Accepted (2026-10-27). Folder layout requested by the product owner.
-- **Decision:** Frontend code is grouped by feature, mirroring the API's modules: `src/auth/` holds the API
-  calls (`api.ts`), the form (`AuthForm.tsx`) and their tests. `App.tsx` shows the form when `/api/me` returns
+- **Decision:** Frontend code is grouped by feature, mirroring the API's modules: `src/auth/` holds the form
+  (`AuthForm.tsx`). API calls, hooks, stores and types live in shared folders (ADR-034, ADR-035). `App.tsx` shows the form when `/api/me` returns
   401 and the account view otherwise.
 - **Not added (yet), and why:**
   - **Router** (React Router / TanStack Router): there is one screen. Add it with the second page (projects).
   - **Form library** (React Hook Form): two fields; the browser's `required` / `minLength` plus the API's
     messages are enough.
-  - **Data-fetching library** (TanStack Query): one request on load. Revisit when pages need caching or
-    polling (deployment progress, ticket 5.6.5).
+  - **Data-fetching library** (TanStack Query): one request on load; `useRequest` (ADR-034) covers loading and
+    errors. Revisit when pages need caching or polling (deployment progress, ticket 5.6.5).
   - **Component tests** (Testing Library + jsdom): the API layer is unit-tested and the screens were checked in
     a real browser. Add component tests when screens get logic worth testing.
 - **Security:** the session cookie is `HttpOnly`, so the frontend never sees or stores a token; the browser
   sends it automatically to the same origin.
+
+### ADR-034 — Frontend API layer: one axios instance, one `useRequest` hook, one types folder
+- **Status:** Accepted (2026-10-28). Requested by the product owner.
+- **Decision:**
+  - `src/api/index.ts`: one axios instance (`baseURL: "/api"`, 15 s timeout, fetch adapter) and an `api`
+    object with every call (`signup`, `login`, `logout`, `getMe`). An interceptor turns any error into the
+    API's plain message (ADR-028), so screens never parse responses.
+  - `src/hooks/useRequest.ts`: `useRequest(api.login, { onSuccess })` returns `{ send, isLoading, error }`
+    for every form and button that changes data.
+  - `src/types/index.ts`: `User`, `Organization`, `Me`, `Credentials`.
+- **Options considered:** plain `fetch` (no dependency, but base URL, JSON and error handling repeated per
+  call); axios (one place to configure, interceptors, timeouts; about 13 KB gzipped); TanStack Query's
+  `useMutation` (more features, but a bigger library and a name the owner found unclear).
+- **Consequences:** Changing the base URL, timeout or error handling is a one-line edit. The single API file is
+  split per feature if it grows past about 150 lines. Types are frontend-only for now; the long-term home is
+  `packages/shared`, so the API and frontend use the same definitions.
+
+### ADR-035 — Shared frontend state with Zustand
+- **Status:** Accepted (2026-10-28). Requested by the product owner.
+- **Decision:** `src/stores/session.ts` (`useSession`) holds who is logged in, plus `load` and `clear`.
+  State owned by one component (e.g. log in vs sign up mode in `AuthForm`) stays in `useState`.
+- **Options considered:** React Context (built in, but re-renders every consumer on any change and needs a
+  provider); Redux Toolkit (powerful, heavy for this size); Zustand (about 1 KB, no provider, subscribe to
+  just the field you need).
+- **Rule:** if only one component needs it, `useState`; if several screens need it, a store.
+
+### ADR-036 — Styling with Tailwind CSS
+- **Status:** Accepted (2026-10-28). Requested by the product owner.
+- **Decision:** Tailwind CSS 4 via `@tailwindcss/vite`, one `@import "tailwindcss"` in `src/index.css`. Repeated
+  class lists are kept in a local constant (e.g. `input` in `AuthForm`).
+- **Open:** a component library on top of Tailwind (shadcn/ui, daisyUI, or none). Product owner to choose.
 
 ### ADR-006 — Message queue: RabbitMQ locally, AWS SQS in the cloud
 - **Status:** Accepted (2026-10-24)

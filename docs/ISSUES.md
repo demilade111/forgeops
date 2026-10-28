@@ -8,6 +8,17 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-023 — Every API test failed with the same vague message (M1-S1 frontend refactor)
+- **Situation:** After moving the frontend to axios, all API tests failed with "Something went wrong. Try
+  again.", the friendly fallback message, which said nothing about the cause.
+- **Task:** Find the real error that my own error handling was hiding.
+- **Action:** I wrote a throwaway probe test without the interceptor. The real error was "Failed to parse URL
+  from /api/me": in a browser, `/api` resolves against the page's address, but tests have no page. I pointed
+  the axios instance at `http://localhost/api` in tests. One test still failed, and the cause was my fake
+  server: it built a `204 No Content` response with a body, which the platform forbids.
+- **Result:** All tests pass, and both problems were in the test setup, not the app.
+- **Lesson:** Friendly error handling for users can hide causes from developers. Strip it away to debug.
+
 ## ISS-022 — Error messages contained symbols the UI shouldn't show (M1-S1)
 - **Situation:** The API built validation messages with Zod's formatter, which writes lines like
   `✖ Too small → at password`.
