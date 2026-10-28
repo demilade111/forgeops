@@ -156,6 +156,13 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   Local state (which tab of a form is open) stays in `useState`.
 - **Tailwind:** style with small utility classes in the markup (`rounded-md px-3 py-2`) instead of CSS files.
 
+### Naming states with TypeScript (done)
+- **`void`** means "returns nothing useful". It is a real type and TypeScript enforces it. The type that turns
+  checking off is **`any`**, which lint rejects.
+- **Discriminated union:** `{ status: "loading" } | { status: "guest" } | { status: "signed-in"; me: Me }`.
+  Each state is named, and `session.me` only exists after `status === "signed-in"` is checked, so impossible
+  states (signed in with no user) can't be written. Clearer than `Me | null | undefined`.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement

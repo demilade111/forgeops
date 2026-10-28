@@ -444,6 +444,10 @@ Template:
   provider); Redux Toolkit (powerful, heavy for this size); Zustand (about 1 KB, no provider, subscribe to
   just the field you need).
 - **Rule:** if only one component needs it, `useState`; if several screens need it, a store.
+- **Update (2026-10-28):** the session is a named-state union instead of `Me | null | undefined`:
+  `{ status: "loading" } | { status: "guest" } | { status: "signed-in"; me: Me }`. Each state has a name,
+  and TypeScript only allows reading `me` after checking `status === "signed-in"`. The store's type lives in
+  `src/types/`.
 
 ### ADR-036 — Styling with Tailwind CSS
 - **Status:** Accepted (2026-10-28). Requested by the product owner.

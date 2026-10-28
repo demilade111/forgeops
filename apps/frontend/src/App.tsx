@@ -5,7 +5,7 @@ import { useRequest } from "./hooks/useRequest";
 import { useSession } from "./stores/session";
 
 export function App() {
-  const { me, error, load, clear } = useSession();
+  const { session, error, load, clear } = useSession();
   const logout = useRequest(api.logout, { onSuccess: clear });
 
   useEffect(() => {
@@ -21,14 +21,14 @@ export function App() {
             {error}
           </p>
         )}
-        {me === null && <AuthForm />}
-        {me && (
+        {session.status === "guest" && <AuthForm />}
+        {session.status === "signed-in" && (
           <section className="space-y-4 rounded-lg border border-gray-200 bg-white p-6 shadow-sm">
             <p>
-              Signed in as <span className="font-medium">{me.user.email}</span>
+              Signed in as <span className="font-medium">{session.me.user.email}</span>
             </p>
             <ul className="space-y-1 text-sm text-gray-600">
-              {me.organizations.map((org) => (
+              {session.me.organizations.map((org) => (
                 <li key={org.id}>
                   {org.name} ({org.role})
                 </li>
