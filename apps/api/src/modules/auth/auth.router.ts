@@ -9,9 +9,19 @@ import { authRepository } from "./auth.repository.js";
 const COOKIE = "forgeops_session";
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 
-const email = z.string().trim().toLowerCase().pipe(z.email());
-const signupBody = z.object({ email, password: z.string().min(12).max(128) });
-const loginBody = z.object({ email, password: z.string().min(1).max(128) });
+const email = z
+  .string({ error: "Email is required" })
+  .trim()
+  .toLowerCase()
+  .pipe(z.email("Enter a valid email address"));
+const password = z
+  .string({ error: "Password is required" })
+  .max(128, "Password must be at most 128 characters");
+const signupBody = z.object({
+  email,
+  password: password.min(12, "Password must be at least 12 characters"),
+});
+const loginBody = z.object({ email, password: password.min(1, "Password is required") });
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
@@ -110,6 +120,9 @@ export function createAuthRouter(db: PrismaClient, { secureCookies }: { secureCo
 
 function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   const result = schema.safeParse(body);
-  if (!result.success) throw new HttpError(400, "VALIDATION_ERROR", z.prettifyError(result.error));
+  if (!result.success) {
+    const messages = new Set(result.error.issues.map((issue) => issue.message));
+    throw new HttpError(400, "VALIDATION_ERROR", [...messages].join(". "));
+  }
   return result.data;
 }

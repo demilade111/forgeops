@@ -10,5 +10,9 @@ export default function setup() {
     env: { ...process.env, DATABASE_URL: url },
     encoding: "utf8",
   });
-  if (result.status !== 0) throw new Error(`Test database migration failed:\n${result.stderr}`);
+  if (result.status !== 0) {
+    const message = `Test database migration failed. Is PostgreSQL running (docker compose up -d)?\n${result.stderr}`;
+    console.error(message);
+    throw new Error(message);
+  }
 }

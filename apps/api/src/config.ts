@@ -8,7 +8,10 @@ const schema = z.object({
 
 export function loadConfig(env: NodeJS.ProcessEnv) {
   const result = schema.safeParse(env);
-  if (!result.success) throw new Error(`Invalid configuration\n${z.prettifyError(result.error)}`);
+  if (!result.success) {
+    const problems = result.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`);
+    throw new Error(`Invalid configuration\n${problems.join("\n")}`);
+  }
   const { NODE_ENV, PORT, DATABASE_URL } = result.data;
   return { production: NODE_ENV === "production", port: PORT, databaseUrl: DATABASE_URL };
 }
