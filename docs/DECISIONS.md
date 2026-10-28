@@ -161,6 +161,7 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-034 | Frontend API layer | One axios instance and every API call in `src/api/index.ts`; `useRequest` hook for loading and errors; shared types in `src/types/` | **Accepted** (2026-10-28) |
 | ADR-035 | Frontend shared state | Zustand store for state several screens share (the session); `useState` for state one component owns | **Accepted** (2026-10-28) |
 | ADR-036 | Styling | Tailwind CSS 4 + shadcn/ui (Radix base, Nova preset, Geist font, Lucide icons) | **Accepted** (2026-10-28) |
+| ADR-037 | Reference app for M1 | Separate private repo `forgeops-sample-api`: Express API in `api/`, npm, port 8080, `FAIL_READINESS` switch | **Accepted** (2026-10-28) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer
@@ -458,6 +459,22 @@ Template:
   `src/`. Considered daisyUI (fewer files, more generic look) and plain Tailwind (fine for two screens).
   shadcn wins for the dashboard ahead: accessible dialogs, tables and dropdowns. Cost: about 7 new packages
   and roughly +17 KB gzipped JavaScript and a self-hosted font.
+
+### ADR-037 — Reference app: `forgeops-sample-api`
+- **Status:** Accepted (2026-10-28). Repo name and private visibility approved by the product owner.
+- **Decision:** A separate private GitHub repo plays the customer's app (PD-007). The API lives in `api/` so a
+  frontend, worker and scheduled job can be added beside it later (PD-001 single-repo case).
+- **Choices:**
+  - **Separate repo, not a folder in ForgeOps:** ForgeOps must connect to a GitHub repo like a real customer's.
+    Deploying ForgeOps with itself would mean a broken release takes down the tool that does the rollback.
+  - **Private:** proves ForgeOps handles the real case (GitHub App access, ADR-008); no extra work because
+    the GitHub connection is built before builds in M1 (slice S3 before S5).
+  - **npm instead of pnpm:** looks like a typical customer app and keeps its Dockerfile plain (`npm ci`).
+  - **Port 8080, `PORT` overridable:** the common container default.
+  - **`FAIL_READINESS=true`:** keeps the process alive but makes `/health/ready` return 503, the deliberately
+    unhealthy release for M1 criterion 14. **`APP_VERSION`** shows which release is serving, to see rollback.
+  - **Multi-stage Dockerfile on `node:24-alpine`**, production dependencies only, non-root `node` user,
+    graceful `SIGTERM` shutdown (stops in about 1 s). Image size 177 MB.
 
 ### ADR-006 — Message queue: RabbitMQ locally, AWS SQS in the cloud
 - **Status:** Accepted (2026-10-24)

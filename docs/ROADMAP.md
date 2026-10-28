@@ -523,7 +523,7 @@ _Learn:_ ACID, race conditions, unique constraints, outbox pattern, exactly-once
 
 ### 6.4 — Image build and registry
 - [ ] 6.4.1 Create a sample frontend application
-- [ ] 6.4.2 Create a sample backend API (the M1 reference Express.js + TypeScript API)
+- [x] 6.4.2 Create a sample backend API (the M1 reference Express.js + TypeScript API; repo `forgeops-sample-api`)
 - [ ] 6.4.3 Create a sample background worker
 - [ ] 6.4.4 Create production Dockerfiles for samples
 - [ ] 6.4.5 Implement approved build trigger

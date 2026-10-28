@@ -8,6 +8,16 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-025 — Tests worked in one repo and failed in another with the same tools (M1-S2)
+- **Situation:** The sample API's tests failed at startup with `Cannot find package 'vite'`, while the same
+  Vitest version ran fine in ForgeOps.
+- **Task:** Explain the difference and fix it properly.
+- **Action:** `npm view vitest peerDependencies` showed `vite` is a required peer. ForgeOps uses pnpm and
+  already had Vite installed for the frontend, which hid the requirement; the sample uses npm and has no
+  Vite. I added `vite` as an explicit dev dependency.
+- **Result:** 3 tests pass; the Docker image builds and behaves correctly (healthy, broken, non-root, clean stop).
+- **Lesson:** A monorepo can hide missing dependencies. Declare everything a package needs, and test it alone.
+
 ## ISS-024 — A UI library's installer behaved differently from its docs and my memory (shadcn setup)
 - **Situation:** Setting up shadcn/ui, the installer failed with `unknown option '--base-color'`.
 - **Task:** Install it correctly for a Vite app without guessing again.
