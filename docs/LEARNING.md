@@ -139,6 +139,14 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   the same time. Otherwise attackers can find out which emails have accounts.
 - **Transactions:** user + personal organization + membership are created in one write, all or nothing.
 
+### Login screens (M1-S1 frontend, done)
+- **The frontend never touches the token.** The cookie is `HttpOnly`; the browser attaches it to every
+  same-origin request. Nothing is kept in `localStorage`, where an XSS bug could read it.
+- **"Am I logged in?"** = call `/api/me`: 200 shows the account, 401 shows the form.
+- **Feature folders:** `src/auth/` holds everything about logging in, mirroring the API's `modules/auth/`.
+- **Feedback while waiting:** slow requests (password hashing is slow on purpose) need a visible state
+  ("Please wait..."), or users click again.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement

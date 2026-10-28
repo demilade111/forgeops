@@ -8,6 +8,36 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-022 — Error messages contained symbols the UI shouldn't show (M1-S1)
+- **Situation:** The API built validation messages with Zod's formatter, which writes lines like
+  `✖ Too small → at password`.
+- **Task:** Give the login screen messages people can read, and keep the project's no-emoji rule.
+- **Action:** I replaced the formatter with plain, custom messages ("Enter a valid email address", "Password
+  must be at least 12 characters") and added a test that the message is printable ASCII.
+- **Result:** The form shows clear sentences; the server's config errors use the same plain format.
+- **Lesson:** Library output is a developer format. Anything shown to users should be written on purpose.
+
+## ISS-021 — Sign-up took over 5 seconds in the browser (M1-S1)
+- **Situation:** Testing the sign-up screen, the button stayed greyed out for more than 5 seconds with no
+  other feedback.
+- **Task:** Find out whether the API was slow, and make sure users can tell something is happening.
+- **Action:** The network log showed the request completing normally. `uptime` showed a load average of
+  **172 on 8 cores**, and `ps` showed a video encoder, several browsers and other apps using the CPU, nothing
+  from ForgeOps. Password hashing is CPU-bound by design, so it slowed the most. I added a "Please wait..." label.
+- **Result:** The code was fine; the cause was the environment, and the UI now shows progress either way.
+- **Lesson:** Check the machine before tuning the code, and design for slow paths, because users will hit them.
+
+## ISS-020 — Tests failed with "No test files found" after the Docker engine changed (M1-S1)
+- **Situation:** Tests that passed the day before failed with "No test files found" and the same Vitest
+  printer crash as ISS-016.
+- **Task:** Find the real cause behind a misleading message.
+- **Action:** `docker compose ps` showed no container at all. `docker context show` said **OrbStack**: the
+  machine's Docker engine had switched from Docker Desktop, so the old container and its data were in an
+  engine that wasn't running. I started the database in OrbStack, re-applied migrations, and changed the test
+  setup to print "Is PostgreSQL running (docker compose up -d)?" before Vitest can swallow the error.
+- **Result:** Tests pass again, and a down database now produces a readable message (verified by stopping it).
+- **Lesson:** When "nothing changed" but things broke, check the environment, and make failures say what to do.
+
 ## ISS-019 — A failing test got committed because the check looked at the wrong exit code (M1-S1)
 - **Situation:** My commit command ran the tests and only committed if they passed, but it piped the output
   through `grep` to shorten it. One test failed and the commit still went through and was pushed.

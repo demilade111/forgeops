@@ -227,13 +227,13 @@ _Learn:_ authn vs authz, cookies, sessions, hashing, token lifecycle, common web
 - [ ] 2.2.10 Test invalid credentials and concurrent requests (invalid credentials done; concurrency open)
 
 ### 2.3 — Frontend authentication
-- [ ] 2.3.1 Build registration form
-- [ ] 2.3.2 Build login form
-- [ ] 2.3.3 Add field-level validation
-- [ ] 2.3.4 Handle loading and server errors
-- [ ] 2.3.5 Implement authenticated app layout
+- [x] 2.3.1 Build registration form
+- [x] 2.3.2 Build login form
+- [ ] 2.3.3 Add field-level validation (browser `required`/`minLength` + API messages; per-field messages open)
+- [x] 2.3.4 Handle loading and server errors
+- [x] 2.3.5 Implement authenticated app layout (single account view)
 - [ ] 2.3.6 Implement session-aware navigation
-- [ ] 2.3.7 Implement logout interaction
+- [x] 2.3.7 Implement logout interaction
 - [ ] 2.3.8 Test protected route behavior
 - [ ] 2.3.9 Add accessibility and keyboard checks
 

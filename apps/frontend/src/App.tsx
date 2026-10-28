@@ -1,27 +1,38 @@
 import { useEffect, useState } from "react";
-import { checkHealth, type Health } from "./health";
-
-const labels: Record<Health, string> = {
-  loading: "Checking...",
-  healthy: "API and database healthy",
-  "database-down": "API up, database unavailable",
-  "api-down": "API unreachable",
-};
+import { getMe, logout, type Me } from "./auth/api";
+import { AuthForm } from "./auth/AuthForm";
 
 export function App() {
-  const [health, setHealth] = useState<Health>("loading");
+  const [me, setMe] = useState<Me | null>();
+  const [error, setError] = useState<string | null>(null);
+
+  const refresh = () =>
+    getMe()
+      .then(setMe)
+      .catch(() => setError("ForgeOps is unreachable right now. Try again shortly."));
 
   useEffect(() => {
-    const update = () => checkHealth().then(setHealth);
-    update();
-    const id = setInterval(update, 5000);
-    return () => clearInterval(id);
+    refresh();
   }, []);
 
   return (
     <main>
       <h1>ForgeOps</h1>
-      <p role="status">{labels[health]}</p>
+      {error && <p role="alert">{error}</p>}
+      {me === null && <AuthForm onSuccess={refresh} />}
+      {me && (
+        <section>
+          <p>Signed in as {me.user.email}</p>
+          <ul>
+            {me.organizations.map((org) => (
+              <li key={org.id}>
+                {org.name} ({org.role})
+              </li>
+            ))}
+          </ul>
+          <button onClick={() => logout().then(() => setMe(null))}>Log out</button>
+        </section>
+      )}
     </main>
   );
 }

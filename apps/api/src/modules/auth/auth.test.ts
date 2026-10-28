@@ -58,6 +58,14 @@ it.each([
   const res = await signup(body);
   expect(res.status).toBe(400);
   expect(res.body.error.code).toBe("VALIDATION_ERROR");
+  expect(res.body.error.message).toMatch(/^[\x20-\x7E]+$/);
+});
+
+it("explains what is wrong with sign-up input in plain words", async () => {
+  const res = await signup({ email: "nope", password: "short" });
+  expect(res.body.error.message).toBe(
+    "Enter a valid email address. Password must be at least 12 characters",
+  );
 });
 
 it("logs in with the right password and gives the same error for wrong password or unknown email", async () => {
