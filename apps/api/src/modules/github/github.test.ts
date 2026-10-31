@@ -13,6 +13,7 @@ function fakeGitHub(installations: Installation[] = [{ id: 42, account: "demilad
     installUrl: (state: string) => `https://github.test/install?state=${state}`,
     userInstallations: vi.fn(async () => installations),
     listRepositories: vi.fn(async () => repos),
+    inspectSource: vi.fn(async () => ({ repositoryId: 1 })),
   } satisfies GitHubClient;
 }
 

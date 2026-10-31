@@ -2,7 +2,7 @@ import { createHash, randomBytes } from "node:crypto";
 import { Router, type Request, type RequestHandler, type Response } from "express";
 import { z } from "zod";
 import { Prisma, type PrismaClient } from "../../generated/prisma/client.js";
-import { HttpError } from "../../http-error.js";
+import { HttpError, parse } from "../../http-error.js";
 import { hashPassword, verifyPassword } from "../../password.js";
 import { authRepository } from "./auth.repository.js";
 
@@ -40,10 +40,20 @@ export const readCookie = (req: Request, name: string) =>
 
 const readToken = (req: Request) => readCookie(req, COOKIE);
 
+export function memberOrganizationId(res: Response, organizationId: unknown) {
+  const { memberships } = res.locals.user as SessionUser;
+  const membership = memberships.find((m) => m.organization.id === organizationId);
+  if (!membership) throw new HttpError(404, "ORGANIZATION_NOT_FOUND", "Organization not found");
+  return membership.organization.id;
+}
+
+export const memberOrganizationIds = (res: Response) =>
+  (res.locals.user as SessionUser).memberships.map((m) => m.organization.id);
+
 const requireJson: RequestHandler = (req, _res, next) => {
   const hasBody =
     Number(req.headers["content-length"] ?? 0) > 0 || !!req.headers["transfer-encoding"];
-  if (req.method === "POST" && hasBody && !req.is("application/json")) {
+  if (["POST", "PATCH"].includes(req.method) && hasBody && !req.is("application/json")) {
     throw new HttpError(415, "UNSUPPORTED_MEDIA_TYPE", "Send requests as application/json");
   }
   next();
@@ -124,13 +134,4 @@ export function createAuthRouter(db: PrismaClient, { secureCookies }: { secureCo
   });
 
   return router;
-}
-
-function parse<T>(schema: z.ZodType<T>, body: unknown): T {
-  const result = schema.safeParse(body);
-  if (!result.success) {
-    const messages = new Set(result.error.issues.map((issue) => issue.message));
-    throw new HttpError(400, "VALIDATION_ERROR", [...messages].join(". "));
-  }
-  return result.data;
 }

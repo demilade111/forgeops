@@ -5,18 +5,21 @@ export type GitHubAppCredentials = {
   appId: number;
   slug: string;
   privateKey: string;
-  clientId: string;
-  clientSecret: string;
+  clientId: string | null;
+  clientSecret: string | null;
 };
 
 export type Installation = { id: number; account: string };
 
 export type Repository = { id: number; fullName: string; private: boolean; defaultBranch: string };
 
+export type Source = { repository: string; branch: string; sourceDirectory: string };
+
 export type GitHubClient = {
   installUrl: (state: string) => string;
   userInstallations: (code: string) => Promise<Installation[]>;
   listRepositories: (installationId: number) => Promise<Repository[]>;
+  inspectSource: (installationId: number, source: Source) => Promise<{ repositoryId: number }>;
 };
 
 export function appJwt(appId: number, privateKey: string, now = Date.now()) {
@@ -26,7 +29,7 @@ export function appJwt(appId: number, privateKey: string, now = Date.now()) {
   return `${unsigned}.${sign("sha256", Buffer.from(unsigned), privateKey).toString("base64url")}`;
 }
 
-async function github<T>(path: string, token: string, method = "GET"): Promise<T> {
+async function send(path: string, token: string, method = "GET") {
   const res = await fetch(`https://api.github.com${path}`, {
     method,
     headers: {
@@ -36,16 +39,39 @@ async function github<T>(path: string, token: string, method = "GET"): Promise<T
       "User-Agent": "forgeops",
     },
   });
+  if (!res.ok && res.status !== 404) {
+    throw new HttpError(502, "GITHUB_ERROR", `GitHub request failed (${res.status})`);
+  }
+  return res;
+}
+
+async function github<T>(path: string, token: string, method = "GET"): Promise<T> {
+  const res = await send(path, token, method);
   if (!res.ok) throw new HttpError(502, "GITHUB_ERROR", `GitHub request failed (${res.status})`);
   return res.json() as Promise<T>;
 }
 
+const encodePath = (path: string) => path.split("/").map(encodeURIComponent).join("/");
+
 export function createGitHubClient(app: GitHubAppCredentials): GitHubClient {
+  async function installationToken(installationId: number) {
+    const jwt = appJwt(app.appId, app.privateKey);
+    const { token } = await github<{ token: string }>(
+      `/app/installations/${installationId}/access_tokens`,
+      jwt,
+      "POST",
+    );
+    return token;
+  }
+
   return {
     installUrl: (state) =>
       `https://github.com/apps/${app.slug}/installations/new?state=${encodeURIComponent(state)}`,
 
     async userInstallations(code) {
+      if (!app.clientId || !app.clientSecret) {
+        throw new HttpError(503, "GITHUB_OAUTH_NOT_CONFIGURED", "GitHub sign-in is not set up yet");
+      }
       const res = await fetch("https://github.com/login/oauth/access_token", {
         method: "POST",
         headers: { Accept: "application/json", "Content-Type": "application/json" },
@@ -64,12 +90,7 @@ export function createGitHubClient(app: GitHubAppCredentials): GitHubClient {
     },
 
     async listRepositories(installationId) {
-      const jwt = appJwt(app.appId, app.privateKey);
-      const { token } = await github<{ token: string }>(
-        `/app/installations/${installationId}/access_tokens`,
-        jwt,
-        "POST",
-      );
+      const token = await installationToken(installationId);
       const { repositories } = await github<{
         repositories: { id: number; full_name: string; private: boolean; default_branch: string }[];
       }>("/installation/repositories?per_page=100", token);
@@ -79,6 +100,38 @@ export function createGitHubClient(app: GitHubAppCredentials): GitHubClient {
         private: r.private,
         defaultBranch: r.default_branch,
       }));
+    },
+
+    async inspectSource(installationId, { repository, branch, sourceDirectory }) {
+      const owner = await send(
+        `/repos/${repository}/installation`,
+        appJwt(app.appId, app.privateKey),
+      );
+      if (!owner.ok || ((await owner.json()) as { id: number }).id !== installationId) {
+        throw new HttpError(
+          400,
+          "REPOSITORY_NOT_FOUND",
+          `ForgeOps cannot see ${repository}. Install the GitHub App on it first.`,
+        );
+      }
+      const token = await installationToken(installationId);
+      const repo = await github<{ id: number }>(`/repos/${repository}`, token);
+      if (!(await send(`/repos/${repository}/branches/${encodePath(branch)}`, token)).ok) {
+        throw new HttpError(400, "BRANCH_NOT_FOUND", `Branch ${branch} not found in ${repository}`);
+      }
+      const dockerfile = sourceDirectory ? `${sourceDirectory}/Dockerfile` : "Dockerfile";
+      const ref = encodeURIComponent(branch);
+      if (
+        !(await send(`/repos/${repository}/contents/${encodePath(dockerfile)}?ref=${ref}`, token))
+          .ok
+      ) {
+        throw new HttpError(
+          400,
+          "DOCKERFILE_NOT_FOUND",
+          `No Dockerfile at ${dockerfile} on ${branch}`,
+        );
+      }
+      return { repositoryId: repo.id };
     },
   };
 }

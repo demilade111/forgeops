@@ -7,12 +7,15 @@ import { HttpError } from "./http-error.js";
 import { createAuthRouter } from "./modules/auth/auth.router.js";
 import { createGitHubClient, type GitHubClient } from "./modules/github/github.client.js";
 import { createGitHubRouter } from "./modules/github/github.router.js";
+import { createProjectsRouter } from "./modules/projects/projects.router.js";
+import { readEncryptionKey } from "./secrets.js";
 
 type AppOptions = {
   db: PrismaClient;
   secureCookies?: boolean;
   checkDb?: () => Promise<unknown>;
   github?: GitHubClient | null;
+  encryptionKey?: Buffer | null;
 };
 
 export const createDb = (url: string) =>
@@ -38,6 +41,7 @@ export function createApp({
   secureCookies = false,
   checkDb = () => db.$queryRaw`SELECT 1`,
   github = null,
+  encryptionKey = null,
 }: AppOptions) {
   const app = express();
 
@@ -56,6 +60,7 @@ export function createApp({
 
   app.use("/api", createAuthRouter(db, { secureCookies }));
   app.use("/api", createGitHubRouter(db, github, { secureCookies }));
+  app.use("/api", createProjectsRouter(db, github, encryptionKey));
   app.use((_req, res) => {
     res.status(404).json({ error: { code: "NOT_FOUND", message: "Not found" } });
   });
@@ -65,12 +70,14 @@ export function createApp({
 }
 
 if (import.meta.main) {
-  const { port, databaseUrl, production, github } = loadConfig(process.env);
+  const { port, databaseUrl, production, github, encryptionKeyPath } = loadConfig(process.env);
   const githubClient = github
     ? createGitHubClient({
         ...github,
         privateKey: readFileSync(github.privateKeyPath, "utf8"),
-        clientSecret: readFileSync(github.clientSecretPath, "utf8").trim(),
+        clientSecret: github.clientSecretPath
+          ? readFileSync(github.clientSecretPath, "utf8").trim()
+          : null,
       })
     : null;
 
@@ -78,6 +85,7 @@ if (import.meta.main) {
     db: createDb(databaseUrl),
     secureCookies: production,
     github: githubClient,
+    encryptionKey: readEncryptionKey(encryptionKeyPath),
   }).listen(port, (error) => {
     if (error) throw error;
     console.log(`API listening on http://localhost:${port}`);
