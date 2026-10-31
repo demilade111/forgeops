@@ -2,33 +2,36 @@ import { expect, it } from "vitest";
 import { loadConfig } from "./config.js";
 
 const DATABASE_URL = "postgresql://forgeops:s3cret@localhost:5433/forgeops";
+const ENCRYPTION_KEY_PATH = "/keys/env.key";
+const base = { DATABASE_URL, ENCRYPTION_KEY_PATH };
 
 it("applies defaults", () => {
-  expect(loadConfig({ DATABASE_URL })).toEqual({
+  expect(loadConfig(base)).toEqual({
     production: false,
     port: 4000,
     databaseUrl: DATABASE_URL,
+    encryptionKeyPath: ENCRYPTION_KEY_PATH,
     github: null,
   });
 });
 
 it("reads PORT and NODE_ENV", () => {
-  expect(loadConfig({ DATABASE_URL, PORT: "8080", NODE_ENV: "production" })).toMatchObject({
+  expect(loadConfig({ ...base, PORT: "8080", NODE_ENV: "production" })).toMatchObject({
     port: 8080,
     production: true,
   });
 });
 
 it.each(["abc", "0", "70000", "80.5", ""])("rejects PORT=%j", (PORT) => {
-  expect(() => loadConfig({ DATABASE_URL, PORT })).toThrow(/PORT/);
+  expect(() => loadConfig({ ...base, PORT })).toThrow(/PORT/);
 });
 
 it.each([undefined, "not a url", "mysql://u:p@localhost/db"])("rejects DATABASE_URL=%j", (url) => {
-  expect(() => loadConfig({ DATABASE_URL: url })).toThrow(/DATABASE_URL/);
+  expect(() => loadConfig({ ...base, DATABASE_URL: url })).toThrow(/DATABASE_URL/);
 });
 
 it("rejects an unknown NODE_ENV", () => {
-  expect(() => loadConfig({ DATABASE_URL, NODE_ENV: "staging" })).toThrow(/NODE_ENV/);
+  expect(() => loadConfig({ ...base, NODE_ENV: "staging" })).toThrow(/NODE_ENV/);
 });
 
 it("does not echo rejected values", () => {
@@ -44,8 +47,12 @@ const github = {
   GITHUB_CLIENT_SECRET_PATH: "/keys/secret",
 };
 
+it("requires ENCRYPTION_KEY_PATH", () => {
+  expect(() => loadConfig({ DATABASE_URL })).toThrow(/ENCRYPTION_KEY_PATH/);
+});
+
 it("reads the GitHub App settings when all of them are present", () => {
-  expect(loadConfig({ DATABASE_URL, ...github }).github).toEqual({
+  expect(loadConfig({ ...base, ...github }).github).toEqual({
     appId: 5550990,
     slug: "forgeops-dev",
     privateKeyPath: "/keys/app.pem",
@@ -54,7 +61,25 @@ it("reads the GitHub App settings when all of them are present", () => {
   });
 });
 
-it("rejects a half-configured GitHub App and names what is missing", () => {
-  const partial = { DATABASE_URL, ...github, GITHUB_CLIENT_ID: undefined };
-  expect(() => loadConfig(partial)).toThrow(/missing: GITHUB_CLIENT_ID/);
+it("allows the GitHub App without OAuth settings", () => {
+  const appOnly = {
+    ...base,
+    ...github,
+    GITHUB_CLIENT_ID: undefined,
+    GITHUB_CLIENT_SECRET_PATH: undefined,
+  };
+  expect(loadConfig(appOnly).github).toMatchObject({
+    appId: 5550990,
+    clientId: null,
+    clientSecretPath: null,
+  });
+});
+
+it("rejects half-configured GitHub settings and names what is missing", () => {
+  expect(() => loadConfig({ ...base, ...github, GITHUB_CLIENT_ID: undefined })).toThrow(
+    /missing: GITHUB_CLIENT_ID/,
+  );
+  expect(() => loadConfig({ ...base, ...github, GITHUB_APP_SLUG: undefined })).toThrow(
+    /missing: GITHUB_APP_SLUG/,
+  );
 });

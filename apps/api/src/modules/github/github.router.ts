@@ -1,20 +1,13 @@
 import { randomBytes } from "node:crypto";
-import { Router, type Response } from "express";
+import { Router } from "express";
 import type { PrismaClient } from "../../generated/prisma/client.js";
 import { HttpError } from "../../http-error.js";
-import { createRequireAuth, readCookie, type SessionUser } from "../auth/auth.router.js";
+import { createRequireAuth, memberOrganizationId, readCookie } from "../auth/auth.router.js";
 import type { GitHubClient } from "./github.client.js";
 import { githubRepository } from "./github.repository.js";
 
 const STATE_COOKIE = "forgeops_github_state";
 const STATE_PATH = "/api/github";
-
-function memberOrganizationId(res: Response, organizationId: unknown) {
-  const { memberships } = res.locals.user as SessionUser;
-  const membership = memberships.find((m) => m.organization.id === organizationId);
-  if (!membership) throw new HttpError(404, "ORGANIZATION_NOT_FOUND", "Organization not found");
-  return membership.organization.id;
-}
 
 export function createGitHubRouter(
   db: PrismaClient,

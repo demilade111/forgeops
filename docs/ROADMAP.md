@@ -276,16 +276,16 @@ _Learn:_ relational modeling, foreign keys, authorization, RBAC, tenancy, IDOR.
 _Learn:_ normalization, one-to-many relationships, constraints, indexes, transactions.
 
 ### 3.2 — Project backend
-- [ ] 3.2.1 Create project migration
-- [ ] 3.2.2 Create project DTOs
-- [ ] 3.2.3 Implement create-project service
-- [ ] 3.2.4 Implement list-projects query
-- [ ] 3.2.5 Implement get-project endpoint
+- [x] 3.2.1 Create project migration
+- [x] 3.2.2 Create project DTOs
+- [x] 3.2.3 Implement create-project service
+- [x] 3.2.4 Implement list-projects query
+- [x] 3.2.5 Implement get-project endpoint
 - [ ] 3.2.6 Implement update-project endpoint
 - [ ] 3.2.7 Implement archive-project behavior
-- [ ] 3.2.8 Add organization-scoped authorization
+- [x] 3.2.8 Add organization-scoped authorization
 - [ ] 3.2.9 Add pagination and filtering
-- [ ] 3.2.10 Test duplicate names and unauthorized access
+- [x] 3.2.10 Test duplicate names and unauthorized access
 
 ### 3.3 — Project frontend
 - [ ] 3.3.1 Build projects listing page
@@ -301,16 +301,16 @@ _Learn:_ normalization, one-to-many relationships, constraints, indexes, transac
 _Learn:_ REST resource modeling, pagination, React data fetching, cache invalidation, UI state.
 
 ### 3.4 — Services and environments
-- [ ] 3.4.1 Create service configuration schema (type, source, build method, build/start commands, runtime, port, schedule)
-- [ ] 3.4.2 Implement add-service API
-- [ ] 3.4.3 Implement update-service configuration
-- [ ] 3.4.4 Implement service list/detail endpoints
+- [x] 3.4.1 Create service configuration schema (type, source, build method, build/start commands, runtime, port, schedule) _(M1: web + Dockerfile fields only; commands, runtime and schedule come with automatic builds, workers and jobs)_
+- [x] 3.4.2 Implement add-service API
+- [x] 3.4.3 Implement update-service configuration
+- [x] 3.4.4 Implement service list/detail endpoints
 - [ ] 3.4.5 Create environment schema
 - [ ] 3.4.6 Implement environment creation
 - [ ] 3.4.7 Build service configuration UI (review detected settings, override, confirm)
 - [ ] 3.4.8 Build environment selector
-- [ ] 3.4.9 Validate service types and ports
-- [ ] 3.4.10 Test organization and environment boundaries
+- [x] 3.4.9 Validate service types and ports
+- [x] 3.4.10 Test organization and environment boundaries _(organization boundary; one environment in M1)_
 - [ ] 3.4.11 Validate schedule configuration for scheduled jobs
 - [ ] 3.4.12 Store detected settings separately from developer overrides
 - [ ] 3.4.13 Block deployment until required settings are explicit when detection is ambiguous
@@ -322,9 +322,9 @@ _Learn:_ REST resource modeling, pagination, React data fetching, cache invalida
 - [ ] 3.5.3 Define masking and redaction requirements
 - [ ] 3.5.4 Define secret encryption and access policies
 - [ ] 3.5.5 Implement non-secret configuration CRUD
-- [ ] 3.5.6 Implement approved secret storage mechanism
+- [x] 3.5.6 Implement approved secret storage mechanism
 - [ ] 3.5.7 Build environment-variable editor
-- [ ] 3.5.8 Test that secrets never appear in logs or API responses
+- [ ] 3.5.8 Test that secrets never appear in logs or API responses _(API responses and database covered; logs come with M1-S5)_
 
 **Gate:** A user can create a project with web service, worker and scheduled job definitions, each pointing at its own repository, branch and directory, and configure separate environments.
 
@@ -335,10 +335,10 @@ _Learn:_ REST resource modeling, pagination, React data fetching, cache invalida
 **Deliverable:** A developer connects a GitHub repository and ForgeOps can identify which source revision to deploy.
 
 ### 4.1 — GitHub integration architecture
-- [ ] 4.1.1 Compare GitHub OAuth Apps and GitHub Apps
-- [ ] 4.1.2 Define required repository permissions
-- [ ] 4.1.3 Design installation and connection lifecycle
-- [ ] 4.1.4 Design repository ownership and authorization checks
+- [x] 4.1.1 Compare GitHub OAuth Apps and GitHub Apps
+- [x] 4.1.2 Define required repository permissions
+- [x] 4.1.3 Design installation and connection lifecycle
+- [x] 4.1.4 Design repository ownership and authorization checks
 - [ ] 4.1.5 Define branch and commit selection behavior
 - [ ] 4.1.6 Define webhook events ForgeOps will accept
 - [ ] 4.1.7 Design webhook verification and replay protection
@@ -348,11 +348,11 @@ _Learn:_ REST resource modeling, pagination, React data fetching, cache invalida
 _Learn:_ OAuth, GitHub Apps, webhooks, HTTP signatures, permissions, API integration, trust boundaries.
 
 ### 4.2 — GitHub backend integration
-- [ ] 4.2.1 Create integration configuration
-- [ ] 4.2.2 Implement installation initiation
-- [ ] 4.2.3 Validate installation callbacks
-- [ ] 4.2.4 Store installation metadata
-- [ ] 4.2.5 Implement repository listing
+- [x] 4.2.1 Create integration configuration
+- [x] 4.2.2 Implement installation initiation
+- [x] 4.2.3 Validate installation callbacks
+- [x] 4.2.4 Store installation metadata
+- [x] 4.2.5 Implement repository listing
 - [ ] 4.2.6 Implement repository selection (multiple repositories per project)
 - [ ] 4.2.7 Retrieve branches and commit information
 - [ ] 4.2.8 Implement integration disconnection
@@ -373,8 +373,8 @@ _Learn:_ OAuth, GitHub Apps, webhooks, HTTP signatures, permissions, API integra
 - [ ] 4.3.9 Start deployments on push only for services with auto-deploy enabled (PD-011)
 
 ### 4.4 — GitHub frontend
-- [ ] 4.4.1 Build Connect GitHub screen
-- [ ] 4.4.2 Build installation-status UI
+- [x] 4.4.1 Build Connect GitHub screen
+- [x] 4.4.2 Build installation-status UI
 - [ ] 4.4.3 Build repository selector
 - [ ] 4.4.4 Build branch selector
 - [ ] 4.4.5 Display latest commit information

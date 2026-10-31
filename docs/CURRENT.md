@@ -1,6 +1,6 @@
 # ForgeOps — Current Work
 
-_Last updated: 2026-10-25_
+_Last updated: 2026-10-31_
 
 ## Project status
 
@@ -48,8 +48,14 @@ the browser, backed by server-side sessions. Still open from Phase 2: rate limit
 **M1-S2 Reference API: Done (2026-10-28).** Private repo https://github.com/demilade111/forgeops-sample-api
 (sibling folder `../forgeops-sample-api`).
 
-**Next slice:** M1-S3 Connect & configure: create the ForgeOps GitHub App, connect the sample repo, and
-configure one web service (repository, branch, directory, port).
+**M1-S3 Connect & configure: backend done (2026-10-31).** GitHub App `forgeops-dev-demilade111` (ID 5550990)
+installed (installation 177099801) and linked by hand to the local test account `demo@forgeops.test` (OAuth
+deferred, ADR-042). Projects and web services API (FGO-03.04.02): create/list/read projects, add/read/update a
+service; source checked against GitHub on save (installation covers the repo, branch exists, Dockerfile in the
+folder); env vars encrypted at rest (ADR-040). Screens follow after M1-S6 (PD-013).
+
+**Next slice:** M1-S4 Deployment intent & progress (Deploy endpoint → deployment record → outbox → RabbitMQ →
+worker).
 
 Local environment (2026-10-27): git 2.50.1 · Docker engine now **OrbStack** (was Docker Desktop) · Node 24.22.1
 LTS via nvm (pinned in `.nvmrc`; run `nvm use` in this folder) · pnpm 11.5.2 via corepack.
@@ -99,7 +105,19 @@ migrations to it automatically. Docker must be running.
 | — | Frontend structure: axios API layer, `useRequest`, Zustand session store, types folder, Tailwind | Done | Owner request. 40 tests pass; typecheck, lint, format, build pass; browser: styled form, "Please wait..." during login, signed-in card, logout |
 | — | Redesign with shadcn/ui | Done | Split-screen login with brand panel, signed-in dashboard with organizations and a projects empty state; checked at desktop and phone sizes; 5 frontend tests, typecheck, lint, build pass |
 | M1-S2 | Reference API (`forgeops-sample-api`) | Done | 3 tests; Docker image builds; healthy release returns 200, `FAIL_READINESS=true` returns 503 on readiness while staying live; non-root; stops cleanly on SIGTERM |
+| FGO-03.04.02 | Projects and web services API (M1-S3 backend) | Done | 71 API + 5 frontend tests; sabotage tests caught a missing organization filter and plain-text env vars; real `curl` against GitHub: typo branch, wrong folder, repo outside the installation and bad port refused, valid service saved, database holds only ciphertext |
+| — | GitHub App connect flow (M1-S3) | Done | Commit `2d9ae95`; OAuth verification built and tested but not configured (ADR-042) |
 | M1-S1 | Identity & organization | Done | 35 API + 5 frontend tests pass; sabotage tests caught a readable cookie, a skipped password check and a logout that kept the session; in a real browser: sign-up, reload stays signed in, logout, wrong password error, login, duplicate email error |
+
+## Deferred until needed
+
+| Item | Needed when | Notes |
+| --- | --- | --- |
+| GitHub OAuth verification live (Client ID + secret in `~/.forgeops/`) | Before anyone other than the owner uses ForgeOps, and at the latest before M1-S13 | Code and tests done; needs "Request user authorization during installation", Callback URL `http://localhost:5173/api/github/callback`, Client ID and a client secret |
+| Mini frontend: service setup, Deploy button, deployment status (PD-013) | Right after M1-S6 works end to end | Validates the API shape; first demo |
+| Remaining frontend screens (PD-013) | One pass after M1-S12, before M1-S13 | Logs, history, rollback, metrics, alerts |
+| Restrict the GitHub App installation to `forgeops-sample-api` (ISS-031) | Now; owner action on GitHub | Installation settings: "Only select repositories" |
+| Paginate repository listing beyond 100 repos (4.2.9) | Before real users connect large accounts | `listRepositories` reads one page of 100 |
 
 ## Open decisions to watch
 

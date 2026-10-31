@@ -31,9 +31,16 @@ nvm install && nvm use
 corepack enable
 pnpm install
 cp apps/api/.env.example apps/api/.env
+mkdir -p ~/.forgeops && chmod 700 ~/.forgeops
+(umask 077 && openssl rand -base64 32 > ~/.forgeops/env-encryption.key)
 docker compose up -d
 pnpm --filter @forgeops/api exec prisma migrate dev
 ```
+
+Set `ENCRYPTION_KEY_PATH` in `apps/api/.env` to the full path of that key file (it encrypts service env vars; losing
+it loses the stored values). GitHub settings are optional: fill in the `GITHUB_APP_*` values from your GitHub App
+to connect repositories, and `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET_PATH` to verify installations through
+GitHub sign-in. Keep key files outside the repo and put only their paths in `.env`.
 
 ## Run
 

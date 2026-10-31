@@ -8,6 +8,50 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-031 — The GitHub App could read all ~95 of my repositories, not just the one it needs (M1-S3)
+- **Situation:** The first real call to list repositories through the GitHub App returned about 95 repos,
+  including private client and personal projects. The App had been installed with "All repositories".
+- **Task:** Keep the App to least privilege (ADR-008): it only needs the sample repo for M1.
+- **Action:** I flagged it instead of quietly carrying on, and noted that the listing also stops at 100 repos
+  (`per_page=100`), so pagination is needed before real users connect large accounts.
+- **Result:** Restricting the installation to "Only select repositories" is a two-click change on GitHub,
+  tracked in `CURRENT.md`.
+- **Lesson:** Check the scope a credential actually has, not the scope you intended to give it.
+
+## ISS-030 — A public repository passed the "is this repo in your installation?" check (M1-S3)
+- **Situation:** All 71 tests passed for the new service API. Then I ran it against real GitHub with `curl` and
+  asked for a service from `torvalds/linux`, a repo my GitHub App is not installed on. ForgeOps didn't refuse
+  the repo; it only failed later because Linux has no Dockerfile at the top level.
+- **Task:** Make the ownership check mean what it says.
+- **Action:** The check was "can the installation token read `/repos/{repo}`?" Installation tokens can read every
+  **public** repo, so only private repos were blocked. My fake GitHub client in the tests couldn't show this.
+  I switched to `GET /repos/{repo}/installation` with the App's own token, which returns the installation that
+  covers that repo, and accept it only if it is the organization's installation. I added a test for "readable
+  but covered by another installation".
+- **Result:** `torvalds/linux` is refused with `REPOSITORY_NOT_FOUND`; the sample repo still passes.
+- **Lesson:** Fakes test my logic, not my assumptions about the real API. A real smoke test against the real
+  service catches what mocks can't.
+
+## ISS-029 — The local database was empty after switching Docker engines (M1-S3)
+- **Situation:** Linking my GitHub installation to my local account, I found no accounts at all in the local
+  database.
+- **Task:** Work out whether something had deleted data.
+- **Action:** `_prisma_migrations` showed every migration applied that day, so the volume was brand new. The
+  earlier data lived in Docker Desktop's storage; OrbStack (ISS-020) keeps its own volumes, so
+  `docker compose up` created a fresh database.
+- **Result:** Nothing important lost (local test data only). I created a fresh local test account.
+- **Lesson:** Docker volumes belong to the engine. Switching engines means migrating volumes or starting fresh
+  on purpose.
+
+## ISS-028 — A validation message was swallowed by the library (M1-S3)
+- **Situation:** A test sent an env var named `BAD-NAME` and expected "Env var names use letters, numbers and
+  underscores". The API answered "Invalid key in record".
+- **Task:** Show users the plain message.
+- **Action:** Zod 4 wraps errors from a record's key schema in its own generic message. I validated the names
+  with a `refine` over the whole object instead.
+- **Result:** The plain message comes through; the test passes.
+- **Lesson:** Test the exact user-facing message, not just the status code; libraries rewrite messages.
+
 ## ISS-027 — A new database table "didn't exist" right after its migration ran (M1-S3)
 - **Situation:** After `prisma migrate dev` created the `GitHubInstallation` table, TypeScript said
   `gitHubInstallation does not exist on type PrismaClient`.

@@ -163,6 +163,26 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   Each state is named, and `session.me` only exists after `status === "signed-in"` is checked, so impossible
   states (signed in with no user) can't be written. Clearer than `Me | null | undefined`.
 
+### Connecting GitHub (M1-S3, done)
+- **GitHub App vs OAuth App:** an App is installed on chosen repos with fine-grained permissions and acts as
+  itself; an OAuth App acts as the user with broad scopes. ForgeOps uses an App (least privilege).
+- **App JWT → installation token:** ForgeOps signs a 10-minute JWT with the App's private key (RS256), trades it
+  for a 1-hour installation token, and uses that to read repos. No long-lived token is stored.
+- **`state` parameter:** a random value in a short-lived cookie that must come back unchanged from GitHub, so a
+  forged callback link is rejected.
+- **Never trust ids from the URL:** `installation_id` is checked with GitHub (`/user/installations`), and a repo
+  is checked with `/repos/{repo}/installation`, because installation tokens can read any public repo.
+
+### Projects, services and encrypted env vars (M1-S3 backend, done)
+- **Validate at the boundary:** Zod checks shape (port range, folder without `..`, slug names) before any work;
+  then GitHub, the source of truth, confirms the repo, branch and Dockerfile exist. Mistakes fail at save time,
+  not three days later at deploy time.
+- **AES-256-GCM:** symmetric encryption that also detects tampering (the auth tag). A fresh random IV per value
+  means equal values encrypt differently. The key stays in a file outside the repo; the database only ever holds
+  ciphertext, and the API returns names, never values (write-only secrets).
+- **Tenant scoping in queries:** every lookup filters by the user's organization ids
+  (`where: { id, project: { organizationId: { in: ids } } }`), so another tenant's id simply isn't found (404).
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement
@@ -190,3 +210,16 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 3. *Why require real login for the first milestone?* Adding authorization later means auditing every
    endpoint for missing checks, a classic source of security bugs. And a platform that builds code from
    GitHub must never have an open control plane.
+
+### M1-S3 — Connect and configure
+1. *How do you stop a user deploying someone else's private repo?* Never trust the repo name or installation id the
+   client sends. Ask GitHub which installation covers the repo and compare it with the one linked to the user's
+   organization. Testing against real GitHub showed that "can my token read it?" isn't enough: installation tokens
+   can read every public repo.
+2. *How do you store customer secrets?* Encrypted at rest with AES-256-GCM, key outside the database, values never
+   returned by the API (write-only). Updates merge by name because clients can't read values back. Next steps:
+   key rotation with a key id, and a managed KMS in the cloud.
+3. *Why validate a deploy configuration when it's saved, if the build checks again anyway?* Fast feedback: a typo in
+   a branch name is caught in seconds instead of in build logs days later. The build still re-checks because the
+   repo can change in between.
+

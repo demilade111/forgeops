@@ -29,6 +29,7 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | PD-010 | M1 includes real accounts and organization scoping; no single-user shortcut | **Confirmed** (2026-10-25, Phase 0.1.2)* |
 | PD-011 | Deploy triggers: manual in M1; opt-in auto-deploy on push per service in V1; trigger recorded per deployment | **Confirmed** (2026-10-25, Phase 0.1.2; explicitly confirmed by product owner) |
 | PD-012 | Platform operator: no super-admin UI in V1; no access to tenant secret values through ForgeOps | **Confirmed** (2026-10-25, Phase 0.1.2)* |
+| PD-013 | Build order: backend and DevOps for the remaining M1 slices first, frontend screens afterwards | **Confirmed** (2026-10-31, product owner) |
 
 \* Decided by Claude at the product owner's request ("take the decision now"). The product owner may revisit any of them.
 
@@ -120,6 +121,21 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 - The operator must not be able to read tenant secret values through ForgeOps.
 - A platform-operator admin UI is V1.5.
 
+### PD-013 — Backend and DevOps first, frontend afterwards (2026-10-31)
+- **Context:** the M1 slices in `ROADMAP.md` are vertical (API + UI per slice). The product owner wants to focus
+  on the backend and DevOps, which are the main learning goals, and add the screens afterwards.
+- **Options:** (a) keep vertical slices with UI each time; (b) build the backend and DevOps for M1-S3 to M1-S12
+  first, then the frontend in one pass.
+- **Choice:** (b), with one checkpoint: after M1-S6 (first real deploy end to end) build three small screens
+  (service setup form, Deploy button, deployment status page) to validate the API shape and give a demo.
+- **Trade-offs:** faster progress on the core engine and less UI rework while the API shape settles; but slice
+  acceptance is shown through API tests and `curl` instead of the dashboard until the frontend pass, and UI
+  problems surface later.
+- **Consequences:** each slice is "backend done" when its API, worker and infrastructure pass tests and a real
+  `curl`/CLI run; after S6 a mini frontend pass covers setup, deploy and status; the remaining screens (logs,
+history, rollback, metrics, alerts) become one frontend pass before M1-S13. Existing screens
+  (login, dashboard, repositories card) stay as they are.
+
 ---
 
 ## 2. Architecture decisions
@@ -164,6 +180,9 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-037 | Reference app for M1 | Separate private repo `forgeops-sample-api`: Express API in `api/`, npm, port 8080, `FAIL_READINESS` switch | **Accepted** (2026-10-28) |
 | ADR-038 | GitHub API client | Plain `fetch` + Node `crypto` to sign the App JWT; no Octokit yet | **Accepted** (2026-10-31) |
 | ADR-039 | Verifying GitHub installations | OAuth during installation + `state` cookie; accept an installation only if GitHub lists it for the signed-in GitHub user | **Accepted** (2026-10-31) |
+| ADR-040 | Service env var storage | Every value encrypted with AES-256-GCM (Node `crypto`); key file outside the repo; API returns names only | **Accepted** (2026-10-31) |
+| ADR-041 | Projects and services model | `Project` (slug name, unique per org) → `Service` (web, Dockerfile, repo id + name, branch, folder, port); source checked against GitHub on save | **Accepted** (2026-10-31) |
+| ADR-042 | GitHub OAuth settings optional | API starts with only the App settings; installation verification answers 503 until Client ID and secret are added | **Accepted** (2026-10-31) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer
@@ -515,6 +534,45 @@ Template:
   4. An installation already linked to another organization is refused.
 - **Consequences:** the GitHub App needs a client ID and client secret. Callback errors redirect to the dashboard
   with a code (`?github_error=INSTALLATION_NOT_YOURS`) instead of showing a raw JSON page.
+
+### ADR-040 — Service environment variables are encrypted at rest
+- **Status:** Accepted (2026-10-31). Product owner accepted the recommended option.
+- **Problem:** env vars often hold secrets (database passwords, API keys). Stored as plain text, anyone who sees
+  the database, a backup or a careless log line sees every customer's secrets.
+- **Options considered:** (a) encrypt every value; (b) store plain text and forbid secrets in M1; (c) leave env vars
+  out until the full secrets design (3.5).
+- **Decision:** (a). The whole env map of a service is JSON-encoded and encrypted with AES-256-GCM using Node's
+  `crypto` (no new dependency). Stored as `iv.authTag.ciphertext` (base64) in `Service.envVars`, so even the names
+  are hidden in the database. The 32-byte key lives in `~/.forgeops/env-encryption.key` (mode 600), its path in
+  `ENCRYPTION_KEY_PATH`; the API refuses to start without it. The API returns `envVarNames` only, never values.
+  `PATCH` merges: a string sets a value, `null` removes it, since clients can never read values back.
+- **Trade-offs:** GCM detects tampering and a wrong key. No key rotation yet (would need a key id prefix and a
+  re-encrypt job). The ciphertext isn't bound to its service row, so swapping two rows' blobs would go unnoticed;
+  acceptable while only the API writes the table. Losing the key file loses every stored value.
+- **Consequences:** AWS Secrets Manager or KMS can replace the key file in the cloud (ADR-016) without changing
+  the storage format. The worker will decrypt values only when starting a container (M1-S6).
+
+### ADR-041 — Projects and services model, checked against GitHub on save
+- **Status:** Accepted (2026-10-31).
+- **Decision:**
+  - `Project`: name is a lowercase slug, unique per organization. `Service`: slug name unique per project,
+    `type` enum (`web` only), `buildMethod` enum (`dockerfile` only), `repositoryId` (GitHub's stable id) plus
+    `repositoryFullName`, `branch`, `sourceDirectory` (normalised, no `..`), `port` (1–65535, always explicit).
+  - No `RepositoryConnection` table or environments table yet: one installation per organization and one
+    environment in M1. Added when multi-repository projects or environments need them.
+  - Before saving, ForgeOps asks GitHub: `GET /repos/{repo}/installation` (App JWT) must return **this
+    organization's** installation, then the branch and `{folder}/Dockerfile` must exist on that branch.
+  - Worker types and automatic builds are refused with plain messages until their decisions land (PD-003, ADR-017).
+- **Trade-offs:** each save costs four GitHub calls, and checks can go stale (a Dockerfile deleted later), so the
+  build step must check again. Slug names keep future URLs and container names safe.
+
+### ADR-042 — GitHub OAuth settings are optional
+- **Status:** Accepted (2026-10-31). Product owner deferred the OAuth step.
+- **Decision:** the GitHub App settings (`GITHUB_APP_ID`, `GITHUB_APP_SLUG`, `GITHUB_APP_PRIVATE_KEY_PATH`) and the
+  OAuth pair (`GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET_PATH`) are each all-or-nothing; OAuth needs the App settings.
+  Without OAuth, the install callback answers `GITHUB_OAUTH_NOT_CONFIGURED`; everything else works.
+- **Consequences:** while only the owner uses ForgeOps, the installation is linked by hand in the local database.
+  OAuth must be configured before anyone else signs up (tracked in `CURRENT.md`).
 
 ### ADR-006 — Message queue: RabbitMQ locally, AWS SQS in the cloud
 - **Status:** Accepted (2026-10-24)
