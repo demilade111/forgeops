@@ -1,14 +1,18 @@
+import { readFileSync } from "node:fs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import express, { type ErrorRequestHandler } from "express";
 import { loadConfig } from "./config.js";
 import { PrismaClient } from "./generated/prisma/client.js";
 import { HttpError } from "./http-error.js";
 import { createAuthRouter } from "./modules/auth/auth.router.js";
+import { createGitHubClient, type GitHubClient } from "./modules/github/github.client.js";
+import { createGitHubRouter } from "./modules/github/github.router.js";
 
 type AppOptions = {
   db: PrismaClient;
   secureCookies?: boolean;
   checkDb?: () => Promise<unknown>;
+  github?: GitHubClient | null;
 };
 
 export const createDb = (url: string) =>
@@ -33,6 +37,7 @@ export function createApp({
   db,
   secureCookies = false,
   checkDb = () => db.$queryRaw`SELECT 1`,
+  github = null,
 }: AppOptions) {
   const app = express();
 
@@ -50,6 +55,7 @@ export function createApp({
   });
 
   app.use("/api", createAuthRouter(db, { secureCookies }));
+  app.use("/api", createGitHubRouter(db, github, { secureCookies }));
   app.use((_req, res) => {
     res.status(404).json({ error: { code: "NOT_FOUND", message: "Not found" } });
   });
@@ -59,9 +65,20 @@ export function createApp({
 }
 
 if (import.meta.main) {
-  const { port, databaseUrl, production } = loadConfig(process.env);
+  const { port, databaseUrl, production, github } = loadConfig(process.env);
+  const githubClient = github
+    ? createGitHubClient({
+        ...github,
+        privateKey: readFileSync(github.privateKeyPath, "utf8"),
+        clientSecret: readFileSync(github.clientSecretPath, "utf8").trim(),
+      })
+    : null;
 
-  createApp({ db: createDb(databaseUrl), secureCookies: production }).listen(port, (error) => {
+  createApp({
+    db: createDb(databaseUrl),
+    secureCookies: production,
+    github: githubClient,
+  }).listen(port, (error) => {
     if (error) throw error;
     console.log(`API listening on http://localhost:${port}`);
   });

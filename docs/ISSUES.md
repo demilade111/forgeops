@@ -8,6 +8,15 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-027 — A new database table "didn't exist" right after its migration ran (M1-S3)
+- **Situation:** After `prisma migrate dev` created the `GitHubInstallation` table, TypeScript said
+  `gitHubInstallation does not exist on type PrismaClient`.
+- **Task:** Find out whether the migration had failed.
+- **Action:** The migration had applied fine. In Prisma 7, `migrate dev` no longer regenerates the typed client
+  as earlier versions did, so the code was still using the old client. I ran `prisma generate`.
+- **Result:** Typecheck passed. The step is now part of the workflow notes for schema changes.
+- **Lesson:** After a major version upgrade, re-check which steps a tool still does automatically.
+
 ## ISS-026 — A private key was exposed in a chat, so I rotated it before first use (M1-S3)
 - **Situation:** While setting up the ForgeOps GitHub App, its newly downloaded private key was attached to
   the AI assistant chat by mistake, so the key's full contents became part of the chat transcript.

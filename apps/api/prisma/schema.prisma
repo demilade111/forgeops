@@ -19,10 +19,11 @@ model User {
 }
 
 model Organization {
-  id          String       @id @default(uuid(7)) @db.Uuid
-  name        String
-  createdAt   DateTime     @default(now())
-  memberships Membership[]
+  id                  String               @id @default(uuid(7)) @db.Uuid
+  name                String
+  createdAt           DateTime             @default(now())
+  memberships         Membership[]
+  githubInstallations GitHubInstallation[]
 }
 
 enum Role {
@@ -49,4 +50,14 @@ model Session {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model GitHubInstallation {
+  installationId BigInt       @id
+  accountLogin   String
+  organizationId String       @db.Uuid
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId])
 }

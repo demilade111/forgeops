@@ -25,12 +25,20 @@ const loginBody = z.object({ email, password: password.min(1, "Password is requi
 
 const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
 
-const readToken = (req: Request) =>
+export type SessionUser = {
+  id: string;
+  email: string;
+  memberships: { role: string; organization: { id: string; name: string } }[];
+};
+
+export const readCookie = (req: Request, name: string) =>
   req.headers.cookie
     ?.split(";")
     .map((c) => c.trim())
-    .find((c) => c.startsWith(`${COOKIE}=`))
-    ?.slice(COOKIE.length + 1);
+    .find((c) => c.startsWith(`${name}=`))
+    ?.slice(name.length + 1);
+
+const readToken = (req: Request) => readCookie(req, COOKIE);
 
 const requireJson: RequestHandler = (req, _res, next) => {
   const hasBody =
@@ -40,6 +48,20 @@ const requireJson: RequestHandler = (req, _res, next) => {
   }
   next();
 };
+
+export function createRequireAuth(db: PrismaClient): RequestHandler {
+  const repo = authRepository(db);
+  return async (req, res, next) => {
+    const token = readToken(req);
+    const session = token ? await repo.findSession(hashToken(token)) : null;
+    if (!session || session.expiresAt <= new Date()) {
+      if (token) await repo.deleteSession(hashToken(token));
+      throw new HttpError(401, "UNAUTHENTICATED", "Log in to continue");
+    }
+    res.locals.user = session.user satisfies SessionUser;
+    next();
+  };
+}
 
 export function createAuthRouter(db: PrismaClient, { secureCookies }: { secureCookies: boolean }) {
   const repo = authRepository(db);
@@ -59,16 +81,7 @@ export function createAuthRouter(db: PrismaClient, { secureCookies }: { secureCo
     });
   }
 
-  const requireAuth: RequestHandler = async (req, res, next) => {
-    const token = readToken(req);
-    const session = token ? await repo.findSession(hashToken(token)) : null;
-    if (!session || session.expiresAt <= new Date()) {
-      if (token) await repo.deleteSession(hashToken(token));
-      throw new HttpError(401, "UNAUTHENTICATED", "Log in to continue");
-    }
-    res.locals.user = session.user;
-    next();
-  };
+  const requireAuth = createRequireAuth(db);
 
   router.use(requireJson);
 
@@ -103,15 +116,10 @@ export function createAuthRouter(db: PrismaClient, { secureCookies }: { secureCo
   });
 
   router.get("/me", requireAuth, (_req, res) => {
-    const { id, email, memberships } = res.locals.user;
+    const { id, email, memberships } = res.locals.user as SessionUser;
     res.json({
       user: { id, email },
-      organizations: memberships.map(
-        (m: { role: string; organization: { id: string; name: string } }) => ({
-          ...m.organization,
-          role: m.role,
-        }),
-      ),
+      organizations: memberships.map((m) => ({ ...m.organization, role: m.role })),
     });
   });
 

@@ -133,7 +133,7 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-005 | ORM / data access and migrations | Prisma | **Accepted** (2026-10-25) |
 | ADR-006 | Message queue | RabbitMQ locally, AWS SQS in the cloud, behind one queue interface | **Accepted** (2026-10-24) |
 | ADR-007 | Authentication mechanism | Server-side sessions in PostgreSQL, httpOnly cookie, email + password (not JWT) | **Accepted** (2026-10-25) |
-| ADR-008 | Repository integration | GitHub App with least-privilege permissions; must support many repositories per project (PD-001) | Proposed |
+| ADR-008 | Repository integration | GitHub App `forgeops-dev-demilade111`: Contents read-only, Metadata read-only, own account only, webhooks off | **Accepted** (2026-10-31) |
 | ADR-009 | Build execution | Controlled CI-based builds before self-hosted runners; applies to both build methods (PD-002) | Proposed |
 | ADR-010 | Workload orchestration | Local Kubernetes first; managed cluster later if justified | Proposed |
 | ADR-011 | Cloud | AWS for the production-style environment | Proposed |
@@ -162,6 +162,8 @@ Statuses: **Confirmed / Accepted** (final) · **Proposed** (recommendation, not 
 | ADR-035 | Frontend shared state | Zustand store for state several screens share (the session); `useState` for state one component owns | **Accepted** (2026-10-28) |
 | ADR-036 | Styling | Tailwind CSS 4 + shadcn/ui (Radix base, Nova preset, Geist font, Lucide icons) | **Accepted** (2026-10-28) |
 | ADR-037 | Reference app for M1 | Separate private repo `forgeops-sample-api`: Express API in `api/`, npm, port 8080, `FAIL_READINESS` switch | **Accepted** (2026-10-28) |
+| ADR-038 | GitHub API client | Plain `fetch` + Node `crypto` to sign the App JWT; no Octokit yet | **Accepted** (2026-10-31) |
+| ADR-039 | Verifying GitHub installations | OAuth during installation + `state` cookie; accept an installation only if GitHub lists it for the signed-in GitHub user | **Accepted** (2026-10-31) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer
@@ -475,6 +477,44 @@ Template:
     unhealthy release for M1 criterion 14. **`APP_VERSION`** shows which release is serving, to see rollback.
   - **Multi-stage Dockerfile on `node:24-alpine`**, production dependencies only, non-root `node` user,
     graceful `SIGTERM` shutdown (stops in about 1 s). Image size 177 MB.
+
+### ADR-008 — Repository integration: a least-privilege GitHub App
+- **Status:** Accepted (2026-10-31). Created by the product owner in their GitHub account.
+- **Options considered:** OAuth App (acts as the user, broad scopes like `repo` that grant write access to every
+  repo the user can see); personal access tokens (tied to one person, manual rotation); **GitHub App**
+  (fine-grained permissions, installed per repository, short-lived tokens, revocable by the user).
+- **Settings:** Contents **read-only**, Metadata read-only, nothing else; installable **only on this account**;
+  installed on `forgeops-sample-api` only; webhooks **off** until auto-deploy (Phase 4.3) because GitHub
+  can't reach `localhost`; OAuth during installation **on** (ADR-039).
+- **Secrets:** App private key at `~/.forgeops/github-app.pem` and client secret at
+  `~/.forgeops/github-client-secret`, both outside the repo with `600` permissions. `.env` holds only their
+  paths (ADR-016). The first private key was exposed in a chat and rotated before use (ISS-026).
+
+### ADR-038 — GitHub API client: plain `fetch` + Node `crypto`
+- **Status:** Accepted (2026-10-31)
+- **Options considered:** Octokit (`@octokit/app`: handles JWTs, token caching, pagination, retries; several
+  packages); plain `fetch` with a hand-signed RS256 JWT (about 15 lines with `crypto.sign`).
+- **Decision:** `fetch` + `crypto`. ForgeOps needs four GitHub calls today, and signing the JWT ourselves keeps
+  the authentication flow visible and testable (a unit test verifies the signature with a generated key).
+- **Revisit when:** we need pagination beyond 100 repositories, rate-limit handling or token caching. Then
+  Octokit earns its weight.
+
+### ADR-039 — Verifying that a GitHub installation belongs to the user
+- **Status:** Accepted (2026-10-31). Product owner chose the secure option.
+- **Problem:** GitHub's redirect carries `installation_id` in the URL. Anyone can type someone else's id; trusting
+  it would let one ForgeOps user attach another person's installation and read their private code.
+- **Options considered:** trust the id when the user is logged in to ForgeOps (zero setup, exploitable as soon as
+  there is a second user); **verify with GitHub** (the GitHub-documented approach).
+- **Decision:**
+  1. `GET /api/github/install` sets a random `state` in a 10-minute `HttpOnly` cookie scoped to `/api/github`,
+     together with the organization id, and redirects to the App's install page with that `state`.
+  2. GitHub returns to `/api/github/callback` with `code`, `installation_id` and `state`. The callback rejects a
+     `state` that doesn't match the cookie (stops forged or replayed callbacks).
+  3. It exchanges `code` for a user token and calls `GET /user/installations`; the installation is accepted only if
+     it is in that list **and** belongs to our App id. The user token is used once and never stored.
+  4. An installation already linked to another organization is refused.
+- **Consequences:** the GitHub App needs a client ID and client secret. Callback errors redirect to the dashboard
+  with a code (`?github_error=INSTALLATION_NOT_YOURS`) instead of showing a raw JSON page.
 
 ### ADR-006 — Message queue: RabbitMQ locally, AWS SQS in the cloud
 - **Status:** Accepted (2026-10-24)
