@@ -1,4 +1,4 @@
-import { Building2, FolderGit2, Loader2, LogOut } from "lucide-react";
+import { Building2, Loader2, LogOut } from "lucide-react";
 import { api } from "@/api";
 import { Logo } from "@/components/Logo";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useRequest } from "@/hooks/useRequest";
 import { useSession } from "@/stores/session";
 import type { Me } from "@/types";
+import { RepositoriesCard } from "./RepositoriesCard";
 
 export function Dashboard({ me }: { me: Me }) {
   const clear = useSession((s) => s.clear);
@@ -59,21 +60,7 @@ export function Dashboard({ me }: { me: Me }) {
               ))}
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Projects</CardTitle>
-              <CardDescription>Apps you deploy with ForgeOps.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center gap-3 rounded-lg border border-dashed py-10 text-center">
-                <FolderGit2 className="text-muted-foreground size-8" />
-                <p className="font-medium">No projects yet</p>
-                <p className="text-muted-foreground max-w-xs text-sm">
-                  Connecting a GitHub repository is coming next.
-                </p>
-              </div>
-            </CardContent>
-          </Card>
+          <RepositoriesCard organizationId={me.organizations[0]!.id} />
         </div>
       </main>
     </div>
