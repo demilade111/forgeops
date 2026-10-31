@@ -8,6 +8,19 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-026 — A private key was exposed in a chat, so I rotated it before first use (M1-S3)
+- **Situation:** While setting up the ForgeOps GitHub App, its newly downloaded private key was attached to
+  the AI assistant chat by mistake, so the key's full contents became part of the chat transcript.
+- **Task:** Contain the exposure before the key was ever used, and stop it happening again.
+- **Action:** I treated the key as compromised even though its reach was small (read-only access to one
+  private repo). On GitHub I generated a new key and deleted the old one, so the leaked key stopped working.
+  The new key went to `~/.forgeops/github-app.pem`, outside the repo, with permissions `600` (owner only)
+  in a `700` folder, moved by file name only so its contents were never displayed. From now on the API is
+  given only the key's *path* through a git-ignored `.env` file.
+- **Result:** The exposed key was revoked within minutes and never used. The working key has never appeared
+  in a log, chat, commit or terminal output.
+- **Lesson:** Once a secret shows up anywhere it shouldn't, rotate it. Hoping nobody saw it is not a plan.
+
 ## ISS-025 — Tests worked in one repo and failed in another with the same tools (M1-S2)
 - **Situation:** The sample API's tests failed at startup with `Cannot find package 'vite'`, while the same
   Vitest version ran fine in ForgeOps.
