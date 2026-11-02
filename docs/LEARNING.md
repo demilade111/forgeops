@@ -183,6 +183,30 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Tenant scoping in queries:** every lookup filters by the user's organization ids
   (`where: { id, project: { organizationId: { in: ids } } }`), so another tenant's id simply isn't found (404).
 
+### Deployment intent, outbox and the worker (M1-S4, done)
+- **202 Accepted:** the API records the request and answers at once; the slow work happens in the worker. The
+  client polls `GET /api/deployments/:id` to watch progress.
+- **Idempotency-Key:** a one-time key per click. The same key for the same service returns the same deployment, so
+  a retried request can never create a second one. Enforced by a unique index, not just application code.
+- **One active deployment per service:** `activeServiceId` is unique and only set while a deployment is active, so
+  PostgreSQL refuses a second one (409). Cleared when the deployment finishes.
+- **Transactional outbox:** the deployment row and an outbox row ("please run 01a2") are saved in one transaction.
+  A relay later moves outbox rows to RabbitMQ. It fixes the dual-write problem: saving to Postgres and publishing
+  to RabbitMQ can't be one transaction, so a crash in between would lose the message.
+- **`FOR UPDATE SKIP LOCKED`:** lets several relays read the outbox at once without two of them taking the same row.
+- **Publisher confirms:** RabbitMQ tells the sender "stored". Only then is the outbox row marked sent.
+- **At-least-once delivery, ack and redelivery:** a delivered message stays unacked until the worker acks it after
+  finishing. If the worker dies first, RabbitMQ puts it back. So every message can arrive more than once.
+- **Idempotent worker:** the worker claims with `WHERE status IN ('queued','running')`, so a duplicate for a
+  finished deployment does nothing.
+- **Retry classification and exponential backoff:** a 404 branch is permanent (fail now); other GitHub errors are
+  transient (retry after 1 s, 2 s, 4 s). A failed job is still acked; retrying is the user's choice.
+- **Dead-letter queue:** a message that keeps crashing the handler moves to `deployments.dead` after 5 deliveries
+  instead of looping forever.
+- **Build, rollout and health are separate outcomes:** "did it build?", "did it start and take over the URL?",
+  "is it still working?". Each failure points at a different fix (code, settings, runtime bug). Only a health
+  failure after a successful rollout triggers automatic rollback.
+
 ## Interview question bank
 
 ### 0.1.1 — Problem statement
@@ -223,3 +247,13 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
    a branch name is caught in seconds instead of in build logs days later. The build still re-checks because the
    repo can change in between.
 
+### M1-S4 — Deployment intent and progress
+1. *How do you make sure a deploy request is never lost, even if the server crashes?* Save the deployment and an
+   outbox message in one transaction, then let a relay publish the outbox to the queue and mark it sent only after
+   the broker confirms. A crash at any point either rolls back both rows or leaves the message to be sent later.
+2. *Your queue delivers at least once. How do you stop a deployment running twice?* The worker reads the state
+   from PostgreSQL and only claims a deployment that is still queued or running; a duplicate for a finished one is
+   skipped and acked. The ack comes last, so a crash means "try again", never "lost".
+3. *Two people click Deploy at the same moment. What happens?* Both requests try to insert; the unique index on
+   the active-deployment column lets exactly one win. The other gets 409, unless it carried the same
+   Idempotency-Key, in which case it gets the same deployment back.

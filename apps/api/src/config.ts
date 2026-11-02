@@ -5,6 +5,7 @@ const schema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   ENCRYPTION_KEY_PATH: z.string().min(1),
+  RABBITMQ_URL: z.url({ protocol: /^amqps?$/ }).optional(),
   GITHUB_APP_ID: z.coerce.number().int().positive().optional(),
   GITHUB_APP_SLUG: z.string().min(1).optional(),
   GITHUB_APP_PRIVATE_KEY_PATH: z.string().min(1).optional(),
@@ -44,6 +45,7 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
     port: c.PORT,
     databaseUrl: c.DATABASE_URL,
     encryptionKeyPath: c.ENCRYPTION_KEY_PATH,
+    rabbitmqUrl: c.RABBITMQ_URL ?? null,
     github: hasApp
       ? {
           appId: c.GITHUB_APP_ID!,
@@ -55,3 +57,4 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
       : null,
   };
 }
+export type Config = ReturnType<typeof loadConfig>;

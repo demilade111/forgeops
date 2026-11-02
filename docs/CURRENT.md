@@ -1,11 +1,12 @@
 # ForgeOps — Current Work
 
-_Last updated: 2026-10-31_
+_Last updated: 2026-11-01_
 
 ## Project status
 
 - **Phase 0:** core planning done; remaining tickets deferred to just-in-time.
-- **Built so far:** M1-S0 (foundation) and M1-S1 (accounts: sign-up, login, logout, personal organization).
+- **Built so far:** M1-S0 to M1-S4: foundation, accounts, reference app, GitHub connect plus projects and services
+  (backend), and deployment intent with the outbox, RabbitMQ and the worker (backend).
 - Approved V1 features are requirements, not implementations.
 
 ## Completed
@@ -54,8 +55,17 @@ deferred, ADR-042). Projects and web services API (FGO-03.04.02): create/list/re
 service; source checked against GitHub on save (installation covers the repo, branch exists, Dockerfile in the
 folder); env vars encrypted at rest (ADR-040). Screens follow after M1-S6 (PD-013).
 
-**Next slice:** M1-S4 Deployment intent & progress (Deploy endpoint → deployment record → outbox → RabbitMQ →
-worker).
+**M1-S4 Deployment intent & progress: backend done (2026-11-01).** `POST /api/services/:id/deployments` (required
+`Idempotency-Key`, 202, 409 while another deployment is active) saves the deployment and an outbox row in one
+transaction. The worker (`pnpm --filter @forgeops/api worker`) relays the outbox to RabbitMQ with publisher
+confirms, claims the deployment, resolves the branch's commit through the GitHub App (3 retries with backoff) and
+records the `resolve-commit` step. Duplicates are skipped, crashed jobs are redelivered and resumed, poison
+messages go to `deployments.dead`. ADR-043 to ADR-047. The local database had to be re-seeded (ISS-032): local
+test account `demo@forgeops.test` (random password, never shown), installation 177099801 re-linked, service
+`api` in project `sample-shop` with source directory `api`.
+
+**Next slice:** M1-S5 Build & track (fetch the code at the pinned commit, build the image from the Dockerfile,
+store build logs, record the image digest). Needs decisions first: where builds run and which image registry.
 
 Local environment (2026-10-27): git 2.50.1 · Docker engine now **OrbStack** (was Docker Desktop) · Node 24.22.1
 LTS via nvm (pinned in `.nvmrc`; run `nvm use` in this folder) · pnpm 11.5.2 via corepack.
@@ -67,7 +77,7 @@ Dependency install scripts are blocked by default (pnpm). `esbuild` (used by tsx
 
 Run the API locally: `nvm use`, then `pnpm --filter @forgeops/api dev` (port 4000, override with `PORT`).
 
-Local database: `docker compose up -d` starts PostgreSQL 18 on `127.0.0.1:5433` (user, password and database
+Local services: `docker compose up -d` starts RabbitMQ 4 on `127.0.0.1:5673` (UI on 15673) and PostgreSQL 18 on `127.0.0.1:5433` (user, password and database
 all `forgeops`; local development only). Port 5433 because Homebrew PostgreSQL 14 already uses 5432.
 Stop with `docker compose stop`; `docker compose down -v` also deletes the data.
 
@@ -107,6 +117,7 @@ migrations to it automatically. Docker must be running.
 | M1-S2 | Reference API (`forgeops-sample-api`) | Done | 3 tests; Docker image builds; healthy release returns 200, `FAIL_READINESS=true` returns 503 on readiness while staying live; non-root; stops cleanly on SIGTERM |
 | FGO-03.04.02 | Projects and web services API (M1-S3 backend) | Done | 71 API + 5 frontend tests; sabotage tests caught a missing organization filter and plain-text env vars; real `curl` against GitHub: typo branch, wrong folder, repo outside the installation and bad port refused, valid service saved, database holds only ciphertext |
 | — | GitHub App connect flow (M1-S3) | Done | Commit `2d9ae95`; OAuth verification built and tested but not configured (ADR-042) |
+| M1-S4 | Deployment intent & progress (backend) | Done | 92 API + 5 frontend tests, incl. a real RabbitMQ round trip and redelivery; 7 sabotage tests caught a claim that accepted finished deployments, ack before work, a missing outbox row, no lock, a lock never released, a relay that never marks rows sent and an unscoped read. Real run against GitHub: deploy with the worker off waited in the outbox, then succeeded with `main`'s real SHA; replay 202, second key 409, no key 400; missing branch failed with the reason and released the lock; worker exits when RabbitMQ restarts and stops cleanly on SIGTERM |
 | M1-S1 | Identity & organization | Done | 35 API + 5 frontend tests pass; sabotage tests caught a readable cookie, a skipped password check and a logout that kept the session; in a real browser: sign-up, reload stays signed in, logout, wrong password error, login, duplicate email error |
 
 ## Deferred until needed
@@ -118,6 +129,11 @@ migrations to it automatically. Docker must be running.
 | Remaining frontend screens (PD-013) | One pass after M1-S12, before M1-S13 | Logs, history, rollback, metrics, alerts |
 | Restrict the GitHub App installation to `forgeops-sample-api` (ISS-031) | Now; owner action on GitHub | Installation settings: "Only select repositories" |
 | Paginate repository listing beyond 100 repos (4.2.9) | Before real users connect large accounts | `listRepositories` reads one page of 100 |
+| Deployment timeout / stale-deployment sweeper (5.5.7) | Before M1-S5 builds take minutes | A deployment whose message dead-letters stays `running` with its lock held (ADR-046) |
+| Worker lease (worker id + heartbeat) | Before running more than one worker | Resuming `running` is only safe with one worker (ADR-046) |
+| Deployment list pagination (5.3.9) and cancellation (5.3.7) | With the deployment history screen | List returns the latest 50 |
+| Local seed script (account, installation link, service) | Next time the local volume is lost (ISS-029, ISS-032) | Re-seeding by hand takes a few minutes |
+| `JobPublisher`/`JobConsumer` split and SQS adapter (ADR-006) | Phase 8 | `connectQueue` is the interface for now (ADR-045) |
 
 ## Open decisions to watch
 

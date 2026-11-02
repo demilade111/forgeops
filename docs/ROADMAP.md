@@ -392,70 +392,70 @@ _Learn:_ OAuth, GitHub Apps, webhooks, HTTP signatures, permissions, API integra
 **Deliverable:** A durable deployment engine that accepts requests, schedules work and survives duplicate requests and worker failures.
 
 ### 5.1 — Deployment domain design
-- [ ] 5.1.1 Define what constitutes a deployment
-- [ ] 5.1.2 Define deployment identifiers and version references
-- [ ] 5.1.3 Define deployment states and transitions
+- [x] 5.1.1 Define what constitutes a deployment
+- [x] 5.1.2 Define deployment identifiers and version references
+- [x] 5.1.3 Define deployment states and transitions
 - [ ] 5.1.4 Define desired state versus actual state
-- [ ] 5.1.5 Define the source of truth for deployment status
+- [x] 5.1.5 Define the source of truth for deployment status
 - [ ] 5.1.6 Define cancellation semantics
 - [ ] 5.1.7 Define deployment history and audit requirements
-- [ ] 5.1.8 Design deployment tables and indexes
+- [x] 5.1.8 Design deployment tables and indexes
 - [ ] 5.1.9 Review the state-transition diagram
 - [ ] 5.1.10 Define build, rollout and application-health outcomes as separate statuses
 - [ ] 5.1.11 Define rollback deployments (manual and automatic) and how rollback outcomes are recorded
 - [ ] 5.1.12 Define scheduled-job execution records (history, status, logs)
-- [ ] 5.1.13 Record each deployment's trigger: user, GitHub push, or automatic rollback (PD-011)
+- [x] 5.1.13 Record each deployment's trigger: user, GitHub push, or automatic rollback (PD-011) (manual trigger in M1-S4; push and rollback triggers later)
 
 ### 5.2 — Queue and worker architecture
-- [ ] 5.2.1 Explain why deployment work should be asynchronous
+- [x] 5.2.1 Explain why deployment work should be asynchronous
 - [ ] 5.2.2 Compare database-backed jobs, Redis/BullMQ and SQS
-- [ ] 5.2.3 Define producer and consumer responsibilities
-- [ ] 5.2.4 Define job acknowledgement behavior
-- [ ] 5.2.5 Define retry and backoff policies
-- [ ] 5.2.6 Define dead-letter and permanent-failure handling
+- [x] 5.2.3 Define producer and consumer responsibilities
+- [x] 5.2.4 Define job acknowledgement behavior
+- [x] 5.2.5 Define retry and backoff policies
+- [x] 5.2.6 Define dead-letter and permanent-failure handling
 - [ ] 5.2.7 Define job concurrency limits
-- [ ] 5.2.8 Define worker shutdown and crash recovery
-- [ ] 5.2.9 Record the queue architecture ADR
+- [x] 5.2.8 Define worker shutdown and crash recovery
+- [x] 5.2.9 Record the queue architecture ADR
 
 _Learn:_ message brokers, delivery guarantees, workers, durable state, backpressure, distributed failure modes.
 
 ### 5.3 — Deployment API
-- [ ] 5.3.1 Create deployment database migration
-- [ ] 5.3.2 Define create-deployment request contract
-- [ ] 5.3.3 Implement create-deployment endpoint
-- [ ] 5.3.4 Persist deployment intent transactionally
-- [ ] 5.3.5 Implement deployment list endpoint
-- [ ] 5.3.6 Implement deployment detail endpoint
+- [x] 5.3.1 Create deployment database migration
+- [x] 5.3.2 Define create-deployment request contract
+- [x] 5.3.3 Implement create-deployment endpoint
+- [x] 5.3.4 Persist deployment intent transactionally
+- [x] 5.3.5 Implement deployment list endpoint
+- [x] 5.3.6 Implement deployment detail endpoint
 - [ ] 5.3.7 Implement deployment cancellation request
-- [ ] 5.3.8 Enforce organization and service permissions
+- [x] 5.3.8 Enforce organization and service permissions
 - [ ] 5.3.9 Add pagination and filtering
-- [ ] 5.3.10 Test concurrent deployment requests
+- [x] 5.3.10 Test concurrent deployment requests
 
 ### 5.4 — Idempotency and transactional safety
-- [ ] 5.4.1 Define idempotency-key semantics
-- [ ] 5.4.2 Design duplicate-request handling
-- [ ] 5.4.3 Enforce uniqueness in PostgreSQL
-- [ ] 5.4.4 Evaluate transactional outbox requirements
-- [ ] 5.4.5 Atomically persist deployment intent and dispatch intent where required
-- [ ] 5.4.6 Implement safe retry behavior
-- [ ] 5.4.7 Prevent conflicting deployments to one environment
-- [ ] 5.4.8 Test worker crash after performing a side effect
-- [ ] 5.4.9 Test lost responses and repeated requests
+- [x] 5.4.1 Define idempotency-key semantics
+- [x] 5.4.2 Design duplicate-request handling
+- [x] 5.4.3 Enforce uniqueness in PostgreSQL
+- [x] 5.4.4 Evaluate transactional outbox requirements
+- [x] 5.4.5 Atomically persist deployment intent and dispatch intent where required
+- [x] 5.4.6 Implement safe retry behavior
+- [x] 5.4.7 Prevent conflicting deployments to one environment
+- [x] 5.4.8 Test worker crash after performing a side effect
+- [x] 5.4.9 Test lost responses and repeated requests
 
 _Learn:_ ACID, race conditions, unique constraints, outbox pattern, exactly-once illusions.
 
 ### 5.5 — Deployment worker
-- [ ] 5.5.1 Create worker application entry point
-- [ ] 5.5.2 Implement job consumption
-- [ ] 5.5.3 Validate deployment state before processing
-- [ ] 5.5.4 Implement transition to running
+- [x] 5.5.1 Create worker application entry point
+- [x] 5.5.2 Implement job consumption
+- [x] 5.5.3 Validate deployment state before processing
+- [x] 5.5.4 Implement transition to running
 - [ ] 5.5.5 Implement deployment step execution interface
-- [ ] 5.5.6 Persist step-level results
+- [x] 5.5.6 Persist step-level results
 - [ ] 5.5.7 Implement timeout handling
-- [ ] 5.5.8 Implement retry classification
-- [ ] 5.5.9 Implement graceful worker shutdown
-- [ ] 5.5.10 Implement recovery of interrupted jobs
-- [ ] 5.5.11 Test duplicate deliveries and worker crashes
+- [x] 5.5.8 Implement retry classification
+- [x] 5.5.9 Implement graceful worker shutdown
+- [x] 5.5.10 Implement recovery of interrupted jobs
+- [x] 5.5.11 Test duplicate deliveries and worker crashes
 
 ### 5.6 — Deployment frontend
 - [ ] 5.6.1 Build Deploy button and confirmation
@@ -470,8 +470,8 @@ _Learn:_ ACID, race conditions, unique constraints, outbox pattern, exactly-once
 
 ### 5.7 — Failure injection
 - [ ] 5.7.1 Stop a worker mid-job
-- [ ] 5.7.2 Submit the same deployment twice
-- [ ] 5.7.3 Simulate queue unavailability
+- [x] 5.7.2 Submit the same deployment twice
+- [x] 5.7.3 Simulate queue unavailability
 - [ ] 5.7.4 Simulate PostgreSQL connection loss
 - [ ] 5.7.5 Simulate a deployment timeout
 - [ ] 5.7.6 Simulate duplicate webhook delivery

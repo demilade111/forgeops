@@ -594,3 +594,97 @@ Template:
 - **Consequences:** Two adapters to build and test, and local and cloud are not byte-identical, so the
   contract tests are what stop them drifting. In return there is no AWS dependency before Phase 8, and a
   real-world provider migration story.
+
+### ADR-043 — Deployment model and duplicate protection
+- **Status:** Accepted (2026-11-01). Product owner chose "both protections" and a required key.
+- **Problem:** a click on Deploy must create exactly one deployment, even when the request is retried after a lost
+  response, sent twice by a double click, or sent while another deployment of the same service is still running.
+- **Options considered:** (a) Idempotency-Key only; (b) one-active-deployment rule only; (c) both. For the key:
+  required, or optional with no protection when missing.
+- **Decision:** (c), with the key required. Tables: `Deployment` (status `queued | running | succeeded | failed`,
+  `trigger` = `manual`, `triggeredById`, `idempotencyKey`, `commitSha`, `error`, timestamps), `DeploymentStep`
+  (one row per worker step, unique per deployment and name) and `Outbox` (see ADR-046).
+  - `@@unique([serviceId, idempotencyKey])`: the same key for the same service returns the existing deployment (202).
+  - `activeServiceId` is set to the service id while a deployment is active and cleared when it finishes. It is
+    `@unique`, so PostgreSQL itself refuses a second active deployment; the API answers 409
+    `DEPLOYMENT_IN_PROGRESS` naming the active deployment.
+  - A missing or malformed `Idempotency-Key` header is 400 (1–255 letters, digits, `-`, `.`, `:` or `_`).
+  - The key is checked before the lock, so a retry of the click that started the running deployment gets 202, not 409.
+  - Races are settled by the unique indexes: on a unique violation the API looks the key up again and returns that
+    deployment, otherwise 409. No need to parse which constraint failed.
+- **Trade-offs:** clients must send a key (our frontend always will). The lock column is simpler than a partial
+  unique index, which Prisma cannot express. Keys are kept forever for now; expiring old keys is not needed yet.
+- **Consequences:** `POST /api/services/:id/deployments` answers 202 with the deployment; `GET
+  /api/services/:id/deployments` lists the latest 50 (pagination is 5.3.9); `GET /api/deployments/:id` includes the
+  steps. All three are organization-scoped (404 for other organizations).
+
+### ADR-044 — The worker lives in `apps/api` as a separate process
+- **Status:** Accepted (2026-11-01). Product owner asked for the best option; this was the recommendation.
+- **Options considered:** (a) a new `apps/worker` package; (b) a second entry point in `apps/api`; (c) run the
+  worker inside the API process.
+- **Decision:** (b). `src/worker.ts` starts the outbox relay and the queue consumer; `pnpm --filter @forgeops/api
+  worker` runs it in development, `start:worker` after a build. It reuses the API's modules, Prisma client, config
+  and GitHub client (`loadGitHubClient`, now shared with `server.ts`).
+- **Trade-offs:** no duplicated config, schema or repositories, and ADR-001's "monolith + separate worker" holds
+  because they still run as separate processes that scale and crash independently. The worker image will carry
+  Express code it never uses, which is harmless. (c) would let a slow build starve HTTP requests.
+- **Consequences:** if the worker grows heavy dependencies (Docker client, build tools), it can move to its own
+  package later without changing its code.
+
+### ADR-045 — RabbitMQ client and queue setup
+- **Status:** Accepted (2026-11-01). Product owner chose amqplib.
+- **Options considered:** `amqplib` (the standard low-level client), `rabbitmq-client` (built-in reconnects),
+  `amqp-connection-manager` (a reconnect wrapper over amqplib).
+- **Decision:** `amqplib` 0.10, wrapped in `src/queue.ts` (`connectQueue(url, queue)` returning `publish`, `consume`
+  and `close`).
+  - RabbitMQ 4 (`rabbitmq:4-management`) in Docker Compose on `127.0.0.1:5673`, management UI on `15673` (5672 and
+    15672 are left for another local project). Local credentials `forgeops`/`forgeops`, local only.
+  - `deployments` is a durable **quorum** queue (the RabbitMQ 4 default for durable data) with
+    `x-delivery-limit: 5` and a dead-letter queue `deployments.dead`.
+  - Publishing uses a **confirm channel**: `publish` resolves only after RabbitMQ has stored the message.
+  - Consuming: `prefetch 1`; ack only after the handler returns; any thrown error is logged and the message is
+    requeued, so after 5 deliveries it moves to the dead-letter queue instead of looping forever.
+  - On a lost connection the worker exits with code 1 instead of reconnecting; whatever runs it restarts it and
+    RabbitMQ redelivers unacked messages. SIGINT/SIGTERM stop the relay, close the connection and exit 0.
+  - `RABBITMQ_URL` is optional in config (the API does not need it); the worker refuses to start without it, or
+    without the GitHub App settings.
+- **Trade-offs:** exit-and-restart is less code than reconnect logic and leaves no half-broken channel. ADR-006's
+  `JobPublisher`/`JobConsumer` split and `QUEUE_PROVIDER` switch are not built yet: `connectQueue`'s small surface
+  is that interface in practice, and the SQS adapter and shared contract tests come with Phase 8.
+- **Consequences:** tests use the real RabbitMQ with a throwaway queue per test.
+
+### ADR-046 — M1-S4 worker behaviour: outbox relay, claim, resolve commit, retries
+- **Status:** Accepted (2026-11-01). Product owner chose "resolve commit" as the S4 step and asked for retries.
+- **Outbox relay:** runs inside the worker every second. In one transaction it selects up to 50 unsent rows
+  `FOR UPDATE SKIP LOCKED`, publishes each `{ type, deploymentId }` with confirms, then sets `sentAt`. If publishing
+  fails, the transaction rolls back and the rows are retried next tick. If marking fails after publishing, the
+  message is sent twice, which the idempotent worker absorbs. `SKIP LOCKED` keeps overlapping ticks or several
+  workers from sending the same row at once.
+- **Claim:** `UPDATE ... WHERE status IN ('queued', 'running')` sets `running`. Zero rows means the deployment is
+  finished or does not exist, so the duplicate is skipped and acked. `running` is accepted so a deployment left
+  half-done by a crashed worker is resumed.
+- **Step `resolve-commit`:** reads the service's branch through the GitHub App installation token (new
+  `branchCommit`) and stores the full commit SHA, so the deployment always means that exact code.
+  - 404 (branch gone) is permanent: `failed` with "Branch X not found in Y".
+  - Any other GitHub error is treated as transient: retried 3 times after 1 s, 2 s and 4 s, then `failed` with
+    "GitHub did not respond. Try deploying again."
+  - No GitHub installation for the organization: `failed`, "GitHub is not connected".
+  - Finishing writes the step and the deployment in one transaction and clears `activeServiceId`. A failed
+    deployment is still a finished job, so its message is acked.
+- **Trade-offs and known limits:**
+  - Resuming `running` is only safe with one worker; with several, two could work on the same deployment.
+    Revisit with a lease (worker id + heartbeat) before running more than one worker.
+  - If the handler keeps failing on something unexpected (for example the database is down) the message ends in
+    `deployments.dead` and the deployment stays `running` with its lock held. A timeout / stale-deployment sweeper
+    (5.5.7) fixes that; tracked in `CURRENT.md`.
+  - The worker does not re-check that the installation still covers the repository; S5 will, before downloading
+    code.
+- **Consequences:** later slices add steps (`fetch-source`, `build`, `run`, ...) to the same handler, each with
+  its own `DeploymentStep` row.
+
+### ADR-047 — Small shared helpers moved for reuse
+- **Status:** Accepted (2026-11-01).
+- **Decision:** `isId` (UUID check) moves from the projects router to `http-error.ts`, because the deployments
+  router needs it too. `loadGitHubClient(config.github)` reads the private key and optional client secret, shared
+  by the API and the worker. A `Config` type is exported from `config.ts`.
+- **Trade-offs:** none worth noting; it removes duplication instead of adding structure.

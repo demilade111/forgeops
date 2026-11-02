@@ -78,6 +78,30 @@ describe("inspectSource", () => {
     });
   });
 
+  it("reads the commit at the tip of a branch, or null when the branch is gone", async () => {
+    vi.stubGlobal("fetch", async (url: string) => {
+      const path = new URL(url).pathname;
+      if (path.endsWith("/access_tokens")) return Response.json({ token: "t" });
+      if (path === "/repos/me/app/branches/feature/x") {
+        return Response.json({ commit: { sha: "9f2c41e" } });
+      }
+      return new Response(null, { status: 404 });
+    });
+    await expect(client.branchCommit(5, "me/app", "feature/x")).resolves.toBe("9f2c41e");
+    await expect(client.branchCommit(5, "me/app", "gone")).resolves.toBeNull();
+  });
+
+  it("raises GITHUB_ERROR when GitHub fails, so the worker can retry", async () => {
+    vi.stubGlobal("fetch", async (url: string) =>
+      url.endsWith("/access_tokens")
+        ? Response.json({ token: "t" })
+        : new Response(null, { status: 503 }),
+    );
+    await expect(client.branchCommit(5, "me/app", "main")).rejects.toMatchObject({
+      code: "GITHUB_ERROR",
+    });
+  });
+
   it("refuses OAuth verification when the client secret is not configured", async () => {
     await expect(client.userInstallations("code")).rejects.toMatchObject({
       code: "GITHUB_OAUTH_NOT_CONFIGURED",

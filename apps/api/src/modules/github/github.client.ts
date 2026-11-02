@@ -1,4 +1,6 @@
 import { sign } from "node:crypto";
+import { readFileSync } from "node:fs";
+import type { Config } from "../../config.js";
 import { HttpError } from "../../http-error.js";
 
 export type GitHubAppCredentials = {
@@ -20,6 +22,11 @@ export type GitHubClient = {
   userInstallations: (code: string) => Promise<Installation[]>;
   listRepositories: (installationId: number) => Promise<Repository[]>;
   inspectSource: (installationId: number, source: Source) => Promise<{ repositoryId: number }>;
+  branchCommit: (
+    installationId: number,
+    repository: string,
+    branch: string,
+  ) => Promise<string | null>;
 };
 
 export function appJwt(appId: number, privateKey: string, now = Date.now()) {
@@ -133,5 +140,20 @@ export function createGitHubClient(app: GitHubAppCredentials): GitHubClient {
       }
       return { repositoryId: repo.id };
     },
+
+    async branchCommit(installationId, repository, branch) {
+      const token = await installationToken(installationId);
+      const res = await send(`/repos/${repository}/branches/${encodePath(branch)}`, token);
+      return res.ok ? ((await res.json()) as { commit: { sha: string } }).commit.sha : null;
+    },
   };
 }
+
+export const loadGitHubClient = (github: NonNullable<Config["github"]>) =>
+  createGitHubClient({
+    ...github,
+    privateKey: readFileSync(github.privateKeyPath, "utf8"),
+    clientSecret: github.clientSecretPath
+      ? readFileSync(github.clientSecretPath, "utf8").trim()
+      : null,
+  });

@@ -14,6 +14,7 @@ function fakeGitHub(installations: Installation[] = [{ id: 42, account: "demilad
     userInstallations: vi.fn(async () => installations),
     listRepositories: vi.fn(async () => repos),
     inspectSource: vi.fn(async () => ({ repositoryId: 1 })),
+    branchCommit: vi.fn(async () => "9f2c41e"),
   } satisfies GitHubClient;
 }
 

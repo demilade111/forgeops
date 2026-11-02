@@ -11,6 +11,7 @@ it("applies defaults", () => {
     port: 4000,
     databaseUrl: DATABASE_URL,
     encryptionKeyPath: ENCRYPTION_KEY_PATH,
+    rabbitmqUrl: null,
     github: null,
   });
 });
@@ -28,6 +29,14 @@ it.each(["abc", "0", "70000", "80.5", ""])("rejects PORT=%j", (PORT) => {
 
 it.each([undefined, "not a url", "mysql://u:p@localhost/db"])("rejects DATABASE_URL=%j", (url) => {
   expect(() => loadConfig({ ...base, DATABASE_URL: url })).toThrow(/DATABASE_URL/);
+});
+
+it("reads RABBITMQ_URL and rejects non-AMQP URLs", () => {
+  const RABBITMQ_URL = "amqp://forgeops:forgeops@localhost:5673";
+  expect(loadConfig({ ...base, RABBITMQ_URL }).rabbitmqUrl).toBe(RABBITMQ_URL);
+  expect(() => loadConfig({ ...base, RABBITMQ_URL: "http://localhost:5673" })).toThrow(
+    /RABBITMQ_URL/,
+  );
 });
 
 it("rejects an unknown NODE_ENV", () => {

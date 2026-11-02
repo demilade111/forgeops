@@ -8,6 +8,29 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-033 — My smoke-test script reported errors for a deployment that had actually succeeded (M1-S4)
+- **Situation:** During the real end-to-end run, my polling loop printed thirty Python `KeyError` tracebacks and
+  then "Not found", which looked like the deployment API was broken.
+- **Task:** Work out whether ForgeOps or the test script was wrong before changing any code.
+- **Action:** I saved the first response with `curl -w "HTTP %{http_code}" | tee`, so the file held the JSON plus an
+  extra status line. Reading the id from it failed, so every poll asked for an empty id. I read the deployment by
+  its id directly instead.
+- **Result:** the deployment had succeeded with the right commit SHA all along. No code change was needed.
+- **Lesson:** when a check fails, check the checker first; keep raw responses separate from decorations like status
+  codes.
+
+## ISS-032 — The local database was empty again at the start of M1-S4 (M1-S4)
+- **Situation:** Starting M1-S4, `docker ps` showed no containers. `docker compose up` created a new Postgres
+  container and a new `forgeops_postgres-data` volume, so yesterday's local account, GitHub link and service were gone.
+- **Task:** Get back to a working local setup without guessing, and without exposing any credentials.
+- **Action:** I confirmed from the volume's creation time and the migration history that the data was fresh, not
+  deleted by a migration. Then I recreated a local test account with a random password that was never printed,
+  re-linked the GitHub installation with one SQL insert, and recreated the service through the API.
+- **Result:** back to a working setup in a few minutes; the API's own validation caught that the sample's
+  Dockerfile lives in `api/`.
+- **Lesson:** local Docker data is disposable. Keep a short, repeatable seed path (account, installation link,
+  service) instead of relying on a volume surviving. Same root cause family as ISS-029.
+
 ## ISS-031 — The GitHub App could read all ~95 of my repositories, not just the one it needs (M1-S3)
 - **Situation:** The first real call to list repositories through the GitHub App returned about 95 repos,
   including private client and personal projects. The App had been installed with "All repositories".
