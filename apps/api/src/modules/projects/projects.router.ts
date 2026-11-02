@@ -1,7 +1,7 @@
 import { Router, type Response } from "express";
 import { z } from "zod";
 import { Prisma, type PrismaClient, type Service } from "../../generated/prisma/client.js";
-import { HttpError, parse } from "../../http-error.js";
+import { HttpError, isId, parse } from "../../http-error.js";
 import { decrypt, encrypt } from "../../secrets.js";
 import {
   createRequireAuth,
@@ -69,8 +69,6 @@ const createServiceBody = z.object({
 const updateServiceBody = z
   .object({ ...serviceFields, envVars: envVarsOf(envValue.nullable()) })
   .partial();
-
-const isId = (value: string) => z.guid().safeParse(value).success;
 
 export function createProjectsRouter(
   db: PrismaClient,

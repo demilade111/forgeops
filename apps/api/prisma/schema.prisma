@@ -16,6 +16,7 @@ model User {
   createdAt    DateTime     @default(now())
   memberships  Membership[]
   sessions     Session[]
+  deployments  Deployment[]
 }
 
 model Organization {
@@ -83,8 +84,8 @@ enum BuildMethod {
 }
 
 model Service {
-  id                 String      @id @default(uuid(7)) @db.Uuid
-  projectId          String      @db.Uuid
+  id                 String       @id @default(uuid(7)) @db.Uuid
+  projectId          String       @db.Uuid
   name               String
   type               ServiceType
   repositoryId       BigInt
@@ -94,9 +95,71 @@ model Service {
   buildMethod        BuildMethod
   port               Int
   envVars            String
-  createdAt          DateTime    @default(now())
-  updatedAt          DateTime    @updatedAt
-  project            Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdAt          DateTime     @default(now())
+  updatedAt          DateTime     @updatedAt
+  project            Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  deployments        Deployment[]
 
   @@unique([projectId, name])
+}
+
+enum DeploymentStatus {
+  queued
+  running
+  succeeded
+  failed
+}
+
+enum DeploymentTrigger {
+  manual
+}
+
+enum StepStatus {
+  running
+  succeeded
+  failed
+}
+
+model Deployment {
+  id              String            @id @default(uuid(7)) @db.Uuid
+  serviceId       String            @db.Uuid
+  activeServiceId String?           @unique @db.Uuid
+  status          DeploymentStatus  @default(queued)
+  trigger         DeploymentTrigger
+  triggeredById   String?           @db.Uuid
+  idempotencyKey  String
+  commitSha       String?
+  error           String?
+  createdAt       DateTime          @default(now())
+  startedAt       DateTime?
+  finishedAt      DateTime?
+  service         Service           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+  triggeredBy     User?             @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+  steps           DeploymentStep[]
+
+  @@unique([serviceId, idempotencyKey])
+  @@index([serviceId, createdAt])
+}
+
+model DeploymentStep {
+  id           String     @id @default(uuid(7)) @db.Uuid
+  deploymentId String     @db.Uuid
+  name         String
+  status       StepStatus @default(running)
+  error        String?
+  startedAt    DateTime   @default(now())
+  finishedAt   DateTime?
+  deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)
+
+  @@unique([deploymentId, name])
+}
+
+model Outbox {
+  id        BigInt    @id @default(autoincrement())
+  type      String
+  payload   Json
+  createdAt DateTime  @default(now())
+  sentAt    DateTime?
+
+  @@index([sentAt])
 }

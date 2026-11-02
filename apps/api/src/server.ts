@@ -1,11 +1,11 @@
-import { readFileSync } from "node:fs";
 import { PrismaPg } from "@prisma/adapter-pg";
 import express, { type ErrorRequestHandler } from "express";
 import { loadConfig } from "./config.js";
 import { PrismaClient } from "./generated/prisma/client.js";
 import { HttpError } from "./http-error.js";
 import { createAuthRouter } from "./modules/auth/auth.router.js";
-import { createGitHubClient, type GitHubClient } from "./modules/github/github.client.js";
+import { loadGitHubClient, type GitHubClient } from "./modules/github/github.client.js";
+import { createDeploymentsRouter } from "./modules/deployments/deployments.router.js";
 import { createGitHubRouter } from "./modules/github/github.router.js";
 import { createProjectsRouter } from "./modules/projects/projects.router.js";
 import { readEncryptionKey } from "./secrets.js";
@@ -60,6 +60,7 @@ export function createApp({
 
   app.use("/api", createAuthRouter(db, { secureCookies }));
   app.use("/api", createGitHubRouter(db, github, { secureCookies }));
+  app.use("/api", createDeploymentsRouter(db));
   app.use("/api", createProjectsRouter(db, github, encryptionKey));
   app.use((_req, res) => {
     res.status(404).json({ error: { code: "NOT_FOUND", message: "Not found" } });
@@ -71,15 +72,7 @@ export function createApp({
 
 if (import.meta.main) {
   const { port, databaseUrl, production, github, encryptionKeyPath } = loadConfig(process.env);
-  const githubClient = github
-    ? createGitHubClient({
-        ...github,
-        privateKey: readFileSync(github.privateKeyPath, "utf8"),
-        clientSecret: github.clientSecretPath
-          ? readFileSync(github.clientSecretPath, "utf8").trim()
-          : null,
-      })
-    : null;
+  const githubClient = github ? loadGitHubClient(github) : null;
 
   createApp({
     db: createDb(databaseUrl),

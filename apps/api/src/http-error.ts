@@ -1,4 +1,4 @@
-import type { z } from "zod";
+import { z } from "zod";
 
 export class HttpError extends Error {
   constructor(
@@ -18,3 +18,5 @@ export function parse<T>(schema: z.ZodType<T>, body: unknown): T {
   }
   return result.data;
 }
+
+export const isId = (value: string) => z.guid().safeParse(value).success;
