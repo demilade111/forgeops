@@ -40,8 +40,9 @@ pnpm --filter @forgeops/api exec prisma migrate dev
 Set `ENCRYPTION_KEY_PATH` in `apps/api/.env` to the full path of that key file (it encrypts service env vars; losing
 it loses the stored values). GitHub settings are optional: fill in the `GITHUB_APP_*` values from your GitHub App
 to connect repositories, and `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET_PATH` to verify installations through
-GitHub sign-in. Keep key files outside the repo and put only their paths in `.env`. `RABBITMQ_URL` (already in
-`.env.example`) is needed by the deployment worker and the tests.
+GitHub sign-in. Keep key files outside the repo and put only their paths in `.env`. `RABBITMQ_URL`,
+`REGISTRY_HOST` and `TEST_REGISTRY_HOST` (already in `.env.example`) are needed by the deployment worker and the tests, which also need
+Docker running.
 
 ## Run
 
@@ -53,7 +54,8 @@ pnpm --filter @forgeops/api worker
 pnpm --filter @forgeops/frontend dev
 ```
 
-The worker sends queued deployments to RabbitMQ and runs them. It needs the GitHub App settings, and exits if it
+The worker sends queued deployments to RabbitMQ and runs them: it downloads the commit, builds the image with this
+machine's Docker and pushes it to the local registry. It needs the GitHub App settings and Docker, and exits if it
 loses its RabbitMQ connection; start it again and unfinished messages are redelivered.
 
 Open http://localhost:5173. The frontend forwards `/api` and `/health` requests to the API.
@@ -64,6 +66,8 @@ Open http://localhost:5173. The frontend forwards `/api` and `/health` requests 
 | API | http://localhost:4000 (`/health/live`, `/health/ready`) |
 | PostgreSQL | `127.0.0.1:5433`, user / password / database: `forgeops` (local only) |
 | RabbitMQ | `127.0.0.1:5673`, management UI http://localhost:15673, user / password: `forgeops` (local only) |
+| Image registry | `localhost:5001` (`curl localhost:5001/v2/_catalog` lists images; local only, no login) |
+| Test image registry | `localhost:5002`, used only by the tests; in memory, emptied on restart |
 
 ## Checks
 

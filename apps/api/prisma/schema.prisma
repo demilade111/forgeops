@@ -129,6 +129,7 @@ model Deployment {
   triggeredById   String?           @db.Uuid
   idempotencyKey  String
   commitSha       String?
+  image           String?
   error           String?
   createdAt       DateTime          @default(now())
   startedAt       DateTime?
@@ -147,6 +148,7 @@ model DeploymentStep {
   name         String
   status       StepStatus @default(running)
   error        String?
+  log          String?
   startedAt    DateTime   @default(now())
   finishedAt   DateTime?
   deployment   Deployment @relation(fields: [deploymentId], references: [id], onDelete: Cascade)

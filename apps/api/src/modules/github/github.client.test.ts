@@ -91,6 +91,19 @@ describe("inspectSource", () => {
     await expect(client.branchCommit(5, "me/app", "gone")).resolves.toBeNull();
   });
 
+  it("streams the source archive of a commit, or null when it is gone", async () => {
+    vi.stubGlobal("fetch", async (url: string) =>
+      url.endsWith("/access_tokens")
+        ? Response.json({ token: "t" })
+        : url.endsWith("/repos/me/app/tarball/9f2c41e")
+          ? new Response("archive bytes")
+          : new Response(null, { status: 404 }),
+    );
+    const archive = await client.sourceArchive(5, "me/app", "9f2c41e");
+    expect((await archive!.toArray()).join("")).toBe("archive bytes");
+    await expect(client.sourceArchive(5, "me/app", "0000000")).resolves.toBeNull();
+  });
+
   it("raises GITHUB_ERROR when GitHub fails, so the worker can retry", async () => {
     vi.stubGlobal("fetch", async (url: string) =>
       url.endsWith("/access_tokens")

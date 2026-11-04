@@ -1,18 +1,26 @@
 import { loadConfig } from "./config.js";
+import { run } from "./modules/deployments/deployments.build.js";
 import { createDeploymentHandler } from "./modules/deployments/deployments.worker.js";
 import { deploymentsRepository } from "./modules/deployments/deployments.repository.js";
 import { loadGitHubClient } from "./modules/github/github.client.js";
 import { connectQueue } from "./queue.js";
 import { createDb } from "./server.js";
 
-const { databaseUrl, rabbitmqUrl, github } = loadConfig(process.env);
+const { databaseUrl, rabbitmqUrl, registryHost, github } = loadConfig(process.env);
 if (!rabbitmqUrl) throw new Error("Invalid configuration\nRABBITMQ_URL is required for the worker");
+if (!registryHost) {
+  throw new Error("Invalid configuration\nREGISTRY_HOST is required for the worker");
+}
 if (!github)
   throw new Error("Invalid configuration\nGitHub App settings are required for the worker");
 
+const docker = await run("docker", ["version"], 10_000).catch(() => null);
+if (docker?.code !== 0) throw new Error("Docker is not available. Start Docker, then the worker.");
+
 const db = createDb(databaseUrl);
 const queue = await connectQueue(rabbitmqUrl);
-const outbox = deploymentsRepository(db);
+const deployments = deploymentsRepository(db);
+const staleAfterMs = 60 * 60_000;
 
 queue.connection.on("close", () => {
   console.error("Lost the RabbitMQ connection, exiting");
@@ -20,15 +28,25 @@ queue.connection.on("close", () => {
 });
 
 const relay = setInterval(() => {
-  outbox.relayOutbox(queue.publish).catch((error) => console.error("Outbox relay failed", error));
+  deployments
+    .relayOutbox(queue.publish)
+    .catch((error) => console.error("Outbox relay failed", error));
 }, 1000);
 
-await queue.consume(createDeploymentHandler(db, loadGitHubClient(github)));
+const sweeper = setInterval(() => {
+  deployments
+    .failStale(new Date(Date.now() - staleAfterMs))
+    .then((count) => count > 0 && console.error(`Marked ${count} stale deployment(s) as failed`))
+    .catch((error) => console.error("Stale deployment sweep failed", error));
+}, 60_000);
+
+await queue.consume(createDeploymentHandler(db, loadGitHubClient(github), { registryHost }));
 console.log("Worker listening for deployments");
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, async () => {
     clearInterval(relay);
+    clearInterval(sweeper);
     queue.connection.removeAllListeners("close");
     await queue.close();
     await db.$disconnect();

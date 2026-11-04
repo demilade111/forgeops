@@ -1,5 +1,6 @@
 import { sign } from "node:crypto";
 import { readFileSync } from "node:fs";
+import { Readable } from "node:stream";
 import type { Config } from "../../config.js";
 import { HttpError } from "../../http-error.js";
 
@@ -27,6 +28,11 @@ export type GitHubClient = {
     repository: string,
     branch: string,
   ) => Promise<string | null>;
+  sourceArchive: (
+    installationId: number,
+    repository: string,
+    commitSha: string,
+  ) => Promise<Readable | null>;
 };
 
 export function appJwt(appId: number, privateKey: string, now = Date.now()) {
@@ -45,6 +51,7 @@ async function send(path: string, token: string, method = "GET") {
       "X-GitHub-Api-Version": "2022-11-28",
       "User-Agent": "forgeops",
     },
+    signal: AbortSignal.timeout(120_000),
   });
   if (!res.ok && res.status !== 404) {
     throw new HttpError(502, "GITHUB_ERROR", `GitHub request failed (${res.status})`);
@@ -145,6 +152,12 @@ export function createGitHubClient(app: GitHubAppCredentials): GitHubClient {
       const token = await installationToken(installationId);
       const res = await send(`/repos/${repository}/branches/${encodePath(branch)}`, token);
       return res.ok ? ((await res.json()) as { commit: { sha: string } }).commit.sha : null;
+    },
+
+    async sourceArchive(installationId, repository, commitSha) {
+      const token = await installationToken(installationId);
+      const res = await send(`/repos/${repository}/tarball/${commitSha}`, token);
+      return res.ok && res.body ? Readable.fromWeb(res.body) : null;
     },
   };
 }

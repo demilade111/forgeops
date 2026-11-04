@@ -12,6 +12,7 @@ const github = {
   listRepositories: vi.fn(async () => []),
   inspectSource: vi.fn(async () => ({ repositoryId: 777 })),
   branchCommit: vi.fn(async () => "9f2c41e"),
+  sourceArchive: vi.fn(async () => null),
 } satisfies GitHubClient;
 
 const app = createApp({ db: testDb, github, encryptionKey: randomBytes(32) });
