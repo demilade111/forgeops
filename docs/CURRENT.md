@@ -70,12 +70,12 @@ test account `demo@forgeops.test` (random password, never shown), installation 1
 (`docker build` with BuildKit on this machine, log saved on the step) and `push` (to the local registry `registry:3`
 on `127.0.0.1:5001`, digest saved as `Deployment.image`). Build 15 min, push 5 min and GitHub 2 min time limits; a
 sweeper fails deployments running over 60 minutes and releases their lock (5.5.7). ADR-048 to ADR-051. The local
-database was empty again (ISS-035); the smoke run created its own records, so `demo@forgeops.test` and the
-`sample-shop` service no longer exist locally.
+database was empty again (ISS-035), so a local seed script now recreates everything (ADR-053):
+`pnpm --filter @forgeops/api seed` gives `demo@forgeops.test` (password in `~/.forgeops/demo-password`), the GitHub
+link, project `sample-shop` and service `api` (source directory `api`, port 8080).
 
 **Next slice:** M1-S6 Run & expose (run the image and serve it at a ForgeOps-managed URL). Needs a decision first:
-the managed URL scheme and traffic routing (ADR-019), plus where containers run in M1. Do the local seed script
-before or with it (ISS-035).
+the managed URL scheme and traffic routing (ADR-019), plus where containers run in M1.
 
 Local environment (2026-10-27): git 2.50.1 · Docker engine now **OrbStack** (was Docker Desktop) · Node 24.22.1
 LTS via nvm (pinned in `.nvmrc`; run `nvm use` in this folder) · pnpm 11.5.2 via corepack.
@@ -128,6 +128,7 @@ migrations to it automatically. Docker must be running.
 | FGO-03.04.02 | Projects and web services API (M1-S3 backend) | Done | 71 API + 5 frontend tests; sabotage tests caught a missing organization filter and plain-text env vars; real `curl` against GitHub: typo branch, wrong folder, repo outside the installation and bad port refused, valid service saved, database holds only ciphertext |
 | — | GitHub App connect flow (M1-S3) | Done | Commit `2d9ae95`; OAuth verification built and tested but not configured (ADR-042) |
 | M1-S4 | Deployment intent & progress (backend) | Done | 92 API + 5 frontend tests, incl. a real RabbitMQ round trip and redelivery; 7 sabotage tests caught a claim that accepted finished deployments, ack before work, a missing outbox row, no lock, a lock never released, a relay that never marks rows sent and an unscoped read. Real run against GitHub: deploy with the worker off waited in the outbox, then succeeded with `main`'s real SHA; replay 202, second key 409, no key 400; missing branch failed with the reason and released the lock; worker exits when RabbitMQ restarts and stops cleanly on SIGTERM |
+| — | Local seed script (ADR-053) | Done | Ran twice: second run changed nothing; password file 600. Full path through the real API with the seeded account: login 200, service shows port 8080 and env var names only, Deploy 202, worker ran all four steps to succeeded with the same digest as the earlier smoke run |
 | M1-S5 | Build & track (backend) | Done | 103 API + 5 frontend tests, builds and pushes run against the real local Docker and registry; 11 sabotage tests caught: no tag cleanup after push, no symlink containment, time-out not detected, digest not parsed, workspace not cleaned, a resumed deployment resolving the branch again, build log not saved, failed step log dropped, image not recorded, sweeper keeping the lock, sweeper failing fresh deployments. Real run against GitHub: `demilade111/forgeops-sample-api` at `f2edcd7` fetched, built and pushed in 22 s; image pulled back by digest runs as `node` and returns 200 on `/` and `/health/ready`; worker refuses to start without `REGISTRY_HOST` or without Docker, and stops cleanly on SIGTERM. Self-review fixes: Docker checked at start-up, local tag removed after push, tests use their own registry on 5002 (ADR-052) |
 | M1-S1 | Identity & organization | Done | 35 API + 5 frontend tests pass; sabotage tests caught a readable cookie, a skipped password check and a logout that kept the session; in a real browser: sign-up, reload stays signed in, logout, wrong password error, login, duplicate email error |
 
@@ -142,7 +143,6 @@ migrations to it automatically. Docker must be running.
 | Paginate repository listing beyond 100 repos (4.2.9) | Before real users connect large accounts | `listRepositories` reads one page of 100 |
 | Worker lease (worker id + heartbeat) | Before running more than one worker | Resuming `running` is only safe with one worker (ADR-046) |
 | Deployment list pagination (5.3.9) and cancellation (5.3.7) | With the deployment history screen | List returns the latest 50 |
-| Local seed script (account, installation link, service) | **Now**: before or with M1-S6 (third loss, ISS-035) | Re-seeding by hand takes a few minutes; the smoke script already shows the records needed |
 | Build CPU/memory limits; rootless builder | Before building anyone else's code | M1 builds trusted repos with the host's Docker (ADR-048) |
 | `JobPublisher`/`JobConsumer` split and SQS adapter (ADR-006) | Phase 8 | `connectQueue` is the interface for now (ADR-045) |
 

@@ -192,6 +192,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-049 | Fetching source code | GitHub tarball of the pinned commit, unpacked by system `tar` into a fresh per-deployment folder; paths must stay inside it | **Accepted** (2026-11-03) |
 | ADR-050 | Image registry for M1 | Local `registry:3` container on `127.0.0.1:5001`; images `services/<serviceId>:<deploymentId>`; the digest reference is stored | **Accepted** (2026-11-03) |
 | ADR-052 | Test image registry | Tests push to a second `registry:3` on `127.0.0.1:5002` with in-memory storage (`TEST_REGISTRY_HOST`), never the dev registry | **Accepted** (2026-11-03) |
+| ADR-053 | Local seed script | `pnpm --filter @forgeops/api seed` recreates the demo account, GitHub link, project and service; safe to rerun | **Accepted** (2026-11-03) |
 | ADR-051 | Build logs, time limits and stale deployments | Step logs in `DeploymentStep.log` (last 64 KiB); build 15 min, push 5 min, GitHub calls 2 min; sweeper fails deployments running over 60 min | **Accepted** (2026-11-03) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
@@ -797,4 +798,24 @@ Template:
   layers are shared, and a restart clears them.
 - **Consequences:** test runs never touch the dev registry. The 69 test images already in the dev registry stay
   until its volume is reset.
+
+### ADR-053 — Local seed script
+- **Status:** Accepted (2026-11-03). Deferred until the next local data loss; ISS-035 was that loss and the product
+  owner said "do next".
+- **Decision:** `apps/api/src/seed.ts`, run with `pnpm --filter @forgeops/api seed`. Safe to run any number of times:
+  - creates `demo@forgeops.test` with sign-up's own `createUserWithPersonalOrg` only if it is missing, with a random
+    password written to `~/.forgeops/demo-password` (file 600, folder 700) and never printed;
+  - links the GitHub installation from `SEED_GITHUB_INSTALLATION_ID` (in the git-ignored `.env`) to that account's
+    organization;
+  - upserts project `sample-shop` and service `api` for the reference app (ADR-037): `demilade111/forgeops-sample-api`,
+    branch `main`, source directory `api`, port 8080, env var `APP_VERSION` encrypted like the API does;
+  - asks GitHub through the real `inspectSource` check first, so a wrong installation or a moved Dockerfile fails the
+    seed instead of creating a broken service. Refuses to run in production.
+- **Options considered:** SQL dump (breaks on every migration, can't encrypt with the local key); calling the HTTP API
+  (needs the server running and still can't link an installation without OAuth); a script on the Prisma client.
+- **Trade-offs:** like the test helpers, the script uses Prisma directly instead of going through module
+  repositories, because it is tooling, not application code. The repository and installation are specific to the
+  owner; another developer sets their own installation id.
+- **Consequences:** losing the local volume costs one command (`docker compose up -d`, `prisma migrate deploy`,
+  `seed`). Service port is now 8080, fixing the earlier hand-made service that used 3000.
 

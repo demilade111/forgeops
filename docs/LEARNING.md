@@ -223,6 +223,8 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   ForgeOps records and deploys by digest (like branch vs commit SHA).
 - **Child processes and time limits:** the worker runs `tar` and `docker` with a timer. Whether the timer fired is
   tracked directly, because programs like the Docker CLI catch the stop signal and exit with their own code (130).
+- **Idempotent seed script:** "create if missing" (upserts), so running it twice changes nothing; it calls the same
+  checks and encryption as the app instead of writing raw rows.
 - **Stale-job sweeper:** a periodic check that fails jobs stuck `running` past a deadline and releases their lock,
   the safety net for crashes the queue can't recover.
 
