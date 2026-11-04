@@ -6,6 +6,10 @@ const schema = z.object({
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   ENCRYPTION_KEY_PATH: z.string().min(1),
   RABBITMQ_URL: z.url({ protocol: /^amqps?$/ }).optional(),
+  REGISTRY_HOST: z
+    .string()
+    .regex(/^[a-z0-9.-]+(:\d+)?$/, "must look like host:port")
+    .optional(),
   GITHUB_APP_ID: z.coerce.number().int().positive().optional(),
   GITHUB_APP_SLUG: z.string().min(1).optional(),
   GITHUB_APP_PRIVATE_KEY_PATH: z.string().min(1).optional(),
@@ -46,6 +50,7 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
     databaseUrl: c.DATABASE_URL,
     encryptionKeyPath: c.ENCRYPTION_KEY_PATH,
     rabbitmqUrl: c.RABBITMQ_URL ?? null,
+    registryHost: c.REGISTRY_HOST ?? null,
     github: hasApp
       ? {
           appId: c.GITHUB_APP_ID!,

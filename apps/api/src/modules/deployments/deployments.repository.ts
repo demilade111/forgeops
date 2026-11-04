@@ -2,7 +2,13 @@ import type { PrismaClient } from "../../generated/prisma/client.js";
 
 const withSteps = { steps: { orderBy: { startedAt: "asc" } } } as const;
 
-export type Outcome = { status: "succeeded" | "failed"; commitSha?: string; error?: string };
+export type Outcome = {
+  status: "succeeded" | "failed";
+  commitSha?: string | null;
+  image?: string;
+  error?: string;
+  log?: string;
+};
 
 export const deploymentsRepository = (db: PrismaClient) => ({
   create: (serviceId: string, triggeredById: string, idempotencyKey: string) =>
@@ -59,21 +65,53 @@ export const deploymentsRepository = (db: PrismaClient) => ({
     db.deploymentStep.upsert({
       where: { deploymentId_name: { deploymentId, name } },
       create: { deploymentId, name },
-      update: { status: "running", error: null, startedAt: new Date(), finishedAt: null },
+      update: {
+        status: "running",
+        error: null,
+        log: null,
+        startedAt: new Date(),
+        finishedAt: null,
+      },
     }),
 
-  finish: (id: string, step: string, { status, commitSha, error }: Outcome) => {
+  saveCommit: (id: string, commitSha: string) =>
+    db.deployment.update({ where: { id }, data: { commitSha } }),
+
+  completeStep: (deploymentId: string, name: string, log?: string) =>
+    db.deploymentStep.update({
+      where: { deploymentId_name: { deploymentId, name } },
+      data: { status: "succeeded", log, finishedAt: new Date() },
+    }),
+
+  finish: (id: string, step: string, { status, commitSha, image, error, log }: Outcome) => {
     const finishedAt = new Date();
     return db.$transaction([
       db.deploymentStep.update({
         where: { deploymentId_name: { deploymentId: id, name: step } },
-        data: { status, error, finishedAt },
+        data: { status, error, log, finishedAt },
       }),
       db.deployment.update({
         where: { id },
-        data: { status, commitSha, error, finishedAt, activeServiceId: null },
+        data: { status, commitSha, image, error, finishedAt, activeServiceId: null },
       }),
     ]);
+  },
+
+  failStale: async (startedBefore: Date) => {
+    const where = { status: "running" as const, startedAt: { lt: startedBefore } };
+    const error = "Deployment timed out. Try deploying again.";
+    const finishedAt = new Date();
+    const [, { count }] = await db.$transaction([
+      db.deploymentStep.updateMany({
+        where: { status: "running", deployment: where },
+        data: { status: "failed", error, finishedAt },
+      }),
+      db.deployment.updateMany({
+        where,
+        data: { status: "failed", error, finishedAt, activeServiceId: null },
+      }),
+    ]);
+    return count;
   },
 
   relayOutbox: (publish: (message: object) => Promise<void>) =>

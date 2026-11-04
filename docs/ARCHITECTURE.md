@@ -14,7 +14,7 @@ accepted ADR) or **Under evaluation** (proposed or open). See `docs/DECISIONS.md
 | Backend | Node.js + Express 5 + TypeScript (ADR-003) | Validation, logging and docs libraries (chosen per task) |
 | Queue | RabbitMQ locally, SQS in the cloud, behind one interface (ADR-006) | — |
 | Repositories | Many repositories per project; services reference repo + branch + directory (PD-001) | GitHub App permission set (ADR-008, proposed) |
-| Builds | Dockerfile builds + automatic builds feeding one pipeline (PD-002, PD-004) | Automatic build engine (ADR-017, open); build execution location (ADR-009, proposed) |
+| Builds | Dockerfile builds + automatic builds feeding one pipeline (PD-002, PD-004) | Automatic build engine (ADR-017, open); cloud build execution (ADR-009, proposed). M1: local Docker with BuildKit on the worker machine (ADR-048), local registry `registry:3` (ADR-050) |
 | Service types | Web services, workers, scheduled jobs (PD-003) | Scheduled-job mechanism (ADR-018, open) |
 | Operations | Logs, history, commit/image tracking, health, manual + automatic rollback, CPU/memory metrics, alerts (PD-006) | Metrics source (ADR-021), alert channel (ADR-020), failed-rollout criteria (ADR-022) |
 | Frontend | React + Vite + TypeScript SPA calling the Express API (ADR-002) | Router and data-fetching libraries (Phase 1.2) |
@@ -187,7 +187,7 @@ Rule: **abstract only what actually changes between environments.** Everything e
 | Message queue | RabbitMQ | SQS | **Code adapter** behind `JobPublisher` / `JobConsumer` (ADR-006) |
 | Secrets | `.env` file | Secrets Manager → injected as env vars | **Config only:** app reads `process.env` (ADR-016) |
 | Database | PostgreSQL in Docker | RDS PostgreSQL | **Config only:** `DATABASE_URL` |
-| Image registry | Local registry / GHCR | ECR | **Config only:** registry URL + credentials |
+| Image registry | Local `registry:3` on `localhost:5001` (ADR-050) | ECR | **Config only:** `REGISTRY_HOST` + credentials |
 | Kubernetes (if ADR-010 accepted) | kind | EKS (if chosen) | **Config only:** same Kubernetes API, different kubeconfig |
 
 The build engine (ADR-017) also sits behind an interface, but because of PD-002, not because of the environment.

@@ -207,53 +207,25 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   "is it still working?". Each failure points at a different fix (code, settings, runtime bug). Only a health
   failure after a successful rollout triggers automatic rollback.
 
-## Interview question bank
+### Build and push (M1-S5, done)
+- **Tarball:** one compressed file holding a whole folder (`tar` bundles, `gzip` shrinks). GitHub serves one for any
+  commit, so the worker gets exactly the pinned SHA's files with no git history.
+- **Build context:** the folder the builder may see (`<source directory>`). Kept inside the unpacked code with
+  `realpath`, so a symlink can't point the build at the rest of the machine.
+- **Builder / BuildKit:** a Dockerfile is only instructions; BuildKit (Docker's default builder) runs them. The
+  `docker` CLI just sends the context to Docker Engine, which runs BuildKit.
+- **Image vs container:** the image is the frozen package (OS, runtime, dependencies, code, start command); a
+  container is a running copy of it. Secrets are not baked in; they are added when the container starts.
+- **Layers and build cache:** each instruction makes a layer; unchanged layers are reused, so copying
+  `package.json` before the code keeps `npm ci` cached.
+- **Registry, tag and digest:** the registry stores images so any machine can pull them and old versions stay for
+  rollback. A tag is a movable label; the digest (`sha256:…`) is a fingerprint of the content and never changes, so
+  ForgeOps records and deploys by digest (like branch vs commit SHA).
+- **Child processes and time limits:** the worker runs `tar` and `docker` with a timer. Whether the timer fired is
+  tracked directly, because programs like the Docker CLI catch the stop signal and exit with their own code (130).
+- **Stale-job sweeper:** a periodic check that fails jobs stuck `running` past a deadline and releases their lock,
+  the safety net for crashes the queue can't recover.
 
-### 0.1.1 — Problem statement
-1. *Why build this when Vercel, Render and Railway exist?* It runs on infrastructure you own, its
-   internals (queue, state machine, rollback) are visible, and it's reliability-first. It's also honestly
-   a learning platform: the value is being able to design, break and recover it.
-2. *How do you support many languages?* Two build methods. A Dockerfile build works for any language
-   because the container image is the interface between the user's code and the platform. Automatic
-   builds cover a deliberately small set (JavaScript, TypeScript, Python) with tested conventions, because
-   detection is only trustworthy where we have defined and tested the rules.
-3. *Why lead with reliability instead of deployment?* Deploying is a solved, commodity problem.
-   Recovery is where real systems fail and where the hard engineering is: state, idempotency,
-   rollout tracking and observability.
-4. *Your platform has automatic rollback. Does that mean failed deploys always recover?* No. It's a recovery
-   attempt. If the bad release ran a destructive database migration, or a dependency is down, the previous
-   version can fail too. We record the attempt and its outcome, and design migrations to be backward-compatible.
+## Interview questions
 
-### 0.1.2 — Personas and access control
-1. *How do you stop one customer seeing another's data?* Every resource belongs to an organization; every
-   request checks membership first and every query filters by organization, so other tenants' resources
-   return "not found". Tests try cross-organization access directly.
-2. *Why only one role in V1?* Roles and invites are a whole feature (invites, revocation, permission
-   matrices). One `owner` role still proves tenant isolation. The membership table already has a `role`
-   column, so adding roles later is new rules, not a redesign.
-3. *Why require real login for the first milestone?* Adding authorization later means auditing every
-   endpoint for missing checks, a classic source of security bugs. And a platform that builds code from
-   GitHub must never have an open control plane.
-
-### M1-S3 — Connect and configure
-1. *How do you stop a user deploying someone else's private repo?* Never trust the repo name or installation id the
-   client sends. Ask GitHub which installation covers the repo and compare it with the one linked to the user's
-   organization. Testing against real GitHub showed that "can my token read it?" isn't enough: installation tokens
-   can read every public repo.
-2. *How do you store customer secrets?* Encrypted at rest with AES-256-GCM, key outside the database, values never
-   returned by the API (write-only). Updates merge by name because clients can't read values back. Next steps:
-   key rotation with a key id, and a managed KMS in the cloud.
-3. *Why validate a deploy configuration when it's saved, if the build checks again anyway?* Fast feedback: a typo in
-   a branch name is caught in seconds instead of in build logs days later. The build still re-checks because the
-   repo can change in between.
-
-### M1-S4 — Deployment intent and progress
-1. *How do you make sure a deploy request is never lost, even if the server crashes?* Save the deployment and an
-   outbox message in one transaction, then let a relay publish the outbox to the queue and mark it sent only after
-   the broker confirms. A crash at any point either rolls back both rows or leaves the message to be sent later.
-2. *Your queue delivers at least once. How do you stop a deployment running twice?* The worker reads the state
-   from PostgreSQL and only claims a deployment that is still queued or running; a duplicate for a finished one is
-   skipped and acked. The ack comes last, so a crash means "try again", never "lost".
-3. *Two people click Deploy at the same moment. What happens?* Both requests try to insert; the unique index on
-   the active-deployment column lets exactly one win. The other gets 409, unless it carried the same
-   Idempotency-Key, in which case it gets the same deployment back.
+Moved to `INTERVIEW.md` (trade-offs, failure scenarios and answers for every slice).

@@ -8,6 +8,34 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-035 — The local database was wiped a third time, in the middle of a smoke test (M1-S5)
+- **Situation:** After the M1-S5 tests passed, my smoke test against the real GitHub sample failed with "No record
+  was found": the local `api` service was gone. All ForgeOps containers and volumes had been created that evening
+  by my own `docker compose up`, while another project's volumes on the same machine were untouched.
+- **Task:** Finish verifying the slice against real GitHub without losing more time, and stop treating this as a
+  one-off.
+- **Action:** I checked the volume's creation time and the other project's volumes to confirm only ForgeOps' Docker
+  state had been removed (not a migration, not a full OrbStack reset). The smoke script then created its own
+  records (organization, installation 177099801, project, service with source directory `api` and port 8080) instead
+  of relying on hand-made local data.
+- **Result:** the smoke run completed: real commit resolved, sample built and pushed in 22 seconds, image pulled back
+  by digest and served 200. The deferred local seed script is now due; it is the third loss (ISS-029, ISS-032).
+- **Lesson:** when the same environment problem happens three times, automate the recovery instead of redoing it by
+  hand; verification scripts should create the data they need.
+
+## ISS-034 — A build that hit its time limit was reported as an ordinary build failure (M1-S5)
+- **Situation:** My test for the 15-minute build limit (shortened to 2 seconds) expected "Build took longer than
+  the time limit" but got "Build failed with exit code 130".
+- **Task:** Find out why the time-out was not recognised, because users need to know whether their code failed or
+  the build was simply too slow.
+- **Action:** I had assumed a process killed by the timer exits with no code (`null`). The Docker CLI actually
+  catches the stop signal, cancels the build itself and exits with 130. I changed the runner to record whether
+  ForgeOps' own timer fired (`signal.aborted`) instead of guessing from the exit code, for `tar`, `docker build`
+  and `docker push` alike.
+- **Result:** the time-out test passes, and a sabotage that ignores the time-out flag is caught by it.
+- **Lesson:** don't infer why a child process stopped from its exit code; programs handle signals their own way.
+  Track your own decision (the timer) directly.
+
 ## ISS-033 — My smoke-test script reported errors for a deployment that had actually succeeded (M1-S4)
 - **Situation:** During the real end-to-end run, my polling loop printed thirty Python `KeyError` tracebacks and
   then "Not found", which looked like the deployment API was broken.

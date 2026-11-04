@@ -150,7 +150,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-006 | Message queue | RabbitMQ locally, AWS SQS in the cloud, behind one queue interface | **Accepted** (2026-10-24) |
 | ADR-007 | Authentication mechanism | Server-side sessions in PostgreSQL, httpOnly cookie, email + password (not JWT) | **Accepted** (2026-10-25) |
 | ADR-008 | Repository integration | GitHub App `forgeops-dev-demilade111`: Contents read-only, Metadata read-only, own account only, webhooks off | **Accepted** (2026-10-31) |
-| ADR-009 | Build execution | Controlled CI-based builds before self-hosted runners; applies to both build methods (PD-002) | Proposed |
+| ADR-009 | Build execution | Controlled CI-based builds before self-hosted runners; applies to both build methods (PD-002) | Proposed; M1 builds decided by ADR-048 |
 | ADR-010 | Workload orchestration | Local Kubernetes first; managed cluster later if justified | Proposed |
 | ADR-011 | Cloud | AWS for the production-style environment | Proposed |
 | ADR-012 | Infrastructure as code | Terraform | Proposed |
@@ -183,6 +183,16 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-040 | Service env var storage | Every value encrypted with AES-256-GCM (Node `crypto`); key file outside the repo; API returns names only | **Accepted** (2026-10-31) |
 | ADR-041 | Projects and services model | `Project` (slug name, unique per org) → `Service` (web, Dockerfile, repo id + name, branch, folder, port); source checked against GitHub on save | **Accepted** (2026-10-31) |
 | ADR-042 | GitHub OAuth settings optional | API starts with only the App settings; installation verification answers 503 until Client ID and secret are added | **Accepted** (2026-10-31) |
+| ADR-043 | Deployment model and duplicates | `Deployment` + `DeploymentStep` + `Outbox`; required `Idempotency-Key`; one active deployment per service via unique `activeServiceId` | **Accepted** (2026-11-01) |
+| ADR-044 | Worker location | Worker is a second process inside `apps/api` (`src/worker.ts`) | **Accepted** (2026-11-01) |
+| ADR-045 | RabbitMQ client and queue | `amqplib`; durable quorum queue `deployments`, delivery limit 5, dead-letter queue; confirms; prefetch 1 | **Accepted** (2026-11-01) |
+| ADR-046 | M1-S4 worker behaviour | Outbox relay every second, claim, `resolve-commit` with 3 retries, known limits | **Accepted** (2026-11-01) |
+| ADR-047 | Shared helpers | `isId`, `loadGitHubClient`, `Config` type moved for reuse | **Accepted** (2026-11-01) |
+| ADR-048 | Build execution for M1 | Local Docker Engine with BuildKit on the worker's machine, run through the `docker` CLI; trusted sources only | **Accepted** (2026-11-03) |
+| ADR-049 | Fetching source code | GitHub tarball of the pinned commit, unpacked by system `tar` into a fresh per-deployment folder; paths must stay inside it | **Accepted** (2026-11-03) |
+| ADR-050 | Image registry for M1 | Local `registry:3` container on `127.0.0.1:5001`; images `services/<serviceId>:<deploymentId>`; the digest reference is stored | **Accepted** (2026-11-03) |
+| ADR-052 | Test image registry | Tests push to a second `registry:3` on `127.0.0.1:5002` with in-memory storage (`TEST_REGISTRY_HOST`), never the dev registry | **Accepted** (2026-11-03) |
+| ADR-051 | Build logs, time limits and stale deployments | Step logs in `DeploymentStep.log` (last 64 KiB); build 15 min, push 5 min, GitHub calls 2 min; sweeper fails deployments running over 60 min | **Accepted** (2026-11-03) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
 
 ### Open decisions: what each one must answer
@@ -688,3 +698,103 @@ Template:
   router needs it too. `loadGitHubClient(config.github)` reads the private key and optional client secret, shared
   by the API and the worker. A `Config` type is exported from `config.ts`.
 - **Trade-offs:** none worth noting; it removes duplication instead of adding structure.
+
+### ADR-048 — Build execution for M1: local Docker Engine with BuildKit
+- **Status:** Accepted (2026-11-03). I recommended this, the alternatives below and the two decisions that follow
+  (ADR-049, ADR-050); the product owner then said "write the code for all, till the part when we push to registry",
+  which I took as approval of all three.
+- **Context:** S5 must turn a commit into an image. Something has to run the Dockerfile (the builder), on some
+  machine (the build environment). ADR-009 proposed CI-hosted builds for later; M1 needs the simplest thing that is
+  free and runs on the owner's Mac.
+- **Options considered:**
+  - Docker Engine with BuildKit on the worker's machine (OrbStack locally): free, already installed, the same
+    builder most platforms use. The worker effectively gets Docker's root-level access.
+  - Rootless builders (Kaniko, Buildah, rootless BuildKit): safer for untrusted code, more setup.
+  - Managed build services (AWS CodeBuild, Google Cloud Build): isolated machine per build, scales, but paid and a
+    new cloud account (needs approval).
+  - How the worker talks to the builder: the `docker` CLI as a child process, the Docker Engine API (`dockerode`),
+    or `buildctl` straight to BuildKit.
+- **Decision:** the worker runs `docker build --progress=plain -t <tag> <context>` and `docker push <tag>` as child
+  processes (Node `child_process.spawn`, no new dependency). BuildKit is Docker's default builder, so no extra setup.
+- **Trade-offs:** the CLI's output is the build log the user sees, exactly as in a terminal, and it needs no
+  library. Parsing the digest from `docker push` output is a little brittle (a test guards it). The worker host's
+  Docker access is close to root, so M1 only builds trusted repositories that the owner installed the GitHub App on
+  (ROADMAP 6.5.7); before anyone else's code is built, move to rootless BuildKit or a managed builder.
+- **Consequences:** the worker needs Docker on its machine and refuses to start if `docker version` fails, rather
+  than failing every deployment later. Build caching works across deployments for free. After a successful push the
+  local tag is removed (`docker image rm`), so tags don't pile up one per deployment; BuildKit's cache is separate
+  and survives (checked: the next build still reported `CACHED`).
+
+### ADR-049 — Fetching source code: GitHub tarball, system `tar`, path containment
+- **Status:** Accepted (2026-11-03).
+- **Options considered:** GitHub's tarball endpoint (one HTTP call, files only, no `git` needed, token never on disk)
+  versus `git clone` (submodules and Git LFS, but needs `git`, downloads history unless tuned, and writes the token
+  into `.git/config` unless handled carefully). For unpacking: the system `tar` versus the `tar` npm package.
+- **Decision:** `GET /repos/{repo}/tarball/{commitSha}` with the installation token (GitHub redirects to a
+  short-lived download link), saved to `$TMPDIR/forgeops/<deploymentId>/source.tar.gz`, then
+  `tar -xzf … --strip-components=1` into `src/` of that folder.
+  - The folder is deleted first and again when the deployment ends, success or failure.
+  - System `tar` (bsdtar on macOS, GNU tar on Linux) refuses `..` paths and extracting through symlinks by default.
+    Checked by hand with a crafted archive: the `..` entry and the write through a symlink were refused, and nothing
+    landed outside the folder.
+  - The source directory and its Dockerfile are resolved with `realpath` and must stay inside the unpacked code, so
+    a repository cannot point the build context at `/` with a symlink.
+  - The installation token only opens repositories the installation covers, so a repository removed from the
+    installation fails here with "Commit X not found in Y". This is the S5 re-check ADR-046 promised.
+- **Trade-offs:** no submodules or LFS yet; added if a real repository needs them. The download is retried like
+  other GitHub calls; a 404 is permanent.
+- **Consequences:** the build context is exactly the pinned commit's files, nothing else.
+
+### ADR-050 — Image registry for M1: a local registry container
+- **Status:** Accepted (2026-11-03).
+- **Options considered:** a local `registry:3` container (free, the same push/pull and digest flow as any real
+  registry), GitHub Container Registry (free for public images, small private quota), Docker Hub (limited free tier),
+  AWS ECR (paid; natural once ForgeOps runs on AWS). Skipping the registry entirely would work while build and run
+  share one machine, but loses the real flow and rollback by digest.
+- **Decision:** `registry:3` in `docker-compose.yml` on `127.0.0.1:5001` (port 5000 is taken by macOS AirPlay),
+  data in the `registry-data` volume. `REGISTRY_HOST=localhost:5001` configures the worker (required to start it).
+  Images are named `<registry>/services/<serviceId>` and tagged with the deployment id. After the push, the deployment
+  stores the immutable reference `<registry>/services/<serviceId>@sha256:…` in `Deployment.image`.
+- **Trade-offs:** no authentication and plain HTTP, acceptable because it listens on localhost only. Docker allows
+  plain HTTP to `localhost` registries without extra configuration.
+- **Consequences:** S6 runs and S9 rolls back by digest, never by tag. Moving to ECR changes `REGISTRY_HOST` and adds
+  credentials.
+
+### ADR-051 — Build logs, time limits and stale deployments
+- **Status:** Accepted (2026-11-03).
+- **Logs:** each step's output is kept in a new `DeploymentStep.log` column, at most the last 64 KiB (the end of a
+  log is where errors are). Alternatives: a separate log-lines table or object storage, both more than M1 needs;
+  S8 (logs and history) can revisit. Service env vars are never passed to the build, so they cannot appear in build
+  logs, and the GitHub token only travels in a request header that is never logged.
+- **Time limits:** build 15 minutes, push 5 minutes, unpacking 1 minute, and every GitHub request now times out after
+  2 minutes (it had no limit). A timed-out command is killed and the step fails with its log. The time-out is
+  detected from ForgeOps' own timer, not from the exit code: the Docker CLI catches the stop signal and exits with
+  130 (ISS-034).
+- **Stale deployments (5.5.7):** the worker checks every minute for deployments `running` for more than 60 minutes
+  (well above the worst case of all time limits and retries) and marks them and their running step `failed`
+  ("Deployment timed out. Try deploying again."), releasing the lock. The claim resets `startedAt`, so a resumed
+  deployment is measured from its latest attempt.
+- **Trade-offs and known limits:**
+  - If a worker still finishing a deployment after the sweeper failed it, its final write wins. The 60-minute
+    margin makes that practically impossible with one worker; a lease (already deferred) removes it.
+  - Stopping the worker mid-build leaves the `docker build` child running until it ends; the unacked message is
+    redelivered and the deployment resumes on restart.
+  - Deployments still `queued` are never swept (a queued deployment just waits for a worker).
+- **Consequences:** the steps are now `resolve-commit`, `fetch-source`, `build`, `push`. Only the last step's finish
+  writes the deployment's final status; earlier steps complete on their own row. A resumed deployment reuses the
+  commit it already pinned instead of resolving the branch again.
+
+### ADR-052 — A separate registry for tests
+- **Status:** Accepted (2026-11-03). Product owner approved fixing the self-review findings.
+- **Context:** the build tests push real images. After about six test runs the dev registry held 69 test images
+  (65 MB, mostly shared layers), mixed in with real deployments, plus 69 local tags.
+- **Options considered:** delete test images through the registry API (needs deletes enabled and garbage collection,
+  and empty repository names stay in the catalog); write into the registry's storage behind its back (fragile); a
+  second registry used only by tests, like the separate `forgeops_test` database.
+- **Decision:** `registry-test` in `docker-compose.yml` on `127.0.0.1:5002`, storage on `tmpfs` (memory, emptied when
+  the container restarts). Tests read `TEST_REGISTRY_HOST`; the worker keeps using `REGISTRY_HOST`.
+- **Trade-offs:** one more small container. Test images still accumulate while it runs, in memory and tiny because
+  layers are shared, and a restart clears them.
+- **Consequences:** test runs never touch the dev registry. The 69 test images already in the dev registry stay
+  until its volume is reset.
+

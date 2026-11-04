@@ -324,7 +324,7 @@ _Learn:_ REST resource modeling, pagination, React data fetching, cache invalida
 - [ ] 3.5.5 Implement non-secret configuration CRUD
 - [x] 3.5.6 Implement approved secret storage mechanism
 - [ ] 3.5.7 Build environment-variable editor
-- [ ] 3.5.8 Test that secrets never appear in logs or API responses _(API responses and database covered; logs come with M1-S5)_
+- [ ] 3.5.8 Test that secrets never appear in logs or API responses _(API responses and database covered; env vars never reach build logs because builds don't receive them; a log scan test is still to do)_
 
 **Gate:** A user can create a project with web service, worker and scheduled job definitions, each pointing at its own repository, branch and directory, and configure separate environments.
 
@@ -449,9 +449,9 @@ _Learn:_ ACID, race conditions, unique constraints, outbox pattern, exactly-once
 - [x] 5.5.2 Implement job consumption
 - [x] 5.5.3 Validate deployment state before processing
 - [x] 5.5.4 Implement transition to running
-- [ ] 5.5.5 Implement deployment step execution interface
+- [x] 5.5.5 Implement deployment step execution interface (step list in the worker, each with its own row; M1-S5)
 - [x] 5.5.6 Persist step-level results
-- [ ] 5.5.7 Implement timeout handling
+- [x] 5.5.7 Implement timeout handling (per-command time limits and the stale-deployment sweeper, ADR-051)
 - [x] 5.5.8 Implement retry classification
 - [x] 5.5.9 Implement graceful worker shutdown
 - [x] 5.5.10 Implement recovery of interrupted jobs
@@ -510,13 +510,13 @@ _Learn:_ ACID, race conditions, unique constraints, outbox pattern, exactly-once
 
 ### 6.3 — Build pipeline design
 - [ ] 6.3.1 Define supported sample application structure
-- [ ] 6.3.2 Define Dockerfile location and build context
-- [ ] 6.3.3 Define image naming and tagging
-- [ ] 6.3.4 Compare local builds and CI-hosted builds
-- [ ] 6.3.5 Define build timeouts and resource limits
-- [ ] 6.3.6 Define build logs and artifact metadata
+- [x] 6.3.2 Define Dockerfile location and build context (`<source directory>/Dockerfile`, context = that folder, ADR-049)
+- [x] 6.3.3 Define image naming and tagging (`<registry>/services/<serviceId>:<deploymentId>`, stored by digest, ADR-050)
+- [x] 6.3.4 Compare local builds and CI-hosted builds (ADR-048)
+- [x] 6.3.5 Define build timeouts and resource limits (time limits in ADR-051; CPU/memory limits for builds not set yet)
+- [x] 6.3.6 Define build logs and artifact metadata (step logs, commit SHA, image digest, ADR-051)
 - [ ] 6.3.7 Define image registry permissions
-- [ ] 6.3.8 Approve the build-execution ADR
+- [x] 6.3.8 Approve the build-execution ADR (ADR-048 for M1)
 - [ ] 6.3.9 Define supported automatic-build conventions for JavaScript, TypeScript and Python (which frameworks and runtimes, and how each is detected)
 - [ ] 6.3.10 Evaluate and select the automatic build engine (ADR-017)
 - [ ] 6.3.11 Define the build interface shared by Dockerfile and automatic builds (input: config + commit; output: image digest, logs, result)
@@ -526,23 +526,23 @@ _Learn:_ ACID, race conditions, unique constraints, outbox pattern, exactly-once
 - [x] 6.4.2 Create a sample backend API (the M1 reference Express.js + TypeScript API; repo `forgeops-sample-api`)
 - [ ] 6.4.3 Create a sample background worker
 - [ ] 6.4.4 Create production Dockerfiles for samples
-- [ ] 6.4.5 Implement approved build trigger
-- [ ] 6.4.6 Capture build status and logs
-- [ ] 6.4.7 Publish image to registry
-- [ ] 6.4.8 Persist image digest and metadata
-- [ ] 6.4.9 Handle failed and timed-out builds
-- [ ] 6.4.10 Verify image can be pulled and run
+- [x] 6.4.5 Implement approved build trigger (manual Deploy runs fetch, build and push)
+- [x] 6.4.6 Capture build status and logs
+- [x] 6.4.7 Publish image to registry (local registry, ADR-050)
+- [x] 6.4.8 Persist image digest and metadata
+- [x] 6.4.9 Handle failed and timed-out builds
+- [x] 6.4.10 Verify image can be pulled and run (sample pulled by digest, served 200 on `/` and `/health/ready`)
 - [ ] 6.4.11 Create sample Python API and Python worker for automatic-build testing
 - [ ] 6.4.12 Create a sample scheduled job
 
 ### 6.5 — Build security
 - [ ] 6.5.1 Define trusted-source restrictions
-- [ ] 6.5.2 Prevent build-secret leakage
+- [ ] 6.5.2 Prevent build-secret leakage _(service env vars are never passed to builds; build secrets themselves not supported yet)_
 - [ ] 6.5.3 Scan images for vulnerabilities
 - [ ] 6.5.4 Validate image registry access
 - [ ] 6.5.5 Limit build permissions
 - [ ] 6.5.6 Prevent privileged Docker execution
-- [ ] 6.5.7 Document why arbitrary public builds are out of scope
+- [x] 6.5.7 Document why arbitrary public builds are out of scope (ADR-048)
 
 ### 6.6 — Automatic builds (PD-002, PD-004, PD-005)
 - [ ] 6.6.1 Implement source inspection for the conventions approved in 6.3.9

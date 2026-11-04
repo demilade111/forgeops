@@ -1,12 +1,13 @@
 # ForgeOps — Current Work
 
-_Last updated: 2026-11-01_
+_Last updated: 2026-11-03_
 
 ## Project status
 
 - **Phase 0:** core planning done; remaining tickets deferred to just-in-time.
-- **Built so far:** M1-S0 to M1-S4: foundation, accounts, reference app, GitHub connect plus projects and services
-  (backend), and deployment intent with the outbox, RabbitMQ and the worker (backend).
+- **Built so far:** M1-S0 to M1-S5: foundation, accounts, reference app, GitHub connect plus projects and services
+  (backend), deployment intent with the outbox, RabbitMQ and the worker (backend), and build and push of the image
+  to a local registry (backend).
 - Approved V1 features are requirements, not implementations.
 
 ## Completed
@@ -64,8 +65,17 @@ messages go to `deployments.dead`. ADR-043 to ADR-047. The local database had to
 test account `demo@forgeops.test` (random password, never shown), installation 177099801 re-linked, service
 `api` in project `sample-shop` with source directory `api`.
 
-**Next slice:** M1-S5 Build & track (fetch the code at the pinned commit, build the image from the Dockerfile,
-store build logs, record the image digest). Needs decisions first: where builds run and which image registry.
+**M1-S5 Build & track: backend done (2026-11-03).** After `resolve-commit` the worker now runs `fetch-source`
+(GitHub tarball of the pinned commit into a fresh per-deployment folder, paths kept inside it), `build`
+(`docker build` with BuildKit on this machine, log saved on the step) and `push` (to the local registry `registry:3`
+on `127.0.0.1:5001`, digest saved as `Deployment.image`). Build 15 min, push 5 min and GitHub 2 min time limits; a
+sweeper fails deployments running over 60 minutes and releases their lock (5.5.7). ADR-048 to ADR-051. The local
+database was empty again (ISS-035); the smoke run created its own records, so `demo@forgeops.test` and the
+`sample-shop` service no longer exist locally.
+
+**Next slice:** M1-S6 Run & expose (run the image and serve it at a ForgeOps-managed URL). Needs a decision first:
+the managed URL scheme and traffic routing (ADR-019), plus where containers run in M1. Do the local seed script
+before or with it (ISS-035).
 
 Local environment (2026-10-27): git 2.50.1 · Docker engine now **OrbStack** (was Docker Desktop) · Node 24.22.1
 LTS via nvm (pinned in `.nvmrc`; run `nvm use` in this folder) · pnpm 11.5.2 via corepack.
@@ -118,6 +128,7 @@ migrations to it automatically. Docker must be running.
 | FGO-03.04.02 | Projects and web services API (M1-S3 backend) | Done | 71 API + 5 frontend tests; sabotage tests caught a missing organization filter and plain-text env vars; real `curl` against GitHub: typo branch, wrong folder, repo outside the installation and bad port refused, valid service saved, database holds only ciphertext |
 | — | GitHub App connect flow (M1-S3) | Done | Commit `2d9ae95`; OAuth verification built and tested but not configured (ADR-042) |
 | M1-S4 | Deployment intent & progress (backend) | Done | 92 API + 5 frontend tests, incl. a real RabbitMQ round trip and redelivery; 7 sabotage tests caught a claim that accepted finished deployments, ack before work, a missing outbox row, no lock, a lock never released, a relay that never marks rows sent and an unscoped read. Real run against GitHub: deploy with the worker off waited in the outbox, then succeeded with `main`'s real SHA; replay 202, second key 409, no key 400; missing branch failed with the reason and released the lock; worker exits when RabbitMQ restarts and stops cleanly on SIGTERM |
+| M1-S5 | Build & track (backend) | Done | 103 API + 5 frontend tests, builds and pushes run against the real local Docker and registry; 11 sabotage tests caught: no tag cleanup after push, no symlink containment, time-out not detected, digest not parsed, workspace not cleaned, a resumed deployment resolving the branch again, build log not saved, failed step log dropped, image not recorded, sweeper keeping the lock, sweeper failing fresh deployments. Real run against GitHub: `demilade111/forgeops-sample-api` at `f2edcd7` fetched, built and pushed in 22 s; image pulled back by digest runs as `node` and returns 200 on `/` and `/health/ready`; worker refuses to start without `REGISTRY_HOST` or without Docker, and stops cleanly on SIGTERM. Self-review fixes: Docker checked at start-up, local tag removed after push, tests use their own registry on 5002 (ADR-052) |
 | M1-S1 | Identity & organization | Done | 35 API + 5 frontend tests pass; sabotage tests caught a readable cookie, a skipped password check and a logout that kept the session; in a real browser: sign-up, reload stays signed in, logout, wrong password error, login, duplicate email error |
 
 ## Deferred until needed
@@ -129,10 +140,10 @@ migrations to it automatically. Docker must be running.
 | Remaining frontend screens (PD-013) | One pass after M1-S12, before M1-S13 | Logs, history, rollback, metrics, alerts |
 | Restrict the GitHub App installation to `forgeops-sample-api` (ISS-031) | Now; owner action on GitHub | Installation settings: "Only select repositories" |
 | Paginate repository listing beyond 100 repos (4.2.9) | Before real users connect large accounts | `listRepositories` reads one page of 100 |
-| Deployment timeout / stale-deployment sweeper (5.5.7) | Before M1-S5 builds take minutes | A deployment whose message dead-letters stays `running` with its lock held (ADR-046) |
 | Worker lease (worker id + heartbeat) | Before running more than one worker | Resuming `running` is only safe with one worker (ADR-046) |
 | Deployment list pagination (5.3.9) and cancellation (5.3.7) | With the deployment history screen | List returns the latest 50 |
-| Local seed script (account, installation link, service) | Next time the local volume is lost (ISS-029, ISS-032) | Re-seeding by hand takes a few minutes |
+| Local seed script (account, installation link, service) | **Now**: before or with M1-S6 (third loss, ISS-035) | Re-seeding by hand takes a few minutes; the smoke script already shows the records needed |
+| Build CPU/memory limits; rootless builder | Before building anyone else's code | M1 builds trusted repos with the host's Docker (ADR-048) |
 | `JobPublisher`/`JobConsumer` split and SQS adapter (ADR-006) | Phase 8 | `connectQueue` is the interface for now (ADR-045) |
 
 ## Open decisions to watch

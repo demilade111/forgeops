@@ -5,6 +5,7 @@ import { createDeploymentHandler } from "./modules/deployments/deployments.worke
 import type { GitHubClient } from "./modules/github/github.client.js";
 import { connectQueue } from "./queue.js";
 import { createService, createUser, resetDb, testDb } from "./test/db.js";
+import { helloApp, registryHost, sourceArchive } from "./test/source.js";
 
 const url = process.env.RABBITMQ_URL;
 if (!url) throw new Error("RABBITMQ_URL is not set (see apps/api/.env.example)");
@@ -26,7 +27,7 @@ afterEach(async () => {
 });
 
 const until = async (check: () => Promise<boolean> | boolean) => {
-  for (let i = 0; i < 100 && !(await check()); i++) await new Promise((r) => setTimeout(r, 50));
+  for (let i = 0; i < 400 && !(await check()); i++) await new Promise((r) => setTimeout(r, 50));
 };
 
 it("redelivers a message the consumer did not finish", async () => {
@@ -53,12 +54,13 @@ it("moves a deployment from the outbox through RabbitMQ to a finished worker run
     listRepositories: async () => [],
     inspectSource: async () => ({ repositoryId: 777 }),
     branchCommit: async () => "9f2c41e",
+    sourceArchive: async () => sourceArchive(helloApp)(),
   } satisfies GitHubClient;
   const repo = deploymentsRepository(testDb);
   const service = await createService();
   const deployment = await repo.create(service.id, (await createUser()).id, "k1");
 
-  await queue.consume(createDeploymentHandler(testDb, github));
+  await queue.consume(createDeploymentHandler(testDb, github, { registryHost }));
   expect(await repo.relayOutbox(queue.publish)).toBe(1);
   await until(
     async () =>
@@ -67,6 +69,11 @@ it("moves a deployment from the outbox through RabbitMQ to a finished worker run
   );
 
   expect(await testDb.deployment.findUniqueOrThrow({ where: { id: deployment.id } })).toMatchObject(
-    { status: "succeeded", commitSha: "9f2c41e", activeServiceId: null },
+    {
+      status: "succeeded",
+      commitSha: "9f2c41e",
+      image: expect.stringMatching(/@sha256:[a-f0-9]{64}$/),
+      activeServiceId: null,
+    },
   );
 });

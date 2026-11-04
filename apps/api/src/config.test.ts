@@ -12,6 +12,7 @@ it("applies defaults", () => {
     databaseUrl: DATABASE_URL,
     encryptionKeyPath: ENCRYPTION_KEY_PATH,
     rabbitmqUrl: null,
+    registryHost: null,
     github: null,
   });
 });
@@ -36,6 +37,15 @@ it("reads RABBITMQ_URL and rejects non-AMQP URLs", () => {
   expect(loadConfig({ ...base, RABBITMQ_URL }).rabbitmqUrl).toBe(RABBITMQ_URL);
   expect(() => loadConfig({ ...base, RABBITMQ_URL: "http://localhost:5673" })).toThrow(
     /RABBITMQ_URL/,
+  );
+});
+
+it("reads REGISTRY_HOST and rejects URLs", () => {
+  expect(loadConfig({ ...base, REGISTRY_HOST: "localhost:5001" }).registryHost).toBe(
+    "localhost:5001",
+  );
+  expect(() => loadConfig({ ...base, REGISTRY_HOST: "http://localhost:5001" })).toThrow(
+    /REGISTRY_HOST/,
   );
 });
 

@@ -14,7 +14,8 @@ Read these files when relevant:
 - `docs/ROADMAP.md` — implementation backlog
 - `docs/CURRENT.md` — active task and progress
 - `docs/DECISIONS.md` — approved architecture decisions
-- `docs/LEARNING.md` — learning and interview notes
+- `docs/LEARNING.md` — learning notes (concepts per slice)
+- `docs/INTERVIEW.md` — interview prep: why each tool, trade-offs, "what happens when X fails", questions with answers
 - `docs/ISSUES.md` — every problem hit while building, as STAR behavioural-interview stories
 
 Check the actual repository before claiming anything is implemented.
@@ -87,6 +88,8 @@ After implementation, explain:
 - Record **every** technical decision in `docs/DECISIONS.md`, including small ones (libraries, formats,
   conventions): the options considered, the trade-offs, the choice and its consequences.
 - Update `docs/LEARNING.md` with concise explanations and concepts encountered.
+- Update `docs/INTERVIEW.md` at the end of every slice: why each new tool (alternatives, trade-offs), what happens
+  when each part fails, a ready-to-say walkthrough, real evidence, known limits, and questions with short answers.
 - Log every real issue hit (failed install, bug, misleading test, environment problem) in `docs/ISSUES.md`
   as it happens, in STAR form (Situation, Task, Action, Result) plus a one-line lesson, first person.
   Newest first, `ISS-xxx` IDs.
