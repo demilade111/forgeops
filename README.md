@@ -37,6 +37,10 @@ docker compose up -d
 pnpm --filter @forgeops/api exec prisma migrate dev
 ```
 
+Optional demo data, safe to rerun after the local database is reset: set `SEED_GITHUB_INSTALLATION_ID` in
+`apps/api/.env`, then run `pnpm --filter @forgeops/api seed`. It creates `demo@forgeops.test` (password saved in
+`~/.forgeops/demo-password`), links the GitHub installation and adds the sample project and service.
+
 Set `ENCRYPTION_KEY_PATH` in `apps/api/.env` to the full path of that key file (it encrypts service env vars; losing
 it loses the stored values). GitHub settings are optional: fill in the `GITHUB_APP_*` values from your GitHub App
 to connect repositories, and `GITHUB_CLIENT_ID` / `GITHUB_CLIENT_SECRET_PATH` to verify installations through
