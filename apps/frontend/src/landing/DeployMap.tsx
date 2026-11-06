@@ -20,6 +20,7 @@ const lines = [
   { text: "==> Build successful in 14.2s", ms: 700 },
   { text: "==> Saving the build", ms: 900 },
   { text: "==> Starting your app", ms: 900 },
+  { text: "==> Health check passed: GET /health/ready returned 200", ms: 900 },
   { text: "==> Live at http://api.sample-shop.localhost", ms: 600 },
 ];
 

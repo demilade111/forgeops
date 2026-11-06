@@ -49,6 +49,14 @@ const serviceFields = {
     .trim()
     .regex(/^(?![/-])(?!.*\.\.)[\w./-]{1,255}$/, "Enter a valid branch name"),
   sourceDirectory,
+  healthCheckPath: z
+    .string({ error: "Health check path must be text" })
+    .trim()
+    .max(255, "Health check path must be at most 255 characters")
+    .regex(
+      /^(\/[\w\-.~/%?=&]*)?$/,
+      "Health check path must start with /, like /health/ready, or be empty",
+    ),
   port: z
     .number({ error: "Port must be a number" })
     .int("Port must be a whole number")
@@ -66,6 +74,7 @@ const createServiceBody = z.object({
     .literal("dockerfile", { error: "Only Dockerfile builds are supported for now" })
     .default("dockerfile"),
   sourceDirectory: sourceDirectory.default(""),
+  healthCheckPath: serviceFields.healthCheckPath.default("/health/ready"),
   envVars: envVarsOf(envValue).default({}),
 });
 
@@ -99,6 +108,7 @@ export function createProjectsRouter(
     sourceDirectory: service.sourceDirectory,
     buildMethod: service.buildMethod,
     port: service.port,
+    healthCheckPath: service.healthCheckPath,
     envVarNames: Object.keys(readEnv(service)).sort(),
     createdAt: service.createdAt,
     updatedAt: service.updatedAt,

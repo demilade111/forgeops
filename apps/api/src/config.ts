@@ -11,6 +11,7 @@ const schema = z.object({
     .regex(/^[a-z0-9.-]+(:\d+)?$/, "must look like host:port")
     .optional(),
   CADDY_ADMIN_URL: z.url({ protocol: /^https?$/ }).optional(),
+  CADDY_HTTP_URL: z.url({ protocol: /^https?$/ }).optional(),
   GITHUB_APP_ID: z.coerce.number().int().positive().optional(),
   GITHUB_APP_SLUG: z.string().min(1).optional(),
   GITHUB_APP_PRIVATE_KEY_PATH: z.string().min(1).optional(),
@@ -53,6 +54,7 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
     rabbitmqUrl: c.RABBITMQ_URL ?? null,
     registryHost: c.REGISTRY_HOST ?? null,
     caddyAdminUrl: c.CADDY_ADMIN_URL?.replace(/\/+$/, "") ?? null,
+    caddyHttpUrl: c.CADDY_HTTP_URL?.replace(/\/+$/, "") ?? null,
     github: hasApp
       ? {
           appId: c.GITHUB_APP_ID!,

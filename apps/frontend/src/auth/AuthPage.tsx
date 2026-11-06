@@ -6,9 +6,10 @@ import { AuthForm } from "./AuthForm";
 const steps: [string, string, number, number][] = [
   ["Find latest commit", "0.4s", 0, 3],
   ["Download code", "1.1s", 3, 9],
-  ["Build image", "14.2s", 9, 84],
-  ["Save image", "2.3s", 84, 95],
-  ["Start app", "0.6s", 95, 99],
+  ["Build image", "14.2s", 9, 80],
+  ["Save image", "2.3s", 80, 91],
+  ["Start app", "0.6s", 91, 94],
+  ["Check health", "1.2s", 94, 99],
   ["Go live", "0.1s", 99, 100],
 ];
 
@@ -70,7 +71,7 @@ export function AuthPage({ mode }: { mode: "login" | "signup" }) {
               ))}
             </ul>
             <p className="text-muted-foreground mt-4 border-t pt-3 text-xs">
-              Live in 18.7 seconds, from commit f2edcd7.
+              Live in 19.9 seconds, from commit f2edcd7.
             </p>
           </div>
         </div>

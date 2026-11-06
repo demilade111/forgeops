@@ -6,7 +6,6 @@ import { HttpError } from "../../http-error.js";
 import { createService, createUser, resetDb, testDb, testKey } from "../../test/db.js";
 import { encrypt } from "../../secrets.js";
 import {
-  helloApp,
   registryHost,
   resetRuntime,
   sourceArchive,
@@ -22,7 +21,7 @@ import { run, workspace } from "./deployments.build.js";
 import { deploymentsRepository } from "./deployments.repository.js";
 import { createDeploymentHandler } from "./deployments.worker.js";
 
-const hello = sourceArchive(helloApp);
+const hello = sourceArchive(webApp);
 
 const github = {
   installUrl: () => "https://github.test/install",
@@ -102,6 +101,17 @@ const setEnv = (serviceId: string, env: Record<string, string>) =>
 
 const host = "api.sample-shop.localhost";
 
+const checkRoutes = async () => {
+  const res = await fetch(
+    `${workerOptions.caddyAdminUrl}/config/apps/http/servers/forgeops/routes`,
+  );
+  const routes = (await res.json()) as { "@id"?: string }[];
+  return routes.map((r) => r["@id"]).filter((id) => id?.startsWith("check-"));
+};
+
+const setHealthPath = (serviceId: string, healthCheckPath: string) =>
+  testDb.service.update({ where: { id: serviceId }, data: { healthCheckPath } });
+
 it("builds the pinned commit, runs it and serves it at its URL", async () => {
   const { service, deployment, message } = await queued();
   await setEnv(service.id, { GREETING: "from forgeops" });
@@ -131,8 +141,11 @@ it("builds the pinned commit, runs it and serves it at its URL", async () => {
     ["build", "succeeded"],
     ["push", "succeeded"],
     ["run", "succeeded"],
+    ["health", "succeeded"],
     ["route", "succeeded"],
   ]);
+  expect(done.steps[5]!.log).toBe("GET /health/ready returned 200");
+  expect(await checkRoutes()).toEqual([]);
   await until(async () => (await viaRouter(host)).endsWith(" 200"));
   expect(await viaRouter(host)).toBe("hello from forgeops\n 200");
   expect(await containersOf(service.id)).toEqual([`fo-${deployment.id}`]);
@@ -280,7 +293,7 @@ it("resumes a crashed deployment with the commit it already pinned", async () =>
   );
   const done = await reload(deployment.id);
   expect(done).toMatchObject({ status: "succeeded", commitSha: "abc1234" });
-  expect(done.steps).toHaveLength(6);
+  expect(done.steps).toHaveLength(7);
 });
 
 it("fails with a clear reason when the branch is gone", async () => {
@@ -530,4 +543,74 @@ it("keeps a deletion pending when the router is down, and requests it again late
     type: "deletion.requested",
     payload: { serviceId: service.id },
   });
+});
+
+it("fails the deploy when the app never passes its health check, and keeps the old version", async () => {
+  const { service, deployment } = await live();
+  await setHealthPath(service.id, "/missing");
+  const next = await create(service.id, deployment.triggeredById!, "k2");
+
+  await handle({ type: "deployment.requested", deploymentId: next.id });
+
+  const done = await reload(next.id);
+  expect(done).toMatchObject({
+    status: "failed",
+    error: "Your app did not pass its health check within 5 seconds",
+    url: null,
+  });
+  expect(done.steps.at(-1)).toMatchObject({
+    name: "health",
+    status: "failed",
+    log: expect.stringContaining("GET /missing returned 404"),
+  });
+  expect(await viaRouter(host)).toBe("hello \n 200");
+  expect(await containersOf(service.id)).toEqual([`fo-${deployment.id}`]);
+  expect(await checkRoutes()).toEqual([]);
+});
+
+it("fails fast with the app's own output when it stops while starting", async () => {
+  const { service, deployment, message } = await queued();
+  withSource({ Dockerfile: 'FROM busybox:1.37\nCMD echo "missing DATABASE_URL" && exit 1\n' });
+  const started = Date.now();
+
+  await handle(message);
+
+  expect(Date.now() - started).toBeLessThan(15_000);
+  expect((await reload(deployment.id)).steps.at(-1)).toMatchObject({
+    name: "health",
+    status: "failed",
+    error: "Your app stopped while starting",
+    log: expect.stringContaining("missing DATABASE_URL"),
+  });
+  expect(await containersOf(service.id)).toEqual([]);
+});
+
+it("accepts any answer from the app when no health check path is set", async () => {
+  const { service, deployment, message } = await queued();
+  await setHealthPath(service.id, "");
+  withSource({
+    Dockerfile: "FROM busybox:1.37\nCMD mkdir -p /www && exec httpd -f -p 8080 -h /www\n",
+  });
+
+  await handle(message);
+
+  const done = await reload(deployment.id);
+  expect(done.status).toBe("succeeded");
+  expect(done.steps[5]!.log).toBe("GET / returned 404");
+  await until(async () => (await viaRouter(host)).endsWith(" 404"));
+});
+
+it("does not count the router's own error as an answer from the app", async () => {
+  const { service, deployment, message } = await queued();
+  await setHealthPath(service.id, "");
+  withSource({ Dockerfile: "FROM busybox:1.37\nCMD exec sleep 300\n" });
+
+  await handle(message);
+
+  expect(await reload(deployment.id)).toMatchObject({
+    status: "failed",
+    error: "Your app did not pass its health check within 5 seconds",
+  });
+  expect((await reload(deployment.id)).steps.at(-1)!.log).toContain("GET / got no answer");
+  expect(await containersOf(service.id)).toEqual([]);
 });

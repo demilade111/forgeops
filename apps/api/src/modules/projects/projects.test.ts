@@ -152,6 +152,28 @@ it("updates a service, merging env vars and re-checking GitHub only when the sou
   });
 });
 
+it("saves a health check path, defaulting to /health/ready, and rejects bad ones", async () => {
+  const { agent, projectId } = await signedIn();
+  const created = await agent.post(`/api/projects/${projectId}/services`).send(service);
+  expect(created.body.healthCheckPath).toBe("/health/ready");
+
+  const cleared = await agent
+    .patch(`/api/services/${created.body.id}`)
+    .send({ healthCheckPath: "" });
+  expect(cleared.body.healthCheckPath).toBe("");
+  const custom = await agent
+    .patch(`/api/services/${created.body.id}`)
+    .send({ healthCheckPath: " /healthz " });
+  expect(custom.body.healthCheckPath).toBe("/healthz");
+
+  for (const bad of ["healthz", "/a b", "http://evil.test/"]) {
+    const res = await agent
+      .patch(`/api/services/${created.body.id}`)
+      .send({ healthCheckPath: bad });
+    expect(res.status).toBe(400);
+  }
+});
+
 it("hides other organizations' projects and services", async () => {
   const owner = await signedIn("owner@example.com");
   const { id } = (await owner.agent.post(`/api/projects/${owner.projectId}/services`).send(service))

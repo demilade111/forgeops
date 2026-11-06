@@ -61,6 +61,7 @@ export function NewServicePage({ organizationId }: { organizationId: string }) {
       branch: branch.trim(),
       sourceDirectory: String(form.get("sourceDirectory")).trim(),
       port: Number(form.get("port")),
+      healthCheckPath: String(form.get("healthCheckPath")).trim(),
       envVars: Object.fromEntries(env.filter(([key]) => key.trim())),
     });
   }
@@ -137,6 +138,12 @@ export function NewServicePage({ organizationId }: { organizationId: string }) {
               className="h-9 max-w-32 font-mono"
               required
             />
+          </Field>
+          <Field
+            label="Health check path"
+            hint="We call this path on your app before sending it traffic. Leave empty to accept any response."
+          >
+            <Input name="healthCheckPath" defaultValue="/health/ready" className="h-9 font-mono" />
           </Field>
         </div>
         <div className="space-y-4 p-6">

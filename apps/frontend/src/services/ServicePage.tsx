@@ -83,10 +83,11 @@ function Settings({ s }: { s: Service }) {
     ["Repository", s.repository],
     ["Root directory", s.sourceDirectory ? `${s.sourceDirectory}/` : "Repository root"],
     ["Port", String(s.port)],
+    ["Health check", s.healthCheckPath || "Any response"],
     ["Environment variables", s.envVarNames.length ? s.envVarNames.join(", ") : "None"],
   ];
   return (
-    <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-4">
+    <dl className="grid gap-x-8 gap-y-4 sm:grid-cols-2 lg:grid-cols-5">
       {items.map(([label, value]) => (
         <Detail key={label} label={label}>
           <span className="font-mono">{value}</span>

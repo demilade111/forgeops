@@ -5,7 +5,7 @@ import { createDeploymentHandler } from "./modules/deployments/deployments.worke
 import type { GitHubClient } from "./modules/github/github.client.js";
 import { connectQueue } from "./queue.js";
 import { createService, createUser, resetDb, testDb } from "./test/db.js";
-import { helloApp, resetRuntime, sourceArchive, workerOptions } from "./test/source.js";
+import { webApp, resetRuntime, sourceArchive, workerOptions } from "./test/source.js";
 
 const url = process.env.RABBITMQ_URL;
 if (!url) throw new Error("RABBITMQ_URL is not set (see apps/api/.env.example)");
@@ -57,7 +57,7 @@ it("moves a deployment from the outbox through RabbitMQ to a finished worker run
     listRepositories: async () => [],
     inspectSource: async () => ({ repositoryId: 777 }),
     branchCommit: async () => "9f2c41e",
-    sourceArchive: async () => sourceArchive(helloApp)(),
+    sourceArchive: async () => sourceArchive(webApp)(),
   } satisfies GitHubClient;
   const repo = deploymentsRepository(testDb);
   const service = await createService();

@@ -10,14 +10,24 @@ import { connectQueue } from "./queue.js";
 import { readEncryptionKey } from "./secrets.js";
 import { createDb } from "./server.js";
 
-const { databaseUrl, encryptionKeyPath, rabbitmqUrl, registryHost, caddyAdminUrl, github } =
-  loadConfig(process.env);
+const {
+  databaseUrl,
+  encryptionKeyPath,
+  rabbitmqUrl,
+  registryHost,
+  caddyAdminUrl,
+  caddyHttpUrl,
+  github,
+} = loadConfig(process.env);
 if (!rabbitmqUrl) throw new Error("Invalid configuration\nRABBITMQ_URL is required for the worker");
 if (!registryHost) {
   throw new Error("Invalid configuration\nREGISTRY_HOST is required for the worker");
 }
 if (!caddyAdminUrl) {
   throw new Error("Invalid configuration\nCADDY_ADMIN_URL is required for the worker");
+}
+if (!caddyHttpUrl) {
+  throw new Error("Invalid configuration\nCADDY_HTTP_URL is required for the worker");
 }
 if (!github)
   throw new Error("Invalid configuration\nGitHub App settings are required for the worker");
@@ -65,6 +75,7 @@ const sweeper = setInterval(() => {
 const deploy = createDeploymentHandler(db, loadGitHubClient(github), {
   registryHost,
   caddyAdminUrl,
+  caddyHttpUrl,
   encryptionKey,
 });
 const teardown = createTeardownHandler(db, { caddyAdminUrl });

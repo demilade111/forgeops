@@ -14,14 +14,19 @@ it("applies defaults", () => {
     rabbitmqUrl: null,
     registryHost: null,
     caddyAdminUrl: null,
+    caddyHttpUrl: null,
     github: null,
   });
 });
 
-it("reads CADDY_ADMIN_URL without a trailing slash", () => {
-  expect(loadConfig({ ...base, CADDY_ADMIN_URL: "http://127.0.0.1:2019/" })).toMatchObject({
-    caddyAdminUrl: "http://127.0.0.1:2019",
-  });
+it("reads the Caddy URLs without a trailing slash", () => {
+  expect(
+    loadConfig({
+      ...base,
+      CADDY_ADMIN_URL: "http://127.0.0.1:2019/",
+      CADDY_HTTP_URL: "http://127.0.0.1:80/",
+    }),
+  ).toMatchObject({ caddyAdminUrl: "http://127.0.0.1:2019", caddyHttpUrl: "http://127.0.0.1:80" });
 });
 
 it("reads PORT and NODE_ENV", () => {

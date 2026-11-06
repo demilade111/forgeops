@@ -10,8 +10,24 @@ const order = [
   ["build", "Build image"],
   ["push", "Save image"],
   ["run", "Start app"],
+  ["health", "Check health"],
   ["route", "Go live"],
 ] as const;
+
+const outcomes = [
+  ["Build", ["resolve-commit", "fetch-source", "build", "push"]],
+  ["Rollout", ["run", "route"]],
+  ["Health", ["health"]],
+] as const;
+
+const outcomeLabel = {
+  failed: "Failed",
+  running: "Running",
+  succeeded: "Passed",
+  waiting: "Waiting",
+  stopped: "Stopped",
+  skipped: "Not reached",
+};
 
 const ms = (iso: string | null) => (iso ? new Date(iso).getTime() : Date.now());
 
@@ -23,8 +39,38 @@ export function DeploymentSteps({ deployment }: { deployment: Deployment }) {
   const end = finished ? ms(deployment.finishedAt) : Date.now();
   const total = Math.max(end - start, 1);
 
+  const outcomeOf = (names: readonly string[]) => {
+    const group = steps.filter((s) => names.includes(s.name));
+    if (group.some((s) => s.status === "failed")) return "failed";
+    if (group.some((s) => s.status === "running")) return "running";
+    if (group.length === names.length) return "succeeded";
+    if (!finished) return group.length > 0 ? "running" : "waiting";
+    return group.length > 0 ? "stopped" : "skipped";
+  };
+
   return (
     <div>
+      <div className="flex flex-wrap gap-2 border-b px-5 py-3">
+        {outcomes.map(([label, names]) => {
+          const state = outcomeOf(names);
+          return (
+            <span
+              key={label}
+              className={cn(
+                "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs",
+                state === "succeeded" && "border-ok/30 bg-ok/5 text-ok",
+                state === "failed" && "border-fail/30 bg-fail/5 text-fail",
+                state === "running" && "border-heat/30 bg-heat/5 text-heat",
+                (state === "waiting" || state === "skipped" || state === "stopped") &&
+                  "text-muted-foreground",
+              )}
+            >
+              <span className="font-medium">{label}</span>
+              {outcomeLabel[state]}
+            </span>
+          );
+        })}
+      </div>
       <ol className="divide-y">
         {order.map(([name, label]) => {
           const step = steps.find((s) => s.name === name);
