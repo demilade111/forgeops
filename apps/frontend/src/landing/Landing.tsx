@@ -468,8 +468,9 @@ export function Landing() {
       </section>
 
       <div className="mx-auto max-w-[1200px] px-5 pt-28 pb-14 sm:px-8">
-        <h2 className="max-w-4xl bg-gradient-to-r from-primary via-[#9a55f0] to-[#e0559a] bg-clip-text text-4xl leading-[1.05] font-medium tracking-[-0.045em] text-transparent sm:text-6xl">
-          Deploy web services with every step on the record
+        <h2 className="max-w-4xl text-4xl leading-[1.05] font-medium tracking-[-0.045em] sm:text-6xl">
+          Deploy web services{" "}
+          <span className="text-muted-foreground">with every step on the record</span>
         </h2>
       </div>
 

@@ -950,6 +950,8 @@ Template:
      in 18.7s" with a Visit link, or "Deploy failed at Start app" with the error and that step's output. It says that
      visitors keep the current version until the new one is healthy.
   3. The dashboard logo links to the home page.
+  4. The landing heading "Deploy web services with every step on the record" is plain text with a muted second
+     half instead of a purple-to-pink gradient, which the product owner felt looked generated rather than designed.
 - **Options considered:** follow the system setting by default (the product owner wanted dark first); CSS-only
   `prefers-color-scheme` (no manual switch); keep progress only in the history list (the reason for this change).
 - **Consequences:** the theme is per browser. The progress card polls every 1.5 s while open, the same as the
