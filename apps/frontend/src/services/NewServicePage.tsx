@@ -148,7 +148,11 @@ export function NewServicePage({ organizationId }: { organizationId: string }) {
             label="Root directory"
             hint="The folder with your Dockerfile. Leave empty for the repository root."
           >
-            <Input name="sourceDirectory" placeholder="api" className="h-9 font-mono" />
+            <Input
+              name="sourceDirectory"
+              placeholder="(repository root)"
+              className="h-9 font-mono"
+            />
           </Field>
           <Field label="Port" hint="The port your app listens on.">
             <Input

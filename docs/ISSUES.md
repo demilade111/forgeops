@@ -8,6 +8,16 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-046 — An example in an empty field looked like a real value
+- **Situation:** The product owner added a service from the `konvai` repo and got "No Dockerfile at Dockerfile on
+  master". The Root directory field showed `api`, so it looked filled in.
+- **Task:** Work out why ForgeOps looked at the repository root.
+- **Action:** `api` was only the grey placeholder, so the field was empty and ForgeOps correctly checked the root.
+  Konvai keeps its Dockerfiles in `backend/` and `frontend/`. I changed the placeholder to "(repository root)", which
+  says what an empty field means, in the new service form and in Settings.
+- **Result:** the error was right; the form was misleading. Fixed with a two-word change.
+- **Lesson:** a placeholder that looks like a value reads as a value; use it to explain what empty means.
+
 ## ISS-045 — Connecting GitHub had never worked for anyone but me
 - **Situation:** While making Connect GitHub easier for new people, I tested the new flow end to end against real
   GitHub with a fresh local account. ForgeOps answered "GitHub sign-in isn't set up".
