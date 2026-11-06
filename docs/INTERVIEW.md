@@ -372,7 +372,76 @@ services, and secrets passed only as build secrets that never land in the image.
 
 ---
 
-## 12. Rollout and health _(planned: M1-S6 to M1-S10)_
+## 12. Run and expose: from image to URL (M1-S6)
+
+**The flow:** after `push`, two more steps:
+- **run:** decrypt the service's env vars into a private file, `docker run` the image by digest as
+  `fo-<deploymentId>` on the `forgeops-apps` network.
+- **route:** tell Caddy "`api.sample-shop.localhost` goes to `fo-<deploymentId>:8080`", then remove the service's older
+  containers. The URL is saved on the deployment.
+
+### Why each tool
+| Choice | Why | Alternatives and their cost |
+| --- | --- | --- |
+| **Caddy + admin API** | routes change at runtime with one HTTP call, no reload; single binary; HTTPS later | Traefik (follows Docker labels, but the proxy needs the Docker socket); nginx (reload per change, config templating) |
+| **`<service>.<project>.localhost`** | readable, no DNS setup, no ports in URLs, one name per service | path-based (breaks apps with absolute links); one host port per service (ugly, leaks into the product) |
+| **Host Docker via the CLI** | already used for builds, free, same commands I'd type | local Kubernetes (the later target, much more setup); ECS (paid) |
+| **Name containers by deployment id** | never clashes across projects or organizations; short enough for Docker DNS | `svc-<service>` (clashes between orgs; old and new can't run side by side) |
+| **Env file (mode 600)** | values never appear in `ps` output | `-e NAME=value` (visible to any process listing) |
+
+### What happens when...
+| Situation | What ForgeOps does |
+| --- | --- |
+| The new image can't start (bad command) | `run` fails: "Could not start the container", Docker's error in the step log. The live version keeps serving. Tested. |
+| Caddy is down during a deploy | `route` fails: "Could not update the router"; the new container is removed; the old one keeps serving. Tested. |
+| Another organization's service wants the same URL | Refused: "api.sample-shop.localhost is already used by another service". Tested. |
+| Caddy restarts | Routes come back from its autosave (`--resume`). Checked for real: 200 after restart. |
+| Docker restarts | Containers come back (`--restart unless-stopped`); Caddy finds them by name. |
+| The app crashes after starting | Not caught yet: the URL returns 502. Readiness checks are M1-S7. |
+| Someone visits an unknown name | Caddy's catch-all: 404 "No service at this address". |
+
+### "How does a deployed service get its URL?" (30-second answer)
+"After the image is pushed, the worker starts it as a container on a private Docker network, with env vars passed
+through a file only it can read. Then it calls Caddy's admin API to add a route: this host goes to that container
+and port. Caddy is the only thing listening on port 80, so every service gets a clean name like
+`api.sample-shop.localhost`. On a redeploy the new container starts first, the route moves to it, and only then is
+the old one removed, so a failed deploy never takes the live version down."
+
+### Real evidence (M1-S6)
+- 110 API tests, with real containers and a real test Caddy. Five sabotage tests, all caught: old containers not
+  removed, URL collision not checked, new container left behind when routing fails, env vars not passed, URL not
+  saved.
+- Real run through the API with the seeded account: Deploy 202, then all six steps succeeded for
+  `demilade111/forgeops-sample-api` at `f2edcd7`. `curl http://api.sample-shop.localhost` returned
+  `{"message":"Hello from the ForgeOps sample API","version":"1.0.0"}` and `/health/ready` returned 200. After a Caddy
+  restart it still returned 200. A second deploy left exactly one container, the new one.
+- Stories: **ISS-038** (malformed test fixture, found by watching the running system), **ISS-037** (Caddy's
+  autosave beat the edited file).
+
+### Known limits
+- No readiness check: a crashing release is routed (M1-S7). No connection draining on swap.
+- Caddy's admin API has no auth and is reachable from app containers on the same network; fine for trusted repos.
+- No CPU or memory limits on containers. No HTTPS. Env var values can't contain line breaks.
+- The same project and service name in two organizations can't both be served.
+
+### Questions
+**Q: What does a reverse proxy do?** _It's the single entry point. It reads the `Host` header of each request and
+forwards it to the right backend, so the apps stay private and get clean names._
+
+**Q: Why not just publish each container's port?** _Users would need `localhost:49213`-style addresses, ports would
+change on every deploy, and there's no place to add HTTPS or switch versions. A proxy gives a stable name and lets
+me move traffic between containers._
+
+**Q: How do you swap versions without downtime?** _Start the new container next to the old one, move the route, then
+remove the old one. If the new one fails to start or the route can't be updated, the old one keeps serving. True
+zero-downtime also needs a readiness check before the switch and connection draining, which come next._
+
+**Q: How do secrets reach the container?** _Decrypted only in the worker, written to a file readable only by the
+worker, passed with `--env-file`, and deleted with the workspace. Never on the command line or baked into the image._
+
+---
+
+## 13. Rollout and health _(planned: M1-S7 to M1-S10)_
 
 **The idea to explain:** ForgeOps records three separate outcomes, because each failure points at a different fix:
 - **Build:** did the code become an image? Fails: your code.

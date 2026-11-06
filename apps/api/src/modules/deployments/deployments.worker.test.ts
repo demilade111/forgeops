@@ -1,10 +1,20 @@
 import { randomUUID } from "node:crypto";
 import { existsSync } from "node:fs";
 import { Readable } from "node:stream";
-import { beforeEach, expect, it, vi } from "vitest";
+import { afterAll, beforeEach, expect, it, vi } from "vitest";
 import { HttpError } from "../../http-error.js";
-import { createService, createUser, resetDb, testDb } from "../../test/db.js";
-import { helloApp, registryHost, sourceArchive } from "../../test/source.js";
+import { createService, createUser, resetDb, testDb, testKey } from "../../test/db.js";
+import { encrypt } from "../../secrets.js";
+import {
+  helloApp,
+  registryHost,
+  resetRuntime,
+  sourceArchive,
+  until,
+  viaRouter,
+  webApp,
+  workerOptions,
+} from "../../test/source.js";
 import type { GitHubClient } from "../github/github.client.js";
 import { run, workspace } from "./deployments.build.js";
 import { deploymentsRepository } from "./deployments.repository.js";
@@ -22,7 +32,7 @@ const github = {
 } satisfies GitHubClient;
 
 const repo = deploymentsRepository(testDb);
-const options = { registryHost, retryDelays: [0, 0, 0] };
+const options = { ...workerOptions, retryDelays: [0, 0, 0] };
 const handle = createDeploymentHandler(testDb, github, options);
 const gitHubDown = new HttpError(502, "GITHUB_ERROR", "GitHub request failed (502)");
 
@@ -61,13 +71,37 @@ const manifest = (image: string) => {
 };
 
 beforeEach(async () => {
+  await resetRuntime();
   await resetDb();
   vi.clearAllMocks();
   vi.spyOn(console, "error").mockImplementation(() => {});
 });
 
-it("builds the pinned commit, pushes the image and records every step", async () => {
+afterAll(resetRuntime);
+
+const containersOf = async (serviceId: string) =>
+  (
+    await run(
+      "docker",
+      ["ps", "-a", "--filter", `label=forgeops.service=${serviceId}`, "--format", "{{.Names}}"],
+      10_000,
+    )
+  ).log
+    .split("\n")
+    .filter(Boolean);
+
+const setEnv = (serviceId: string, env: Record<string, string>) =>
+  testDb.service.update({
+    where: { id: serviceId },
+    data: { envVars: encrypt(testKey, JSON.stringify(env)) },
+  });
+
+const host = "api.sample-shop.localhost";
+
+it("builds the pinned commit, runs it and serves it at its URL", async () => {
   const { service, deployment, message } = await queued();
+  await setEnv(service.id, { GREETING: "from forgeops" });
+  withSource(webApp);
 
   await handle(message);
 
@@ -82,6 +116,7 @@ it("builds the pinned commit, pushes the image and records every step", async ()
     commitSha: "9f2c41e",
     error: null,
     activeServiceId: null,
+    url: `http://${host}`,
     image: expect.stringMatching(
       new RegExp(`^${registryHost}/services/${service.id}@sha256:[a-f0-9]{64}$`),
     ),
@@ -91,7 +126,12 @@ it("builds the pinned commit, pushes the image and records every step", async ()
     ["fetch-source", "succeeded"],
     ["build", "succeeded"],
     ["push", "succeeded"],
+    ["run", "succeeded"],
+    ["route", "succeeded"],
   ]);
+  await until(async () => (await viaRouter(host)).endsWith(" 200"));
+  expect(await viaRouter(host)).toBe("hello from forgeops\n 200");
+  expect(await containersOf(service.id)).toEqual([`fo-${deployment.id}`]);
   expect(done.steps[2]!.log).toContain(
     `naming to ${registryHost}/services/${service.id}:${deployment.id}`,
   );
@@ -236,7 +276,7 @@ it("resumes a crashed deployment with the commit it already pinned", async () =>
   );
   const done = await reload(deployment.id);
   expect(done).toMatchObject({ status: "succeeded", commitSha: "abc1234" });
-  expect(done.steps).toHaveLength(4);
+  expect(done.steps).toHaveLength(6);
 });
 
 it("fails with a clear reason when the branch is gone", async () => {
@@ -330,4 +370,93 @@ it("relays unsent outbox rows once, and keeps them if publishing fails", async (
 
   expect(await repo.relayOutbox(publish)).toBe(0);
   expect(publish).toHaveBeenCalledTimes(1);
+});
+
+it("replaces the running release on redeploy and removes the old container", async () => {
+  const { service, deployment, message } = await queued();
+  await setEnv(service.id, { GREETING: "v1" });
+  withSource(webApp);
+  await handle(message);
+  await until(async () => (await viaRouter(host)) === "hello v1\n 200");
+
+  await setEnv(service.id, { GREETING: "v2" });
+  withSource(webApp);
+  const next = await repo.create(service.id, deployment.triggeredById!, "k2");
+  await handle({ type: "deployment.requested", deploymentId: next.id });
+
+  await until(async () => (await viaRouter(host)) === "hello v2\n 200");
+  expect(await containersOf(service.id)).toEqual([`fo-${next.id}`]);
+});
+
+it("keeps the live release when the new container cannot start", async () => {
+  const { service, deployment, message } = await queued();
+  withSource(webApp);
+  await handle(message);
+  await until(async () => (await viaRouter(host)).endsWith(" 200"));
+
+  withSource({ Dockerfile: 'FROM busybox:1.37\nCMD ["/does-not-exist"]\n' });
+  const next = await repo.create(service.id, deployment.triggeredById!, "k2");
+  await handle({ type: "deployment.requested", deploymentId: next.id });
+
+  const done = await reload(next.id);
+  expect(done).toMatchObject({
+    status: "failed",
+    error: "Could not start the container",
+    url: null,
+  });
+  expect(done.steps.at(-1)).toMatchObject({
+    name: "run",
+    status: "failed",
+    log: expect.stringContaining("does-not-exist"),
+  });
+  expect(await viaRouter(host)).toBe("hello \n 200");
+  expect(await containersOf(service.id)).toContain(`fo-${deployment.id}`);
+});
+
+it("refuses a URL that another service already serves", async () => {
+  const first = await queued();
+  withSource(webApp);
+  await handle(first.message);
+
+  const other = await createService();
+  const user = await testDb.user.findFirstOrThrow();
+  const deployment = await repo.create(other.id, user.id, "k1");
+  await handle({ type: "deployment.requested", deploymentId: deployment.id });
+
+  expect(await reload(deployment.id)).toMatchObject({
+    status: "failed",
+    error: `${host} is already used by another service`,
+  });
+  expect(await containersOf(other.id)).toEqual([]);
+  expect(await containersOf(first.service.id)).toEqual([`fo-${first.deployment.id}`]);
+});
+
+it("fails and removes the new container when the router is unreachable", async () => {
+  const { service, deployment, message } = await queued();
+  const offline = createDeploymentHandler(testDb, github, {
+    ...options,
+    caddyAdminUrl: "http://127.0.0.1:1",
+  });
+
+  await offline(message);
+
+  expect(await reload(deployment.id)).toMatchObject({
+    status: "failed",
+    error: "Could not update the router",
+    activeServiceId: null,
+  });
+  expect(await containersOf(service.id)).toEqual([]);
+});
+
+it("fails clearly when the env vars cannot be decrypted", async () => {
+  const { service, deployment, message } = await queued();
+  await testDb.service.update({ where: { id: service.id }, data: { envVars: "a.b.c" } });
+
+  await handle(message);
+
+  expect(await reload(deployment.id)).toMatchObject({
+    status: "failed",
+    error: "Could not read the service's env vars",
+  });
+  expect(await containersOf(service.id)).toEqual([]);
 });

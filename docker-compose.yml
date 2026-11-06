@@ -35,7 +35,35 @@ services:
     tmpfs:
       - /var/lib/registry
 
+  caddy:
+    image: caddy:2.10
+    command: caddy run --config /etc/caddy/caddy.json --resume
+    ports:
+      - "127.0.0.1:80:80"
+      - "127.0.0.1:2019:2019"
+    volumes:
+      - ./caddy/caddy.json:/etc/caddy/caddy.json:ro
+      - caddy-config:/config
+    networks:
+      - apps
+
+  caddy-test:
+    image: caddy:2.10
+    command: caddy run --config /etc/caddy/caddy.json
+    ports:
+      - "127.0.0.1:8081:80"
+      - "127.0.0.1:2020:2019"
+    volumes:
+      - ./caddy/caddy.json:/etc/caddy/caddy.json:ro
+    networks:
+      - apps
+
+networks:
+  apps:
+    name: forgeops-apps
+
 volumes:
+  caddy-config:
   postgres-data:
   rabbitmq-data:
   registry-data:

@@ -3,19 +3,33 @@ import { run } from "./modules/deployments/deployments.build.js";
 import { createDeploymentHandler } from "./modules/deployments/deployments.worker.js";
 import { deploymentsRepository } from "./modules/deployments/deployments.repository.js";
 import { loadGitHubClient } from "./modules/github/github.client.js";
+import { appsNetwork } from "./modules/deployments/deployments.release.js";
 import { connectQueue } from "./queue.js";
+import { readEncryptionKey } from "./secrets.js";
 import { createDb } from "./server.js";
 
-const { databaseUrl, rabbitmqUrl, registryHost, github } = loadConfig(process.env);
+const { databaseUrl, encryptionKeyPath, rabbitmqUrl, registryHost, caddyAdminUrl, github } =
+  loadConfig(process.env);
 if (!rabbitmqUrl) throw new Error("Invalid configuration\nRABBITMQ_URL is required for the worker");
 if (!registryHost) {
   throw new Error("Invalid configuration\nREGISTRY_HOST is required for the worker");
+}
+if (!caddyAdminUrl) {
+  throw new Error("Invalid configuration\nCADDY_ADMIN_URL is required for the worker");
 }
 if (!github)
   throw new Error("Invalid configuration\nGitHub App settings are required for the worker");
 
 const docker = await run("docker", ["version"], 10_000).catch(() => null);
 if (docker?.code !== 0) throw new Error("Docker is not available. Start Docker, then the worker.");
+const startHint = "Run docker compose up -d, then start the worker.";
+if ((await run("docker", ["network", "inspect", appsNetwork], 10_000)).code !== 0) {
+  throw new Error(`Docker network ${appsNetwork} is missing. ${startHint}`);
+}
+if (!(await fetch(`${caddyAdminUrl}/config/`).catch(() => null))?.ok) {
+  throw new Error(`Caddy is not reachable at ${caddyAdminUrl}. ${startHint}`);
+}
+const encryptionKey = readEncryptionKey(encryptionKeyPath);
 
 const db = createDb(databaseUrl);
 const queue = await connectQueue(rabbitmqUrl);
@@ -40,7 +54,13 @@ const sweeper = setInterval(() => {
     .catch((error) => console.error("Stale deployment sweep failed", error));
 }, 60_000);
 
-await queue.consume(createDeploymentHandler(db, loadGitHubClient(github), { registryHost }));
+await queue.consume(
+  createDeploymentHandler(db, loadGitHubClient(github), {
+    registryHost,
+    caddyAdminUrl,
+    encryptionKey,
+  }),
+);
 console.log("Worker listening for deployments");
 
 for (const signal of ["SIGINT", "SIGTERM"]) {

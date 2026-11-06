@@ -228,6 +228,22 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Stale-job sweeper:** a periodic check that fails jobs stuck `running` past a deadline and releases their lock,
   the safety net for crashes the queue can't recover.
 
+### Run and expose (M1-S6, done)
+- **Reverse proxy:** one front door (Caddy on port 80) that reads the request's `Host` header and forwards it to the
+  right app. Apps stay hidden inside Docker.
+- **Host-based routing:** each service gets its own name (`api.sample-shop.localhost`); `*.localhost` always points to
+  this machine, so no DNS setup is needed.
+- **Route:** a rule "this host goes to that container and port". ForgeOps adds it at runtime through Caddy's **admin
+  API** (port 2019), no reload.
+- **Docker network and DNS:** containers on the same user network (`forgeops-apps`) reach each other by name, so
+  Caddy can dial `fo-<deploymentId>:8080` without knowing IP addresses.
+- **Container port vs host port:** the app listens on 8080 *inside* its container; nothing is published on the Mac
+  except Caddy's port 80.
+- **Env file:** secrets go to the container through a file only the worker can read, not on the command line where
+  any process listing would show them.
+- **Swap then clean up:** the new container starts first, the route moves to it, and only then is the old one
+  removed. If anything fails, the old version keeps serving.
+
 ## Interview questions
 
 Moved to `INTERVIEW.md` (trade-offs, failure scenarios and answers for every slice).

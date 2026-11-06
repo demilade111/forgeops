@@ -160,7 +160,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-016 | Secret management | Local `.env` (git-ignored) in development; AWS Secrets Manager for ForgeOps' own secrets in the cloud. App reads secrets only from env/config | Proposed (direction agreed 2026-10-24) |
 | ADR-017 | Automatic build engine | Not selected (PD-002) | **Open** |
 | ADR-018 | Scheduled job execution mechanism | Not selected (PD-003) | **Open** |
-| ADR-019 | Managed URL scheme and traffic routing for web services | Not selected | **Open** |
+| ADR-019 | Managed URL scheme and traffic routing for web services | `http://<service>.<project>.localhost` in M1; Caddy reverse proxy, routes added at runtime through its admin API | **Accepted** (2026-11-05) |
 | ADR-020 | Failure alert delivery channel(s) | Not selected | **Open** |
 | ADR-021 | Source of basic CPU/memory metrics | Not selected (relates to ADR-013) | **Open** |
 | ADR-022 | Failed-rollout criteria that trigger automatic rollback | Not selected (relates to ADR-015) | **Open** |
@@ -192,6 +192,8 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-049 | Fetching source code | GitHub tarball of the pinned commit, unpacked by system `tar` into a fresh per-deployment folder; paths must stay inside it | **Accepted** (2026-11-03) |
 | ADR-050 | Image registry for M1 | Local `registry:3` container on `127.0.0.1:5001`; images `services/<serviceId>:<deploymentId>`; the digest reference is stored | **Accepted** (2026-11-03) |
 | ADR-052 | Test image registry | Tests push to a second `registry:3` on `127.0.0.1:5002` with in-memory storage (`TEST_REGISTRY_HOST`), never the dev registry | **Accepted** (2026-11-03) |
+| ADR-054 | Where web services run in M1 | `docker run` on the host's Docker, network `forgeops-apps`, container `fo-<deploymentId>`, restart unless stopped, env vars from a 600 env file | **Accepted** (2026-11-05) |
+| ADR-055 | Runtime tests | A second Caddy (`caddy-test`, admin 2020, HTTP 8081) and real containers; tests remove only their own containers | **Accepted** (2026-11-05) |
 | ADR-053 | Local seed script | `pnpm --filter @forgeops/api seed` recreates the demo account, GitHub link, project and service; safe to rerun | **Accepted** (2026-11-03) |
 | ADR-051 | Build logs, time limits and stale deployments | Step logs in `DeploymentStep.log` (last 64 KiB); build 15 min, push 5 min, GitHub calls 2 min; sweeper fails deployments running over 60 min | **Accepted** (2026-11-03) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
@@ -818,4 +820,60 @@ Template:
   owner; another developer sets their own installation id.
 - **Consequences:** losing the local volume costs one command (`docker compose up -d`, `prisma migrate deploy`,
   `seed`). Service port is now 8080, fixing the earlier hand-made service that used 3000.
+
+### ADR-019 — Managed URLs and traffic routing for M1
+- **Status:** Accepted (2026-11-05). The product owner approved the recommendation ("approve it").
+- **Context:** M1-S6 must serve each web service at a ForgeOps-managed URL (`curl <managed URL>` returns the API).
+  Several services run at once on one machine, each listening on its own port inside its container.
+- **Options considered:**
+  - URL scheme: `<service>.<project>.localhost` (host-based, no DNS setup: every `*.localhost` name points to this
+    machine in browsers and curl); path-based `localhost/<project>/<service>` (breaks apps that use absolute paths);
+    one host port per service (`localhost:49213`, nothing to remember, ports leak into the product).
+  - Router: **Caddy** with its JSON admin API (routes change at runtime, no reload, single binary, automatic HTTPS
+    later); Traefik with Docker labels (routes follow containers automatically, but more config and a Docker socket
+    in the proxy); nginx (config file reload per change, templating to write).
+- **Decision:** host `<service>.<project>.localhost`, URL `http://<host>`, stored on `Deployment.url`. Caddy 2.10
+  runs in `docker-compose.yml` on `127.0.0.1:80`, admin API on `127.0.0.1:2019`. The worker adds one route per
+  service (`@id` `svc-<serviceId>`, match the host, `reverse_proxy` to `fo-<deploymentId>:<port>`), replacing it with
+  `PATCH /id/...` on redeploy or inserting it before the 404 catch-all on first deploy. A host already routed by
+  another service is refused ("... is already used by another service"), because project names are only unique per
+  organization. Caddy runs with `--resume`, so routes added through the API survive a Caddy restart.
+- **Trade-offs:** the router's state lives in Caddy (autosaved in the `caddy-config` volume), not in PostgreSQL; if
+  that volume is lost, each service needs one redeploy. Changing `caddy/caddy.json` needs that volume reset, because
+  `--resume` prefers the autosave (ISS-037). No HTTPS yet.
+- **Consequences:** the admin API has no authentication: it only listens on localhost on the Mac, but deployed
+  containers share the `forgeops-apps` network with Caddy and could reach it. Fine for M1's trusted repos (same
+  stance as ADR-048); before running anyone else's code, the admin API must be unreachable from app networks. Two
+  organizations can't both use the same project and service name until URLs include something globally unique.
+
+### ADR-054 — Where web services run in M1
+- **Status:** Accepted (2026-11-05). The product owner approved Docker on the Mac.
+- **Context:** M1-S6 needs a "controlled environment" to run the pushed image. Kubernetes (ADR-010) is proposed, not
+  accepted, and is a large step.
+- **Options considered:** the host's Docker Engine via the `docker` CLI (already used for builds, free); local
+  Kubernetes (kind or k3d: the eventual target, much more setup); a cloud service such as ECS (paid).
+- **Decision:** two new steps after `push`:
+  - **run:** decrypts the service's env vars into a file readable only by the worker (mode 600, deleted with the
+    workspace), then `docker run -d --name fo-<deploymentId> --network forgeops-apps --restart unless-stopped
+    --label forgeops.service=<serviceId> --env-file ... <image by digest>`. A rerun removes a container of the same
+    name first, so a resumed deployment is safe. Pull and start have a 5-minute limit.
+  - **route:** points the Caddy route at the new container, then removes the service's other containers (found by
+    label). If routing fails, the new container is removed and the live one keeps serving.
+- **Trade-offs:** containers are named by deployment id, not by service and project, so names never clash and stay
+  short enough for Docker's DNS. Env file instead of `-e NAME=value` so values never appear in the process list;
+  values may not contain line breaks (the API now refuses them), because Docker env files are one variable per line.
+  No readiness check yet (M1-S7): a release that crashes on start is routed and returns 502. No CPU or memory limits
+  and no connection draining when the old container is removed.
+- **Consequences:** the worker refuses to start without `CADDY_ADMIN_URL`, without the `forgeops-apps` network or if
+  Caddy is unreachable. Moving to Kubernetes later replaces `startContainer` and `routeTo`, not the step model.
+
+### ADR-055 — Runtime tests
+- **Status:** Accepted (2026-11-05).
+- **Decision:** tests run real containers on `forgeops-apps` and route them through a second Caddy, `caddy-test`
+  (admin `127.0.0.1:2020`, HTTP `127.0.0.1:8081`, no autosave volume; `TEST_CADDY_ADMIN_URL`). Before each test the
+  test Caddy is reset to `caddy/caddy.json` and only containers of services in the test database are removed, so the
+  developer's own running services are never touched. Requests go through `curl` with a `Host` header.
+- **Options considered:** mocking Docker and Caddy (fast, but would not have caught ISS-038); using the dev Caddy
+  (tests would delete real routes).
+- **Consequences:** the test suite needs `docker compose up -d` and takes about 2 minutes.
 

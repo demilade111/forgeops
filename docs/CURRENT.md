@@ -1,13 +1,13 @@
 # ForgeOps — Current Work
 
-_Last updated: 2026-11-03_
+_Last updated: 2026-11-05_
 
 ## Project status
 
 - **Phase 0:** core planning done; remaining tickets deferred to just-in-time.
-- **Built so far:** M1-S0 to M1-S5: foundation, accounts, reference app, GitHub connect plus projects and services
-  (backend), deployment intent with the outbox, RabbitMQ and the worker (backend), and build and push of the image
-  to a local registry (backend).
+- **Built so far:** M1-S0 to M1-S6: foundation, accounts, reference app, GitHub connect plus projects and services
+  (backend), deployment intent with the outbox, RabbitMQ and the worker (backend), build and push of the image
+  to a local registry (backend), and running the image behind a managed URL through Caddy (backend).
 - Approved V1 features are requirements, not implementations.
 
 ## Completed
@@ -74,8 +74,15 @@ database was empty again (ISS-035), so a local seed script now recreates everyth
 `pnpm --filter @forgeops/api seed` gives `demo@forgeops.test` (password in `~/.forgeops/demo-password`), the GitHub
 link, project `sample-shop` and service `api` (source directory `api`, port 8080).
 
-**Next slice:** M1-S6 Run & expose (run the image and serve it at a ForgeOps-managed URL). Needs a decision first:
-the managed URL scheme and traffic routing (ADR-019), plus where containers run in M1.
+**M1-S6 Run & expose: backend done (2026-11-05).** After `push` the worker now runs `run` (env vars decrypted into a
+600 file, `docker run` of the image by digest as `fo-<deploymentId>` on network `forgeops-apps`) and `route` (Caddy
+admin API: `<service>.<project>.localhost` goes to that container and port; older containers of the service removed;
+URL saved on `Deployment.url`). A failed start or routing keeps the live version serving. `curl
+http://api.sample-shop.localhost` returns the sample API's response. ADR-019 accepted, ADR-054, ADR-055. The local
+data was gone again (ISS-036); `seed` restored it.
+
+**Next:** the mini frontend (PD-013: service setup, Deploy button, deployment status with the URL), then M1-S7
+Readiness & health.
 
 Local environment (2026-10-27): git 2.50.1 · Docker engine now **OrbStack** (was Docker Desktop) · Node 24.22.1
 LTS via nvm (pinned in `.nvmrc`; run `nvm use` in this folder) · pnpm 11.5.2 via corepack.
@@ -87,7 +94,8 @@ Dependency install scripts are blocked by default (pnpm). `esbuild` (used by tsx
 
 Run the API locally: `nvm use`, then `pnpm --filter @forgeops/api dev` (port 4000, override with `PORT`).
 
-Local services: `docker compose up -d` starts RabbitMQ 4 on `127.0.0.1:5673` (UI on 15673) and PostgreSQL 18 on `127.0.0.1:5433` (user, password and database
+Local services: `docker compose up -d` also starts Caddy (apps at `http://<service>.<project>.localhost`, admin API
+on `127.0.0.1:2019`) and a test Caddy (admin 2020, HTTP 8081). It starts RabbitMQ 4 on `127.0.0.1:5673` (UI on 15673) and PostgreSQL 18 on `127.0.0.1:5433` (user, password and database
 all `forgeops`; local development only). Port 5433 because Homebrew PostgreSQL 14 already uses 5432.
 Stop with `docker compose stop`; `docker compose down -v` also deletes the data.
 
@@ -130,6 +138,7 @@ migrations to it automatically. Docker must be running.
 | M1-S4 | Deployment intent & progress (backend) | Done | 92 API + 5 frontend tests, incl. a real RabbitMQ round trip and redelivery; 7 sabotage tests caught a claim that accepted finished deployments, ack before work, a missing outbox row, no lock, a lock never released, a relay that never marks rows sent and an unscoped read. Real run against GitHub: deploy with the worker off waited in the outbox, then succeeded with `main`'s real SHA; replay 202, second key 409, no key 400; missing branch failed with the reason and released the lock; worker exits when RabbitMQ restarts and stops cleanly on SIGTERM |
 | — | Local seed script (ADR-053) | Done | Ran twice: second run changed nothing; password file 600. Full path through the real API with the seeded account: login 200, service shows port 8080 and env var names only, Deploy 202, worker ran all four steps to succeeded with the same digest as the earlier smoke run |
 | M1-S5 | Build & track (backend) | Done | 103 API + 5 frontend tests, builds and pushes run against the real local Docker and registry; 11 sabotage tests caught: no tag cleanup after push, no symlink containment, time-out not detected, digest not parsed, workspace not cleaned, a resumed deployment resolving the branch again, build log not saved, failed step log dropped, image not recorded, sweeper keeping the lock, sweeper failing fresh deployments. Real run against GitHub: `demilade111/forgeops-sample-api` at `f2edcd7` fetched, built and pushed in 22 s; image pulled back by digest runs as `node` and returns 200 on `/` and `/health/ready`; worker refuses to start without `REGISTRY_HOST` or without Docker, and stops cleanly on SIGTERM. Self-review fixes: Docker checked at start-up, local tag removed after push, tests use their own registry on 5002 (ADR-052) |
+| M1-S6 | Run & expose (backend) | Done | 110 API + 5 frontend tests, with real containers and a test Caddy; 5 sabotage tests caught: old containers not removed, URL collision not checked, new container left behind when routing fails, env vars not passed, URL not saved. Real run through the API with the seeded account: all six steps succeeded for `forgeops-sample-api` at `f2edcd7`; `curl http://api.sample-shop.localhost` returned the sample's JSON and `/health/ready` 200; still 200 after a Caddy restart; a redeploy left one container. Unknown hosts get 404 |
 | M1-S1 | Identity & organization | Done | 35 API + 5 frontend tests pass; sabotage tests caught a readable cookie, a skipped password check and a logout that kept the session; in a real browser: sign-up, reload stays signed in, logout, wrong password error, login, duplicate email error |
 
 ## Deferred until needed
@@ -144,12 +153,14 @@ migrations to it automatically. Docker must be running.
 | Worker lease (worker id + heartbeat) | Before running more than one worker | Resuming `running` is only safe with one worker (ADR-046) |
 | Deployment list pagination (5.3.9) and cancellation (5.3.7) | With the deployment history screen | List returns the latest 50 |
 | Build CPU/memory limits; rootless builder | Before building anyone else's code | M1 builds trusted repos with the host's Docker (ADR-048) |
+| Container CPU/memory limits; Caddy admin API unreachable from app containers | Before running anyone else's code | ADR-019, ADR-054 |
+| Globally unique URLs (same project and service name in two orgs) | Before a second organization deploys | Refused for now (ADR-019) |
 | `JobPublisher`/`JobConsumer` split and SQS adapter (ADR-006) | Phase 8 | `connectQueue` is the interface for now (ADR-045) |
 
 ## Open decisions to watch
 
 ADR-017 automatic build engine ·
-ADR-018 scheduled-job mechanism · ADR-019 managed URL scheme · ADR-020 alert channel ·
+ADR-018 scheduled-job mechanism · ADR-020 alert channel ·
 ADR-021 metrics source · ADR-022 failed-rollout criteria · plus proposed ADRs for Kubernetes and cloud.
 
 ## Blockers

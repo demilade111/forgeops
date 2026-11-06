@@ -130,6 +130,7 @@ model Deployment {
   idempotencyKey  String
   commitSha       String?
   image           String?
+  url             String?
   error           String?
   createdAt       DateTime          @default(now())
   startedAt       DateTime?

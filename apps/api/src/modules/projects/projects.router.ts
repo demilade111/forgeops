@@ -27,7 +27,10 @@ const sourceDirectory = z
     "Source directory must be a folder inside the repository, like api",
   );
 
-const envValue = z.string().max(8192, "Env var values must be at most 8192 characters");
+const envValue = z
+  .string()
+  .max(8192, "Env var values must be at most 8192 characters")
+  .refine((value) => !/[\r\n]/.test(value), "Env var values cannot contain line breaks");
 const envVarsOf = <T extends z.ZodType>(value: T) =>
   z
     .record(z.string(), value, { error: "Env vars must be an object of names and values" })

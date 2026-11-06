@@ -8,6 +8,39 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-038 — My first runtime test timed out because its Dockerfile was malformed, not because of the code (M1-S6)
+- **Situation:** All new run and route tests timed out waiting for a 200 through the test router, while the same
+  steps done by hand worked.
+- **Task:** Find whether the bug was in the release code or in the test.
+- **Action:** I ran the test in the background and inspected Docker and Caddy while it waited: the route was correct
+  but the container was "Restarting (127)", and its logs said `[sh,: not found`. The test Dockerfile's JSON `CMD` had
+  lost its quote escaping on the way through a script and a template string, so Docker ran it as a broken shell
+  command. I switched it to the shell form, which needs no escaping.
+- **Result:** 110 tests pass. I then broke the real code five ways (no old-container cleanup, no URL collision check,
+  no cleanup when routing fails, env vars not passed, URL not saved) and each was caught by a test.
+- **Lesson:** when a test fails, look at the running system before changing code; the bug can be in the test's own
+  fixture.
+
+## ISS-037 — Caddy kept serving an old configuration after I edited its config file (M1-S6)
+- **Situation:** I added a 404 catch-all to `caddy/caddy.json` and restarted Caddy, but unknown hosts still got an
+  empty 200.
+- **Task:** Make the config change take effect without losing the reason Caddy runs with `--resume`.
+- **Action:** I realized `--resume` loads Caddy's last autosaved config, written on its first start, in preference to
+  the file. The volume had been created minutes earlier and held nothing else, so I reset it and restarted.
+- **Result:** unknown hosts now get "No service at this address" (404). The trade-off is documented in ADR-019:
+  routes survive restarts, and file changes need the autosave reset.
+- **Lesson:** persistence features change what "restart" means; know which copy of the config wins.
+
+## ISS-036 — The local Docker data was gone a fourth time before I started a slice (M1-S6)
+- **Situation:** Starting M1-S6, no ForgeOps containers existed and the volumes were created fresh by my
+  `docker compose up -d`.
+- **Task:** Get a working local environment without losing time.
+- **Action:** I ran the seed script built after the third loss (ADR-053).
+- **Result:** account, GitHub link, project and service were back in one command, and the real deploy ran minutes
+  later. The cause of the losses is still unknown.
+- **Lesson:** automating recovery turned a recurring hour-long problem into a non-event; the root cause still
+  deserves a look.
+
 ## ISS-035 — The local database was wiped a third time, in the middle of a smoke test (M1-S5)
 - **Situation:** After the M1-S5 tests passed, my smoke test against the real GitHub sample failed with "No record
   was found": the local `api` service was gone. All ForgeOps containers and volumes had been created that evening

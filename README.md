@@ -59,8 +59,10 @@ pnpm --filter @forgeops/frontend dev
 ```
 
 The worker sends queued deployments to RabbitMQ and runs them: it downloads the commit, builds the image with this
-machine's Docker and pushes it to the local registry. It needs the GitHub App settings and Docker, and exits if it
-loses its RabbitMQ connection; start it again and unfinished messages are redelivered.
+machine's Docker, pushes it to the local registry, runs it as a container and routes
+`http://<service>.<project>.localhost` to it through Caddy. It needs the GitHub App settings, Docker and
+`docker compose up -d` (Caddy and the `forgeops-apps` network), and exits if it loses its RabbitMQ connection; start
+it again and unfinished messages are redelivered.
 
 Open http://localhost:5173. The frontend forwards `/api` and `/health` requests to the API.
 
@@ -72,6 +74,8 @@ Open http://localhost:5173. The frontend forwards `/api` and `/health` requests 
 | RabbitMQ | `127.0.0.1:5673`, management UI http://localhost:15673, user / password: `forgeops` (local only) |
 | Image registry | `localhost:5001` (`curl localhost:5001/v2/_catalog` lists images; local only, no login) |
 | Test image registry | `localhost:5002`, used only by the tests; in memory, emptied on restart |
+| Deployed services | `http://<service>.<project>.localhost` (Caddy on port 80; unknown names get 404) |
+| Caddy admin API | `127.0.0.1:2019` (no auth, local only); test Caddy: admin `127.0.0.1:2020`, HTTP `127.0.0.1:8081` |
 
 ## Checks
 
