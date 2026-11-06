@@ -15,7 +15,7 @@ const steps: [string, string, number, number][] = [
 
 export function AuthPage({ mode }: { mode: "login" | "signup" }) {
   return (
-    <div className="grid min-h-screen bg-white lg:grid-cols-2">
+    <div className="grid min-h-screen bg-background lg:grid-cols-2">
       <div className="flex flex-col px-6 py-6 sm:px-12">
         <Link to="/" className="w-fit">
           <Logo className="text-lg" />
@@ -41,14 +41,14 @@ export function AuthPage({ mode }: { mode: "login" | "signup" }) {
           <p className="mt-4 max-w-sm text-lg text-white/80">
             Connect a repository, press Deploy, and watch each step until your app is online.
           </p>
-          <div className="mt-12 max-w-md rounded-lg bg-white p-5 shadow-[0_30px_60px_-20px_rgba(20,8,80,0.5)]">
+          <div className="mt-12 max-w-md rounded-lg bg-card p-5 shadow-[0_30px_60px_-20px_rgba(20,8,80,0.5)]">
             <div className="flex items-center justify-between">
               <div>
                 <p className="font-medium">api</p>
                 <p className="text-muted-foreground font-mono text-xs">api.sample-shop.localhost</p>
               </div>
-              <span className="inline-flex items-center gap-1.5 rounded-full bg-[#e3f5ec] px-2 py-0.5 text-xs font-medium text-[#18794e]">
-                <span className="size-1.5 rounded-full bg-[#18794e]" />
+              <span className="inline-flex items-center gap-1.5 rounded-full bg-ok/10 px-2 py-0.5 text-xs font-medium text-ok">
+                <span className="size-1.5 rounded-full bg-ok" />
                 Live
               </span>
             </div>
@@ -58,11 +58,11 @@ export function AuthPage({ mode }: { mode: "login" | "signup" }) {
                   key={label}
                   className="grid grid-cols-[1rem_9rem_1fr_2.5rem] items-center gap-2.5 text-sm"
                 >
-                  <Check className="size-4 text-[#18794e]" strokeWidth={2.5} />
+                  <Check className="size-4 text-ok" strokeWidth={2.5} />
                   <span className="truncate">{label}</span>
-                  <span className="relative h-1.5 rounded-full bg-[#f0eef7]">
+                  <span className="relative h-1.5 rounded-full bg-muted">
                     <span
-                      className="absolute inset-y-0 rounded-full bg-[#6d4aff]/70"
+                      className="absolute inset-y-0 rounded-full bg-primary/70"
                       style={{ left: `${from}%`, width: `max(${to - from}%, 3px)` }}
                     />
                   </span>

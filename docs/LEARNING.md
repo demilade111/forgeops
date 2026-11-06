@@ -267,6 +267,11 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   they did.
 - **Expand and contract:** change the database in steps so old and new code both work, which keeps rollback safe.
 
+### Themes (ADR-068)
+- **Design tokens:** colours are named variables (`--background`, `--primary`); dark mode swaps their values under a
+  `.dark` class, so components never hard-code colours.
+- **No flash:** set the theme class in `index.html` before the app's JavaScript loads.
+
 ### Automatic rollback (M1-S10, ADR-067)
 - **Watch window:** check a new release often for the first minutes after go-live, when releases usually break.
 - **Consecutive failures:** require several failed checks in a row so one blip does not trigger a rollback.

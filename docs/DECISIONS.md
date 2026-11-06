@@ -935,6 +935,26 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-068 — Dark mode by default, and a deploy progress card
+- **Status:** Accepted (2026-11-06). The product owner asked for a clearer view while deploying and for dark and light
+  mode across the whole app, with dark as the default.
+- **Decision:**
+  1. **Theme:** a small Zustand store (`stores/theme.ts`) holds Light, Dark or System, saved in `localStorage`
+     (`forgeops-theme`), default Dark. It toggles the `dark` class on `<html>`, and a few lines in `index.html` do the
+     same before the app loads so there is no white flash. The dark palette is purple-tinted (primary `#8b70ff` on
+     `#0c0b12`). The landing and login pages now use theme tokens instead of fixed colours; dark brand logos (GitHub,
+     Rust, Bun, Deno, Java, Django) use the text colour so they stay visible. One `ThemeToggle` sits in the landing
+     and dashboard headers; Settings has Light, Dark and System.
+  2. **Deploy progress card:** while a deploy runs, the top of the service page shows "Deploying f2edcd7", "Step 3 of
+     7: Build image, 12s so far", a seven-part progress bar, and the live output of the current step. It ends as "Live
+     in 18.7s" with a Visit link, or "Deploy failed at Start app" with the error and that step's output. It says that
+     visitors keep the current version until the new one is healthy.
+  3. The dashboard logo links to the home page.
+- **Options considered:** follow the system setting by default (the product owner wanted dark first); CSS-only
+  `prefers-color-scheme` (no manual switch); keep progress only in the history list (the reason for this change).
+- **Consequences:** the theme is per browser. The progress card polls every 1.5 s while open, the same as the
+  history list.
+
 ### ADR-067 — Automatic rollback after go-live (M1-S10, closes ADR-022)
 - **Status:** Accepted (2026-11-06). The product owner chose option A ("watch window") and asked for the best
   version of it.

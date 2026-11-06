@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
-import { GitBranch, Loader2, LogOut } from "lucide-react";
+import { GitBranch, Loader2, LogOut, Monitor, Moon, Sun } from "lucide-react";
 import { api } from "@/api";
 import { Button } from "@/components/ui/button";
 import { useLoad } from "@/hooks/useLoad";
 import { useRequest } from "@/hooks/useRequest";
 import { useCrumbs } from "@/stores/crumbs";
+import { cn } from "@/lib/utils";
 import { useSession } from "@/stores/session";
+import { useTheme, type ThemeChoice } from "@/stores/theme";
 import type { Me } from "@/types";
 
 function Card({ title, text, children }: { title: string; text: string; children: ReactNode }) {
@@ -38,6 +40,12 @@ export function SettingsPage({ me }: { me: Me }) {
   );
   const clear = useSession((s) => s.clear);
   const logout = useRequest(api.logout, { onSuccess: clear });
+  const theme = useTheme();
+  const themes: [ThemeChoice, string, typeof Sun][] = [
+    ["light", "Light", Sun],
+    ["dark", "Dark", Moon],
+    ["system", "System", Monitor],
+  ];
 
   return (
     <div className="max-w-5xl space-y-6">
@@ -101,6 +109,29 @@ export function SettingsPage({ me }: { me: Me }) {
             )}
           </div>
         )}
+      </Card>
+
+      <Card title="Appearance" text="Light, dark, or follow your computer's setting.">
+        <div className="inline-flex rounded-md border p-1" role="radiogroup" aria-label="Theme">
+          {themes.map(([value, label, Icon]) => (
+            <button
+              key={value}
+              type="button"
+              role="radio"
+              aria-checked={theme.choice === value}
+              onClick={() => theme.choose(value)}
+              className={cn(
+                "flex h-8 items-center gap-2 rounded px-3 text-sm",
+                theme.choice === value
+                  ? "bg-secondary text-foreground font-medium"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <Icon className="size-4" />
+              {label}
+            </button>
+          ))}
+        </div>
       </Card>
 
       <Card title="Session" text="Log out of ForgeOps on this browser.">

@@ -19,6 +19,7 @@ import {
   type SimpleIcon,
 } from "simple-icons";
 import { Logo } from "@/components/Logo";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/stores/session";
 import { DeployMap } from "./DeployMap";
@@ -83,9 +84,9 @@ function Cta({
       to={to}
       className={cn(
         "inline-flex h-12 items-center justify-center gap-2 rounded-[3px] px-6 text-base font-medium transition-colors",
-        variant === "outline" && "border border-[#d9d4ee] text-[#171717] hover:bg-[#f6f3ff]",
+        variant === "outline" && "border border-border text-foreground hover:bg-secondary",
         variant === "light" && "bg-white text-[#4b2fd6] hover:bg-white/90",
-        variant === "primary" && "bg-[#6d4aff] text-white hover:bg-[#5b3ae6]",
+        variant === "primary" && "bg-primary text-white hover:bg-primary/90",
       )}
     >
       {children}
@@ -93,9 +94,12 @@ function Cta({
   );
 }
 
+const brandFill = (hex: string) =>
+  Math.max(...hex.match(/../g)!.map((c) => parseInt(c, 16))) < 64 ? "currentColor" : `#${hex}`;
+
 function Brand({ icon, className }: { icon: SimpleIcon; className?: string }) {
   return (
-    <svg viewBox="0 0 24 24" className={className} fill={`#${icon.hex}`} aria-hidden="true">
+    <svg viewBox="0 0 24 24" className={className} fill={brandFill(icon.hex)} aria-hidden="true">
       <path d={icon.path} />
     </svg>
   );
@@ -122,7 +126,7 @@ function Step({
       )}
     >
       <div className={cn(flip && "lg:order-2")}>
-        <span className="flex size-10 items-center justify-center rounded-[3px] bg-[#6d4aff] text-lg font-medium text-white">
+        <span className="flex size-10 items-center justify-center rounded-[3px] bg-primary text-lg font-medium text-white">
           {n}
         </span>
         <h3 className="mt-6 text-3xl font-medium tracking-[-0.035em] sm:text-4xl">{title}</h3>
@@ -135,10 +139,10 @@ function Step({
 
 function Stage({ children }: { children: ReactNode }) {
   return (
-    <div className="relative overflow-hidden rounded-lg border border-[#e4def9] p-4 shadow-[0_30px_80px_-40px_rgba(76,47,200,0.4)] sm:p-8">
+    <div className="relative overflow-hidden rounded-lg border border-border p-4 shadow-[0_30px_80px_-40px_rgba(76,47,200,0.4)] sm:p-8">
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-[radial-gradient(ellipse_80%_75%_at_90%_100%,rgba(109,74,255,0.38),transparent_70%),radial-gradient(ellipse_60%_55%_at_10%_0%,rgba(236,120,170,0.16),transparent_70%),linear-gradient(#fbfaff,#fbfaff)]"
+        className="absolute inset-0 bg-[radial-gradient(ellipse_80%_75%_at_90%_100%,rgba(109,74,255,0.38),transparent_70%),radial-gradient(ellipse_60%_55%_at_10%_0%,rgba(236,120,170,0.16),transparent_70%),linear-gradient(var(--background),var(--background))]"
       />
       <div aria-hidden="true" className="noise absolute inset-0" />
       <div className="relative space-y-4">{children}</div>
@@ -156,11 +160,11 @@ function Window({
   children: ReactNode;
 }) {
   return (
-    <div className="overflow-hidden rounded-md border border-[#e7e4f2] bg-white shadow-[0_20px_50px_-24px_rgba(40,20,120,0.35)]">
+    <div className="overflow-hidden rounded-md border border-border bg-card shadow-[0_20px_50px_-24px_rgba(40,20,120,0.35)]">
       <div className="flex items-center gap-1.5 border-b px-4 py-3">
-        <span className="size-2.5 rounded-full bg-[#e7e4f2]" />
-        <span className="size-2.5 rounded-full bg-[#e7e4f2]" />
-        <span className="size-2.5 rounded-full bg-[#e7e4f2]" />
+        <span className="size-2.5 rounded-full bg-border" />
+        <span className="size-2.5 rounded-full bg-border" />
+        <span className="size-2.5 rounded-full bg-border" />
         <span className="text-muted-foreground ml-3 flex-1 truncate font-mono text-xs">
           {title}
         </span>
@@ -196,7 +200,7 @@ function Feature({
           <p className="text-muted-foreground mt-5 max-w-lg text-lg leading-relaxed">{text}</p>
           <a
             href="#how"
-            className="mt-7 inline-flex items-center gap-1.5 text-lg text-[#6d4aff] hover:text-[#4b2fd6]"
+            className="mt-7 inline-flex items-center gap-1.5 text-lg text-primary hover:text-primary/80"
           >
             {link}
             <ChevronRight className="size-4" />
@@ -212,7 +216,7 @@ function Panel({ children, className }: { children: ReactNode; className?: strin
   return (
     <div
       className={cn(
-        "rounded-md border border-[#e7e4f2] bg-white shadow-[0_1px_2px_rgba(30,20,80,0.05)]",
+        "rounded-md border border-border bg-card shadow-[0_1px_2px_rgba(30,20,80,0.05)]",
         className,
       )}
     >
@@ -226,7 +230,7 @@ export function Landing() {
   const start = signedIn ? "/app" : "/signup";
 
   return (
-    <div className="min-h-screen overflow-x-hidden bg-white text-[#171717]">
+    <div className="min-h-screen overflow-x-hidden bg-background text-foreground">
       <header className="mx-auto flex h-20 max-w-[1200px] items-center justify-between px-5 sm:px-8">
         <div className="flex items-center gap-10">
           <Logo className="text-xl" />
@@ -237,6 +241,7 @@ export function Landing() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
+          <ThemeToggle />
           {!signedIn && (
             <Link
               to="/login"
@@ -247,7 +252,7 @@ export function Landing() {
           )}
           <Link
             to={start}
-            className="inline-flex h-10 items-center rounded-[3px] bg-[#6d4aff] px-4 text-[0.95rem] font-medium text-white hover:bg-[#5b3ae6]"
+            className="inline-flex h-10 items-center rounded-[3px] bg-primary px-4 text-[0.95rem] font-medium text-white hover:bg-primary/90"
           >
             {signedIn ? "Dashboard" : "Get started"}
           </Link>
@@ -303,7 +308,7 @@ export function Landing() {
               <div className="space-y-5 p-5 sm:p-6">
                 <div className="space-y-2">
                   <p className="text-sm">Name</p>
-                  <p className="flex h-11 items-center rounded-[3px] border border-[#6d4aff] px-4 font-mono shadow-[0_0_0_3px_#ece7ff]">
+                  <p className="flex h-11 items-center rounded-[3px] border border-primary px-4 font-mono shadow-[0_0_0_3px_var(--secondary)]">
                     api
                   </p>
                 </div>
@@ -316,12 +321,12 @@ export function Landing() {
                         className={cn(
                           "relative rounded-md border p-4",
                           active
-                            ? "border-[#6d4aff] bg-[#f6f3ff] shadow-[0_0_0_1px_#6d4aff]"
+                            ? "border-primary bg-secondary shadow-[0_0_0_1px_var(--primary)]"
                             : "text-muted-foreground border-dashed",
                         )}
                       >
                         <Icon
-                          className={cn("size-5", active && "text-[#6d4aff]")}
+                          className={cn("size-5", active && "text-primary")}
                           strokeWidth={1.5}
                         />
                         <p className={cn("mt-3 text-sm font-medium", active && "text-foreground")}>
@@ -332,7 +337,7 @@ export function Landing() {
                         </p>
                         {active && (
                           <Check
-                            className="absolute top-4 right-4 size-4 text-[#6d4aff]"
+                            className="absolute top-4 right-4 size-4 text-primary"
                             strokeWidth={2.5}
                           />
                         )}
@@ -341,7 +346,7 @@ export function Landing() {
                   </div>
                 </div>
                 <div className="flex justify-end border-t pt-5">
-                  <span className="inline-flex h-10 items-center rounded-[3px] bg-[#6d4aff] px-5 text-sm font-medium text-white">
+                  <span className="inline-flex h-10 items-center rounded-[3px] bg-primary px-5 text-sm font-medium text-white">
                     Create service
                   </span>
                 </div>
@@ -359,7 +364,7 @@ export function Landing() {
           <Stage>
             <Window title="api / source">
               <div className="space-y-4 p-5 sm:p-6">
-                <div className="flex items-center gap-3 rounded-md border border-[#e7e4f2] px-4 py-3">
+                <div className="flex items-center gap-3 rounded-md border border-border px-4 py-3">
                   <Brand icon={siGithub} className="size-5 shrink-0" />
                   <span className="truncate font-mono text-sm">
                     demilade111/forgeops-sample-api
@@ -373,14 +378,14 @@ export function Landing() {
                   ].map(([label, value]) => (
                     <div key={label} className="min-w-0 space-y-1.5">
                       <p className="text-muted-foreground text-xs">{label}</p>
-                      <p className="flex h-10 items-center gap-2 rounded-[3px] border border-[#e7e4f2] bg-[#f8f7fc] px-3 font-mono text-sm">
+                      <p className="flex h-10 items-center gap-2 rounded-[3px] border border-border bg-muted px-3 font-mono text-sm">
                         {label === "Branch" && <GitBranch className="size-3.5 shrink-0" />}
                         {value}
                       </p>
                     </div>
                   ))}
                 </div>
-                <ul className="space-y-3 rounded-md bg-[#f8f7fc] p-4 text-sm">
+                <ul className="space-y-3 rounded-md bg-muted p-4 text-sm">
                   {checks.map(([icon, label]) => (
                     <li key={label} className="flex items-center gap-3">
                       <Brand icon={icon} className="size-4 shrink-0" />
@@ -423,7 +428,7 @@ export function Landing() {
                   </li>
                 ))}
               </ul>
-              <p className="text-ok flex items-center gap-2 border-t bg-[#effaf4] px-5 py-3 text-sm">
+              <p className="text-ok flex items-center gap-2 border-t bg-ok/10 px-5 py-3 text-sm">
                 <Globe className="size-4 shrink-0" />
                 <span className="truncate font-mono">http://api.sample-shop.localhost</span>
               </p>
@@ -435,7 +440,7 @@ export function Landing() {
       <section id="stack" className="relative scroll-mt-8 overflow-hidden">
         <div
           aria-hidden="true"
-          className="absolute inset-0 bg-[linear-gradient(105deg,#ffffff_25%,#efe9ff_60%,#c9b9ff_100%)]"
+          className="absolute inset-0 bg-[linear-gradient(105deg,#ffffff_25%,#efe9ff_60%,#c9b9ff_100%)] dark:bg-[linear-gradient(105deg,#0c0b12_25%,#1a1530_60%,#3b2b80_100%)]"
         />
         <div aria-hidden="true" className="noise absolute inset-0" />
         <div className="relative mx-auto max-w-[1200px] px-5 py-24 sm:px-8">
@@ -452,7 +457,7 @@ export function Landing() {
             {stacks.map(([icon, name]) => (
               <li
                 key={name}
-                className="flex aspect-square flex-col items-center justify-center gap-3 rounded-[3px] border border-[#e2dbfb] bg-white/75 font-mono text-sm text-[#3d3a4d] backdrop-blur"
+                className="flex aspect-square flex-col items-center justify-center gap-3 rounded-[3px] border border-border bg-card/75 font-mono text-sm text-foreground/80 backdrop-blur"
               >
                 <Brand icon={icon} className="size-8 sm:size-10" />
                 {name}
@@ -463,7 +468,7 @@ export function Landing() {
       </section>
 
       <div className="mx-auto max-w-[1200px] px-5 pt-28 pb-14 sm:px-8">
-        <h2 className="max-w-4xl bg-gradient-to-r from-[#6d4aff] via-[#9a55f0] to-[#e0559a] bg-clip-text text-4xl leading-[1.05] font-medium tracking-[-0.045em] text-transparent sm:text-6xl">
+        <h2 className="max-w-4xl bg-gradient-to-r from-primary via-[#9a55f0] to-[#e0559a] bg-clip-text text-4xl leading-[1.05] font-medium tracking-[-0.045em] text-transparent sm:text-6xl">
           Deploy web services with every step on the record
         </h2>
       </div>
@@ -493,7 +498,7 @@ export function Landing() {
                   {timing.map(([label, from, to]) => (
                     <div key={label} className="grid grid-cols-[6.5rem_1fr] items-center gap-2">
                       <span className="text-muted-foreground truncate text-xs">{label}</span>
-                      <span className="relative h-1.5 rounded-full bg-[#f0eef7]">
+                      <span className="relative h-1.5 rounded-full bg-muted">
                         <span
                           className="bg-ok/80 absolute inset-y-0 rounded-full"
                           style={{ left: `${from}%`, width: `max(${to - from}%, 3px)` }}
