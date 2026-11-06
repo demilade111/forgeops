@@ -1,9 +1,10 @@
-import { Router, type Response } from "express";
+import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { Prisma, type PrismaClient } from "../../generated/prisma/client.js";
 import { HttpError, isId, parse } from "../../http-error.js";
 import { run } from "./deployments.build.js";
 import { createRequireAuth, memberOrganizationIds, type SessionUser } from "../auth/auth.router.js";
+import type { RollbackTarget } from "./deployments.repository.js";
 import { projectsRepository } from "../projects/projects.repository.js";
 import { deploymentsRepository } from "./deployments.repository.js";
 
@@ -48,22 +49,43 @@ export function createDeploymentsRouter(db: PrismaClient) {
     createRequireAuth(db),
   );
 
-  router.post("/services/:id/deployments", async (req, res) => {
-    const service = await findService(res, req.params.id);
+  async function start(req: Request, res: Response, serviceId: string, to?: RollbackTarget) {
     const key = parse(idempotencyKey, req.get("Idempotency-Key"));
-    const existing = await repo.findByKey(service.id, key);
+    const existing = await repo.findByKey(serviceId, key);
     if (existing) return res.status(202).json(existing);
     try {
       const { id: userId } = res.locals.user as SessionUser;
-      const deployment = await repo.create(service.id, userId, key);
+      const deployment = await repo.create(serviceId, userId, key, to);
       if (!deployment) throw new HttpError(404, "SERVICE_NOT_FOUND", "Service not found");
       res.status(202).json(deployment);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
-        return res.status(202).json(await replayOrConflict(service.id, key));
+        return res.status(202).json(await replayOrConflict(serviceId, key));
       }
       throw error;
     }
+  }
+
+  router.post("/services/:id/deployments", async (req, res) => {
+    await start(req, res, (await findService(res, req.params.id)).id);
+  });
+
+  router.post("/deployments/:id/rollback", async (req, res) => {
+    const target = isId(req.params.id)
+      ? await repo.find(req.params.id, memberOrganizationIds(res))
+      : null;
+    if (!target) throw new HttpError(404, "DEPLOYMENT_NOT_FOUND", "Deployment not found");
+    if (target.status !== "succeeded" || !target.image) {
+      throw new HttpError(
+        409,
+        "NOT_ROLLBACK_TARGET",
+        "You can only roll back to a successful deploy",
+      );
+    }
+    if ((await repo.findLive(target.serviceId))?.id === target.id) {
+      throw new HttpError(409, "ALREADY_LIVE", "This deploy is already live");
+    }
+    await start(req, res, target.serviceId, { ...target, image: target.image });
   });
 
   router.get("/services/:id/deployments", async (req, res) => {

@@ -566,6 +566,61 @@ can't. It's what rollback (M1-S9) will redeploy._
 
 ---
 
+## 15. Manual rollback (M1-S9)
+
+**The idea:** every successful deploy left an image in the registry, a frozen copy of the app at that commit. A
+rollback runs an old image again. It's a new deploy marked "Rollback of #5" that skips download and build and goes
+straight to start, health check and go live.
+
+### Why each choice
+| Choice | Why | Alternatives and their cost |
+| --- | --- | --- |
+| **Reuse the image by digest** | exact same build, seconds instead of minutes | rebuild the old commit (slow, and the base image or dependencies may have changed) |
+| **Rollback as a new deployment** | history shows what happened, in order; the same lock, health check and outcome badges apply | flip the route back silently (fast, but no record and no health check) |
+| **Store port and health path per deploy** | an old image starts on the port it was built for | always use current settings (a port change breaks rollback) |
+| **Env vars use current values** | no extra copies of secrets | snapshot env vars per deploy (exact, but more secret copies to protect) |
+| **Simple confirm, no typing** | nothing is lost; you can roll forward by deploying | type-to-confirm (friction when speed matters most) |
+
+### What happens when...
+| Situation | What ForgeOps does |
+| --- | --- |
+| The live version is broken, an older one worked | Roll back: real run took 2.0 s (start 0.5, health 1.2, go live 0.3) against 24.6 s for a full deploy. |
+| The old version fails its health check | The rollback fails, the current version stays live. It's an attempt, not a guarantee. |
+| The old image is gone from the registry | Fails at "Start app" with Docker's error; live unchanged. Tested. |
+| The port was changed since | The rollback uses the port that deploy had. Tested. |
+| Someone clicks rollback while a deploy runs | 409, wait for it to finish. Tested. |
+| The bad release changed the database | Not undone. The old code meets the new data. Migrations must be backward-compatible (expand, then contract). |
+
+### "How do you roll back on ForgeOps?" (30-second answer)
+"Every successful deploy keeps its image, identified by its digest. Rolling back creates a new deployment that reuses
+that exact image, so there's no rebuild. It still goes through the health check before traffic moves, so a rollback
+can't make things worse: if the old version won't start, the current one keeps serving. History shows the bad deploy
+and the rollback side by side. In my run it took two seconds."
+
+### Real evidence (M1-S9)
+- 130 API tests. New: a real rollback to an earlier image without rebuilding (no GitHub calls, three steps, the old
+  page served again, one container left), the port snapshot, a missing image keeps the live version, and the API
+  rules (live target, failed target, deploy running, missing key, other organization, replay with the same key).
+- Sabotage: running the full pipeline for rollbacks, and ignoring the stored port, both failed the test.
+- Real rollback of the demo service: succeeded in 2.0 s, URL 200, one container. Browser: "Roll back to this", the
+  confirm text, and the "Rollback" label in history.
+
+### Known limits
+- No automatic rollback yet (M1-S10). Env vars are not restored. Images are kept forever (no cleanup).
+- The database is never rolled back.
+
+### Questions
+**Q: Why not just redeploy the old commit?** _A rebuild can produce a different image: base images and dependencies
+move. Rolling back by digest runs exactly what worked before, and it's much faster._
+
+**Q: Can a rollback fail?** _Yes: the old image might be gone, or the old code might not work with today's database
+or env vars. ForgeOps still health-checks it, so a failed rollback never takes the current version down._
+
+**Q: How do you make database changes rollback-safe?** _Expand and contract: add new columns or tables first, deploy
+code that works with both, and only remove the old ones once no version needs them._
+
+---
+
 ## Product questions
 
 **Q: Why build this when Vercel, Render and Railway exist?** _It runs on infrastructure you own, its internals

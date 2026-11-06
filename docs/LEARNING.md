@@ -260,6 +260,13 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Image digest:** the exact fingerprint of a build (`sha256:...`), unlike a tag that can move.
 - **Deep link:** a page with its own URL (one deploy) that can be shared.
 
+### Manual rollback (M1-S9, done)
+- **Rollback:** put a previous working version back live by running its image again, without rebuilding.
+- **Image digest as identity:** the digest names the exact build, so a rollback runs exactly what worked.
+- **Snapshot settings per deploy:** store the port and health path with each deploy so old versions start the way
+  they did.
+- **Expand and contract:** change the database in steps so old and new code both work, which keeps rollback safe.
+
 ## Interview questions
 
 Moved to `INTERVIEW.md` (trade-offs, failure scenarios and answers for every slice).

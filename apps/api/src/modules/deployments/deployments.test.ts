@@ -174,3 +174,81 @@ it("hides other organizations' services and deployments", async () => {
   expect(anonymous.status).toBe(401);
   expect((await request(app).get(`/api/services/${owner.serviceId}/logs`)).status).toBe(401);
 });
+
+async function finished(agent: ReturnType<typeof request.agent>, serviceId: string, key: string) {
+  const created = await agent
+    .post(`/api/services/${serviceId}/deployments`)
+    .set("Idempotency-Key", key);
+  return testDb.deployment.update({
+    where: { id: created.body.id },
+    data: {
+      status: "succeeded",
+      activeServiceId: null,
+      commitSha: `${key}aaaa`,
+      image: `localhost:5002/services/${serviceId}@sha256:${key.padEnd(64, "0")}`,
+      finishedAt: new Date(),
+    },
+  });
+}
+
+it("rolls back to an earlier successful deploy with its image, commit and port", async () => {
+  const { agent, serviceId } = await signedIn();
+  const first = await finished(agent, serviceId, "a1");
+  await finished(agent, serviceId, "b2");
+  await testDb.service.update({ where: { id: serviceId }, data: { port: 9090 } });
+
+  const res = await agent
+    .post(`/api/deployments/${first.id}/rollback`)
+    .set("Idempotency-Key", "r1");
+
+  expect(res.status).toBe(202);
+  expect(res.body).toMatchObject({
+    trigger: "rollback",
+    rollbackOfId: first.id,
+    status: "queued",
+    image: first.image,
+    commitSha: "a1aaaa",
+    port: 8080,
+    healthCheckPath: "/health/ready",
+  });
+  const again = await agent
+    .post(`/api/deployments/${first.id}/rollback`)
+    .set("Idempotency-Key", "r1");
+  expect(again.body.id).toBe(res.body.id);
+  const list = await agent.get(`/api/services/${serviceId}/deployments`);
+  expect(list.body[0]).toMatchObject({ rollbackOf: { id: first.id, commitSha: "a1aaaa" } });
+  expect(await testDb.outbox.count()).toBe(3);
+});
+
+it("refuses to roll back to the live deploy, a failed one, or while a deploy runs", async () => {
+  const { agent, serviceId } = await signedIn();
+  const first = await finished(agent, serviceId, "a1");
+  const live = await finished(agent, serviceId, "b2");
+  const failed = await testDb.deployment.create({
+    data: { serviceId, trigger: "manual", idempotencyKey: "c3", status: "failed" },
+  });
+
+  const toLive = await agent
+    .post(`/api/deployments/${live.id}/rollback`)
+    .set("Idempotency-Key", "r1");
+  expect(toLive.status).toBe(409);
+  expect(toLive.body.error.code).toBe("ALREADY_LIVE");
+  const toFailed = await agent
+    .post(`/api/deployments/${failed.id}/rollback`)
+    .set("Idempotency-Key", "r2");
+  expect(toFailed.body.error.code).toBe("NOT_ROLLBACK_TARGET");
+  expect((await agent.post(`/api/deployments/${first.id}/rollback`)).status).toBe(400);
+
+  await agent.post(`/api/services/${serviceId}/deployments`).set("Idempotency-Key", "d4");
+  const busy = await agent
+    .post(`/api/deployments/${first.id}/rollback`)
+    .set("Idempotency-Key", "r3");
+  expect(busy.status).toBe(409);
+  expect(busy.body.error.code).toBe("DEPLOYMENT_IN_PROGRESS");
+
+  const stranger = await signedIn("stranger@example.com");
+  const theirs = await stranger.agent
+    .post(`/api/deployments/${first.id}/rollback`)
+    .set("Idempotency-Key", "r4");
+  expect(theirs.status).toBe(404);
+});

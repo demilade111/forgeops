@@ -35,8 +35,12 @@ const github = {
 } satisfies GitHubClient;
 
 const repo = deploymentsRepository(testDb);
-const create = async (serviceId: string, userId: string, key: string) =>
-  (await repo.create(serviceId, userId, key))!;
+const create = async (
+  serviceId: string,
+  userId: string,
+  key: string,
+  rollbackTo?: Parameters<typeof repo.create>[3],
+) => (await repo.create(serviceId, userId, key, rollbackTo))!;
 const options = { ...workerOptions, retryDelays: [0, 0, 0] };
 const handle = createDeploymentHandler(testDb, github, options);
 const gitHubDown = new HttpError(502, "GITHUB_ERROR", "GitHub request failed (502)");
@@ -112,7 +116,13 @@ const checkRoutes = async () => {
 };
 
 const setHealthPath = (serviceId: string, healthCheckPath: string) =>
-  testDb.service.update({ where: { id: serviceId }, data: { healthCheckPath } });
+  testDb.$transaction([
+    testDb.service.update({ where: { id: serviceId }, data: { healthCheckPath } }),
+    testDb.deployment.updateMany({
+      where: { serviceId, status: "queued" },
+      data: { healthCheckPath },
+    }),
+  ]);
 
 it("builds the pinned commit, runs it and serves it at its URL", async () => {
   const { service, deployment, message } = await queued();
@@ -659,4 +669,62 @@ it("shows the live app's own output to members of its organization", async () =>
     running: false,
     log: "",
   });
+});
+
+const version = (text: string) => ({
+  Dockerfile: `FROM busybox:1.37\nCMD mkdir -p /www/health && echo ok > /www/health/ready && echo "${text}" > /www/index.html && exec httpd -f -p 8080 -h /www\n`,
+});
+
+it("rolls back to an earlier image without rebuilding, using that deploy's port", async () => {
+  const { service, deployment, message } = await queued();
+  withSource(version("version one"));
+  await handle(message);
+  const second = await create(service.id, deployment.triggeredById!, "k2");
+  withSource(version("version two"));
+  await handle({ type: "deployment.requested", deploymentId: second.id });
+  await until(async () => (await viaRouter(host)) === "version two\n 200");
+  await testDb.service.update({ where: { id: service.id }, data: { port: 9090 } });
+  const first = await reload(deployment.id);
+  vi.clearAllMocks();
+
+  const rollback = await create(service.id, deployment.triggeredById!, "r1", {
+    ...first,
+    image: first.image!,
+  });
+  await handle({ type: "deployment.requested", deploymentId: rollback.id });
+
+  const done = await reload(rollback.id);
+  expect(done).toMatchObject({
+    status: "succeeded",
+    trigger: "rollback",
+    image: first.image,
+    commitSha: first.commitSha,
+    port: 8080,
+  });
+  expect(done.steps.map((s) => s.name)).toEqual(["run", "health", "route"]);
+  expect(github.branchCommit).not.toHaveBeenCalled();
+  expect(github.sourceArchive).not.toHaveBeenCalled();
+  await until(async () => (await viaRouter(host)) === "version one\n 200");
+  expect(await containersOf(service.id)).toEqual([`fo-${rollback.id}`]);
+});
+
+it("keeps the live version when the old image is gone from the registry", async () => {
+  const { service, deployment } = await live();
+  const missing = `${registryHost}/services/${service.id}@sha256:${"0".repeat(64)}`;
+
+  const rollback = await create(service.id, deployment.triggeredById!, "r1", {
+    id: deployment.id,
+    commitSha: "9f2c41e",
+    image: missing,
+    port: 8080,
+    healthCheckPath: "/health/ready",
+  });
+  await handle({ type: "deployment.requested", deploymentId: rollback.id });
+
+  expect(await reload(rollback.id)).toMatchObject({
+    status: "failed",
+    error: "Could not start the container",
+  });
+  expect(await viaRouter(host)).toBe("hello \n 200");
+  expect(await containersOf(service.id)).toEqual([`fo-${deployment.id}`]);
 });

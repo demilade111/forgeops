@@ -46,6 +46,12 @@ export const api = {
     (await http.patch<Service>(`/services/${id}`, changes)).data,
   listDeployments: async (serviceId: string) =>
     (await http.get<Deployment[]>(`/services/${serviceId}/deployments`)).data,
+  rollback: async (deploymentId: string, idempotencyKey: string) =>
+    (
+      await http.post<Deployment>(`/deployments/${deploymentId}/rollback`, null, {
+        headers: { "Idempotency-Key": idempotencyKey },
+      })
+    ).data,
   getServiceLogs: async (serviceId: string) =>
     (await http.get<ServiceLogs>(`/services/${serviceId}/logs`, { params: { lines: 500 } })).data,
   getDeployment: async (id: string) => (await http.get<Deployment>(`/deployments/${id}`)).data,

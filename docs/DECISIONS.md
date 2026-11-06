@@ -201,6 +201,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-060 | Deleting services and projects | Clean delete through the outbox and worker: hide at once, remove the route and containers, then the rows; refused while a deploy is active; project delete takes its services | **Accepted** (2026-11-06) |
 | ADR-061 | Readiness check before go-live | New `health` step between `run` and `route`: call the service's health check path (default `/health/ready`, empty accepts any answer) through a temporary Caddy route every second for up to 60 s; 2xx or 3xx passes; a stopped container fails at once | **Accepted** (2026-11-06) |
 | ADR-062 | Logs and history | Build and push logs saved every second while running; app logs read by the API with `docker logs` for the live container only; deploy detail page at `/app/deployments/:id` with commit, image, trigger and steps | **Accepted** (2026-11-06) |
+| ADR-063 | Manual rollback | A rollback is a new deployment (`trigger: rollback`, `rollbackOfId`) that reuses an earlier successful deploy's image by digest and runs only start, health check and go live; each deploy stores its port and health path, env vars use current values | **Accepted** (2026-11-06) |
 | ADR-053 | Local seed script | `pnpm --filter @forgeops/api seed` recreates the demo account, GitHub link, project and service; safe to rerun | **Accepted** (2026-11-03) |
 | ADR-051 | Build logs, time limits and stale deployments | Step logs in `DeploymentStep.log` (last 64 KiB); build 15 min, push 5 min, GitHub calls 2 min; sweeper fails deployments running over 60 min | **Accepted** (2026-11-03) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
@@ -933,6 +934,29 @@ Template:
 - **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
+
+### ADR-063 — Manual rollback (M1-S9)
+- **Status:** Accepted (2026-11-06). The product owner approved the three recommended options.
+- **Decision:** `POST /api/deployments/:id/rollback` (with an `Idempotency-Key`, like Deploy) creates a new deployment
+  with `trigger: rollback` and `rollbackOfId` pointing at the target. It copies the target's image digest and commit.
+  The worker sees the trigger and runs only `run`, `health` and `route`: no GitHub calls, no build, no push. History
+  keeps both: the bad deploy stays as it was and the rollback says what it went back to.
+- **Rules:** only a successful deploy with an image can be a target (409 `NOT_ROLLBACK_TARGET`); not the live one
+  (409 `ALREADY_LIVE`); not while another deploy is queued or running (409 `DEPLOYMENT_IN_PROGRESS`, the same lock as
+  Deploy); other organizations get 404. Live is the latest successful deployment, so a successful rollback becomes
+  the new live version.
+- **Settings:** every deployment now stores the `port` and `healthCheckPath` it was created with (cheap, not
+  secret), and the worker uses those instead of the service's current values. A rollback reuses the target's, so an
+  old image still starts on the port it was built for even if the setting changed since. Environment variables use
+  today's values; the confirm text says so.
+  - Rejected: storing an encrypted copy of the env vars per deployment (exact rollback, but every deploy keeps
+    another copy of the secrets).
+- **UI:** "Roll back to this" on any earlier successful deploy in the history and on its deploy page, with a simple
+  confirm ("Put f2edcd7 back live? Environment variables keep their current values."). Rollbacks have a "Rollback"
+  label in history, and the deploy page links to the version they went back to.
+- **Consequences:** a rollback is an attempt: if the old image fails its health check, the rollback fails and the
+  current version stays live. Rollback needs the image to still be in the registry (no garbage collection yet). The
+  database is never rolled back; schema changes must stay backward-compatible.
 
 ### ADR-062 — Logs and history (M1-S8)
 - **Status:** Accepted (2026-11-06). The product owner approved the recommended options and asked to revisit the

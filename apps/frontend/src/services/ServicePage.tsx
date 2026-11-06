@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useCrumbs } from "@/stores/crumbs";
 import type { Deployment, Service } from "@/types";
 import { DeploymentSteps } from "./DeploymentSteps";
+import { RollbackButton } from "./RollbackButton";
 import { ServiceLogs } from "./ServiceLogs";
 import { ServiceSettings } from "./ServiceSettings";
 
@@ -129,12 +130,15 @@ export function ServicePage() {
   const busy = active(latest);
   const headline = serviceState(list);
 
+  const follow = (deployment: Deployment) => {
+    setExpanded(deployment.id);
+    setDetail(deployment);
+    reloadList();
+  };
   const deploy = useRequest(() => api.deploy(serviceId, key), {
     onSuccess: (deployment) => {
       setKey(crypto.randomUUID());
-      setExpanded(deployment.id);
-      setDetail(deployment);
-      reloadList();
+      follow(deployment);
     },
   });
 
@@ -345,6 +349,11 @@ export function ServicePage() {
                           <span>
                             {shortSha(d.commitSha) ?? (active(d) ? "resolving" : "no commit")}
                           </span>
+                          {d.trigger === "rollback" && (
+                            <span className="bg-secondary text-primary rounded-full px-2 py-0.5 font-sans">
+                              Rollback
+                            </span>
+                          )}
                           <span className="text-muted-foreground flex items-center gap-1 truncate">
                             <GitBranch className="size-3" />
                             {s.branch}
@@ -375,7 +384,10 @@ export function ServicePage() {
                                 </p>
                               )}
                               <DeploymentSteps deployment={shown} />
-                              <div className="border-t px-5 py-3 text-right">
+                              <div className="flex flex-wrap items-center justify-end gap-4 border-t px-5 py-3">
+                                {shown.status === "succeeded" && shown.id !== live?.id && !busy && (
+                                  <RollbackButton deployment={shown} onStarted={follow} />
+                                )}
                                 <Link
                                   to={`/app/deployments/${d.id}`}
                                   className="text-primary text-sm underline-offset-4 hover:underline"

@@ -115,6 +115,7 @@ enum DeploymentStatus {
 
 enum DeploymentTrigger {
   manual
+  rollback
 }
 
 enum StepStatus {
@@ -131,6 +132,9 @@ model Deployment {
   trigger         DeploymentTrigger
   triggeredById   String?           @db.Uuid
   idempotencyKey  String
+  rollbackOfId    String?           @db.Uuid
+  port            Int?
+  healthCheckPath String?
   commitSha       String?
   image           String?
   url             String?
@@ -140,6 +144,8 @@ model Deployment {
   finishedAt      DateTime?
   service         Service           @relation(fields: [serviceId], references: [id], onDelete: Cascade)
   triggeredBy     User?             @relation(fields: [triggeredById], references: [id], onDelete: SetNull)
+  rollbackOf      Deployment?       @relation("Rollback", fields: [rollbackOfId], references: [id], onDelete: SetNull)
+  rollbacks       Deployment[]      @relation("Rollback")
   steps           DeploymentStep[]
 
   @@unique([serviceId, idempotencyKey])

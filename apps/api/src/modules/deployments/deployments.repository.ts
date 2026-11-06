@@ -2,6 +2,14 @@ import type { PrismaClient } from "../../generated/prisma/client.js";
 
 const withSteps = { steps: { orderBy: { startedAt: "asc" } } } as const;
 
+export type RollbackTarget = {
+  id: string;
+  commitSha: string | null;
+  image: string;
+  port: number | null;
+  healthCheckPath: string | null;
+};
+
 export type Outcome = {
   status: "succeeded" | "failed";
   commitSha?: string | null;
@@ -12,10 +20,15 @@ export type Outcome = {
 };
 
 export const deploymentsRepository = (db: PrismaClient) => ({
-  create: (serviceId: string, triggeredById: string, idempotencyKey: string) =>
+  create: (
+    serviceId: string,
+    triggeredById: string,
+    idempotencyKey: string,
+    rollbackTo?: RollbackTarget,
+  ) =>
     db.$transaction(async (tx) => {
-      const [service] = await tx.$queryRaw<{ id: string }[]>`
-        SELECT s.id FROM "Service" s JOIN "Project" p ON p.id = s."projectId"
+      const [service] = await tx.$queryRaw<{ port: number; healthCheckPath: string }[]>`
+        SELECT s.port, s."healthCheckPath" FROM "Service" s JOIN "Project" p ON p.id = s."projectId"
         WHERE s.id = ${serviceId}::uuid AND s."deletingAt" IS NULL AND p."deletingAt" IS NULL
         FOR UPDATE OF s`;
       if (!service) return null;
@@ -23,9 +36,16 @@ export const deploymentsRepository = (db: PrismaClient) => ({
         data: {
           serviceId,
           activeServiceId: serviceId,
-          trigger: "manual",
+          trigger: rollbackTo ? "rollback" : "manual",
           triggeredById,
           idempotencyKey,
+          rollbackOfId: rollbackTo?.id,
+          commitSha: rollbackTo?.commitSha,
+          image: rollbackTo?.image,
+          port: rollbackTo ? (rollbackTo.port ?? service.port) : service.port,
+          healthCheckPath: rollbackTo
+            ? (rollbackTo.healthCheckPath ?? service.healthCheckPath)
+            : service.healthCheckPath,
         },
         include: withSteps,
       });
@@ -45,7 +65,12 @@ export const deploymentsRepository = (db: PrismaClient) => ({
     db.deployment.findUnique({ where: { activeServiceId: serviceId } }),
 
   list: (serviceId: string) =>
-    db.deployment.findMany({ where: { serviceId }, orderBy: { createdAt: "desc" }, take: 50 }),
+    db.deployment.findMany({
+      where: { serviceId },
+      orderBy: { createdAt: "desc" },
+      take: 50,
+      include: { rollbackOf: { select: { id: true, commitSha: true } } },
+    }),
 
   find: (id: string, organizationIds: string[]) =>
     db.deployment.findFirst({
@@ -56,6 +81,7 @@ export const deploymentsRepository = (db: PrismaClient) => ({
       include: {
         ...withSteps,
         triggeredBy: { select: { email: true } },
+        rollbackOf: { select: { id: true, commitSha: true } },
         service: {
           select: {
             id: true,
