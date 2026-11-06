@@ -4,6 +4,7 @@ import { Navigate, Route, Routes } from "react-router";
 import { AuthPage } from "@/auth/AuthPage";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AppShell } from "@/app/AppShell";
+import { SettingsPage } from "@/app/SettingsPage";
 import { ProjectPage } from "@/projects/ProjectPage";
 import { ProjectsPage } from "@/projects/ProjectsPage";
 import { NewServicePage } from "@/services/NewServicePage";
@@ -55,6 +56,7 @@ export function App() {
           element={orgId && <NewServicePage organizationId={orgId} />}
         />
         <Route path="services/:serviceId" element={<ServicePage />} />
+        <Route path="settings" element={me && <SettingsPage me={me} />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

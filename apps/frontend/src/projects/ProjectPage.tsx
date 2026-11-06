@@ -4,6 +4,7 @@ import { api } from "@/api";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useLoad } from "@/hooks/useLoad";
+import { serviceState } from "@/lib/deploys";
 import { shortSha, timeAgo } from "@/lib/format";
 import { useCrumbs } from "@/stores/crumbs";
 
@@ -24,7 +25,13 @@ export function ProjectPage() {
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-3xl font-medium tracking-[-0.03em]">{name}</h1>
+        <div>
+          <h1 className="text-3xl font-medium tracking-[-0.03em]">{name}</h1>
+          <p className="text-muted-foreground mt-1.5 text-sm">
+            {services.length} {services.length === 1 ? "service" : "services"},{" "}
+            {deployments.filter((h) => serviceState(h) === "live").length} live
+          </p>
+        </div>
         <Button asChild className="h-9">
           <Link to={addService}>
             <Plus />
@@ -52,15 +59,7 @@ export function ProjectPage() {
           {services.map((service, index) => {
             const history = deployments[index] ?? [];
             const latest = history[0];
-            const live = history.find((d) => d.status === "succeeded");
-            const status =
-              latest?.status === "queued" || latest?.status === "running"
-                ? "running"
-                : latest?.status === "failed"
-                  ? "failed"
-                  : live
-                    ? "live"
-                    : null;
+            const status = serviceState(history);
             return (
               <li key={service.id}>
                 <Link
@@ -93,6 +92,15 @@ export function ProjectPage() {
               </li>
             );
           })}
+          <li>
+            <Link
+              to={addService}
+              className="text-muted-foreground hover:text-foreground hover:border-foreground/25 flex h-full min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed transition-colors"
+            >
+              <Plus className="size-5" />
+              <span className="text-sm">Add service</span>
+            </Link>
+          </li>
         </ul>
       )}
     </div>

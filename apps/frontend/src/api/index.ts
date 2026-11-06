@@ -8,6 +8,7 @@ import type {
   Project,
   ProjectDetail,
   Service,
+  ServiceChanges,
 } from "../types";
 
 export const http = axios.create({ baseURL: "/api", adapter: "fetch", timeout: 15_000 });
@@ -38,6 +39,8 @@ export const api = {
   createService: async (projectId: string, service: NewService) =>
     (await http.post<Service>(`/projects/${projectId}/services`, service)).data,
   getService: async (id: string) => (await http.get<Service>(`/services/${id}`)).data,
+  updateService: async (id: string, changes: ServiceChanges) =>
+    (await http.patch<Service>(`/services/${id}`, changes)).data,
   listDeployments: async (serviceId: string) =>
     (await http.get<Deployment[]>(`/services/${serviceId}/deployments`)).data,
   getDeployment: async (id: string) => (await http.get<Deployment>(`/deployments/${id}`)).data,
