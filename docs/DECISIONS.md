@@ -935,6 +935,23 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-066 — A crash on start fails "Start app", not "Check health"
+- **Status:** Accepted (2026-11-06). The product owner pointed out that a crash showed as a health problem.
+- **Problem:** `docker run -d` succeeds as soon as the program launches, so "Start app" went green even when the app
+  crashed a second later. The crash was only noticed inside the health step, which then reported "Your app stopped
+  while starting" under "Check health". The Rollout and Health outcomes no longer meant what they said.
+- **Decision:** after `docker run`, the start step watches the container for 3 seconds (`startupMs`, 1 s in tests).
+  If it stops or restarts, "Start app" fails with "Your app stopped while starting" and the app's last 100 log lines,
+  the container is removed and the health step never runs (Rollout: Failed, Health: Not reached). The health step
+  keeps its own check as a safety net for apps that stop later (for example after a failed database connection)
+  and says "Your app stopped during its health check". When a stopped app printed nothing, the log explains that
+  the Dockerfile may be missing a `CMD` or `ENTRYPOINT`.
+- **Options considered:** keep one combined step (less code, misleading); rename the step (still hides where it
+  broke); a longer watch such as 10 s (catches more slow crashes, but every deploy waits longer, and the health step
+  already covers them).
+- **Consequences:** every deploy and rollback takes about 3 seconds longer. An app that crashes after 3 seconds is
+  still caught, by the health step.
+
 ### ADR-065 — Connect GitHub starts with GitHub sign-in; one install can serve several workspaces
 - **Status:** Accepted (2026-11-06). The product owner asked that a new person can always connect easily, and chose
   option (a) for people with several installs. Replaces rule 4 of ADR-039.

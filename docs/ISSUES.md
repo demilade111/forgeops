@@ -8,6 +8,18 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-047 — A crash showed as a health failure, and "Start app" stayed green
+- **Situation:** Explaining what happens to bad code, the product owner asked why we check health when the app has
+  already crashed. A deploy of an app that crashed on start showed "Start app" green and "Check health" red.
+- **Task:** Make each step report its own failure, since build, rollout and health must stay separate outcomes.
+- **Action:** I found that `docker run -d` reports success when the process launches, not when it survives, so the
+  crash was only seen by the next step. I made "Start app" watch the container for three seconds, moved the crash
+  there, and kept a shorter check in the health step for later crashes. A real deploy of the `konvai` backend, whose
+  Dockerfile has no `CMD`, also showed an empty log, so I added a hint for that case.
+- **Result:** the real deploy now fails at "Start app" with Rollout: Failed and Health: Not reached, and the log says
+  the Dockerfile may be missing a start command. Removing the start check made two tests fail.
+- **Lesson:** a command that returns success may only mean "started", not "working"; check the state you care about.
+
 ## ISS-046 — An example in an empty field looked like a real value
 - **Situation:** The product owner added a service from the `konvai` repo and got "No Dockerfile at Dockerfile on
   master". The Root directory field showed `api`, so it looked filled in.

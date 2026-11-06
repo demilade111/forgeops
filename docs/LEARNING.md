@@ -267,6 +267,13 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   they did.
 - **Expand and contract:** change the database in steps so old and new code both work, which keeps rollback safe.
 
+### Started is not working (ADR-066)
+- **`docker run -d` succeeds early:** it means the program launched, not that it stays up. Check the container is
+  still running a moment later.
+- **One step, one question:** Start app asks "did it stay up?", Check health asks "does it answer correctly?".
+- **Same as local:** `npm run dev` crashing is a failed start; the server running but showing an error page is an
+  unhealthy app.
+
 ### Connecting GitHub for anyone (ADR-065)
 - **GitHub App vs OAuth:** the App install decides which repos ForgeOps can read; OAuth sign-in proves who the
   person is, so ForgeOps can ask GitHub which installs that person can reach.

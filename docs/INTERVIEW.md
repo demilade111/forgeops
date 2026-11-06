@@ -621,6 +621,18 @@ code that works with both, and only remove the old ones once no version needs th
 
 ---
 
+## 17. Started is not working (ADR-066)
+
+**30-second answer:** "`docker run -d` returns success the moment the process launches, so a crash a second later
+looked like a successful start. ForgeOps now watches the container for three seconds; if it stops, Start app fails
+with the app's own log and the health check never runs. The health check only judges an app that stayed up, and
+still catches one that dies later. So a crash is a rollout failure and a bad answer is a health failure."
+
+- *Why not just make the health check longer?* It would still blame the wrong step; the user needs to know the app
+  never stayed up, which usually means a missing setting or start command, not a slow app.
+- *What does Kubernetes do?* The same split: a container that keeps exiting shows `CrashLoopBackOff`, while a running
+  pod that fails its readiness probe gets no traffic.
+
 ## 16. Connecting GitHub for anyone (ADR-065)
 
 **30-second answer:** "Connect GitHub starts with GitHub sign-in. ForgeOps then asks GitHub which installs of our
