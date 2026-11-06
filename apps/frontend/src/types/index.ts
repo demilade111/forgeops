@@ -72,3 +72,10 @@ export type Deployment = {
   finishedAt: string | null;
   steps?: DeploymentStep[];
 };
+
+export type ServiceChanges = Partial<{
+  branch: string;
+  sourceDirectory: string;
+  port: number;
+  envVars: Record<string, string | null>;
+}>;

@@ -21,11 +21,13 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
 
   return (
     <div className="w-full max-w-sm">
-      <h1 className="text-center text-3xl font-medium tracking-[-0.03em]">
+      <h1 className="text-3xl font-medium tracking-[-0.03em]">
         {isLogin ? "Log in to ForgeOps" : "Create your account"}
       </h1>
-      <p className="text-muted-foreground mt-2 text-center">
-        {isLogin ? "Welcome back." : "Deploy your first service in a few minutes."}
+      <p className="text-muted-foreground mt-2">
+        {isLogin
+          ? "Welcome back. Log in to your workspace."
+          : "Deploy your first service in a few minutes."}
       </p>
       <form onSubmit={handleSubmit} className="mt-10 space-y-5">
         <div className="space-y-2">
@@ -56,18 +58,18 @@ export function AuthForm({ mode }: { mode: "login" | "signup" }) {
         {submit.error && <p className="text-fail text-sm">{submit.error}</p>}
         <Button
           type="submit"
-          className="h-11 w-full rounded-full text-base"
+          className="h-11 w-full rounded-md text-base"
           disabled={submit.isLoading}
         >
           {submit.isLoading && <Loader2 className="animate-spin" />}
           {isLogin ? "Log in" : "Create account"}
         </Button>
       </form>
-      <p className="text-muted-foreground mt-8 text-center text-sm">
+      <p className="text-muted-foreground mt-8 text-sm">
         {isLogin ? "New to ForgeOps?" : "Already have an account?"}{" "}
         <Link
           to={isLogin ? "/signup" : "/login"}
-          className="text-foreground font-medium underline-offset-4 hover:underline"
+          className="text-primary font-medium underline-offset-4 hover:underline"
         >
           {isLogin ? "Create an account" : "Log in"}
         </Link>

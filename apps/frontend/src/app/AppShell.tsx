@@ -32,7 +32,7 @@ export function AppShell({ me }: { me: Me }) {
 
   return (
     <div className="min-h-screen">
-      <header className="sticky top-0 z-20 border-b bg-black/80 backdrop-blur">
+      <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-4 px-5 sm:px-6">
           <nav className="flex min-w-0 items-center gap-2 text-sm">
             <Link to="/app" aria-label="Projects">
@@ -40,7 +40,7 @@ export function AppShell({ me }: { me: Me }) {
             </Link>
             <Slash />
             <Link to="/app" className="flex items-center gap-2 font-medium">
-              <span className="flex size-5 items-center justify-center rounded-full bg-gradient-to-br from-zinc-200 to-zinc-500 text-[0.65rem] font-semibold text-black">
+              <span className="flex size-5 items-center justify-center rounded-full bg-gradient-to-br from-[#9b85ff] to-[#5a35f0] text-[0.65rem] font-semibold text-white">
                 {org.charAt(0)}
               </span>
               <span className="hidden sm:inline">{org}</span>
@@ -55,12 +55,19 @@ export function AppShell({ me }: { me: Me }) {
             ))}
           </nav>
           <div className="flex items-center gap-3">
-            <span
-              title={me.user.email}
-              className="bg-secondary flex size-8 items-center justify-center rounded-full border text-xs font-medium uppercase"
+            <Link
+              to="/app/settings"
+              className="text-muted-foreground hover:text-foreground hidden text-sm sm:block"
+            >
+              Settings
+            </Link>
+            <Link
+              to="/app/settings"
+              title={`${me.user.email}, settings`}
+              className="bg-secondary text-primary flex size-8 items-center justify-center rounded-full border text-xs font-medium uppercase"
             >
               {me.user.email.charAt(0)}
-            </span>
+            </Link>
             <Button
               variant="ghost"
               size="sm"

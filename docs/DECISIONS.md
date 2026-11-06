@@ -195,8 +195,9 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-054 | Where web services run in M1 | `docker run` on the host's Docker, network `forgeops-apps`, container `fo-<deploymentId>`, restart unless stopped, env vars from a 600 env file | **Accepted** (2026-11-05) |
 | ADR-055 | Runtime tests | A second Caddy (`caddy-test`, admin 2020, HTTP 8081) and real containers; tests remove only their own containers | **Accepted** (2026-11-05) |
 | ADR-056 | Frontend routing | `react-router` 7 (library mode): `/`, `/login`, `/signup`, `/app/...` | **Accepted** (2026-11-06) |
-| ADR-057 | Visual design | Vercel-style: pure black, Geist and Geist Mono, framed layout; amber, green, red only for deploy status | **Accepted** (2026-11-06) |
+| ADR-057 | Visual design | White-and-purple Render-style landing page, light app; Inter Tight headings, Inter body, Geist Mono for code; amber, green, red only for deploy status | **Accepted** (2026-11-06) |
 | ADR-058 | Mini frontend data flow | `useLoad` hook for reads; the service page polls the open deployment every 1.5 s while queued or running; Deploy keeps one Idempotency-Key per attempt | **Accepted** (2026-11-06) |
+| ADR-059 | Settings in the dashboard | Service Settings tab edits branch, root directory, port and env vars through the existing `PATCH /api/services/:id`; account Settings page shows account, workspace, GitHub and log out | **Accepted** (2026-11-06) |
 | ADR-053 | Local seed script | `pnpm --filter @forgeops/api seed` recreates the demo account, GitHub link, project and service; safe to rerun | **Accepted** (2026-11-03) |
 | ADR-051 | Build logs, time limits and stale deployments | Step logs in `DeploymentStep.log` (last 64 KiB); build 15 min, push 5 min, GitHub calls 2 min; sweeper fails deployments running over 60 min | **Accepted** (2026-11-03) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
@@ -896,6 +897,27 @@ Template:
   landing page sits in a framed column with guide lines and corner marks. Amber, green and red appear only for
   deploy status. The hero shows a real ForgeOps deploy replaying its six actual steps and logs. No Vercel logo, mark,
   wording or artwork.
+- **Update (2026-11-06):** the product owner asked for white and grey instead of black. Now a light theme (Vercel's
+  light mode): `#fafafa` page, white cards, `#171717` text, `#666` secondary text, `#e6e6e6` borders, black primary
+  buttons; status colors darkened to stay readable on white. Only the colour tokens and a few surfaces changed.
+  The product owner then asked for a different font: IBM Plex Sans and IBM Plex Mono replaced Geist (open source,
+  engineering feel, clearer code text). Later the product owner pointed at featurebase.app: headings now use Geist, body text
+  Inter and code Geist Mono, the fonts that site uses (all open source; its paid serif, ABC Arizona Flare, is not
+  used). The landing hero follows that site's look: near-black with a steel-blue glow, the second half of the
+  headline in grey, a cream pill and a navy pill, and the live deploy window inside. A `.dark` token set scopes the
+  dark colours to the hero; the rest of the page and the app stay light. The product owner then shared a reference with a wide, bold
+  headline: headings now use Archivo (open source) stretched to 112% width at semibold, and the hero title is
+  "Every push becomes a live URL." Finally the product owner asked for render.com's layout "the way it is": the landing page is
+  now fully dark with fine grid lines, grainy purple gradients, square white buttons, a project map with a streaming
+  deploy terminal, "Click, click, live." numbered steps, a stack band, a gradient headline, four feature blocks and a
+  purple call to action. Headings use Inter Tight (Render's Roobert is commercial). ForgeOps wording only, no Render
+  logo or brand icons, and planned features (workers, scheduled jobs, auto-deploy on push) are labelled "Coming".
+  Then the product owner asked for white and purple and for a "video" of the product: the landing page is now white
+  with purple (`#6d4aff`) buttons and accents, lavender gradients, and no announcement bar. A new product tour is a
+  coded animation, not a video file: a browser frame loops through log in (typing), projects, the service page,
+  Deploy with step timing, and Live with the curl response, with play/pause, clickable progress segments and a moving
+  cursor. Being code, it stays in step with the real UI, weighs nothing and respects reduced motion (it starts on the
+  final scene, paused). The product owner then asked to remove the tour; it was deleted. The product owner then asked to remove the tour; it was deleted.
 - **Trade-offs:** borrowing a well-known look is fast and polished, but less distinctive; the product owner plans to
   refine it later. Mono text is used only for real code (commits, URLs, logs, repositories).
 
@@ -908,4 +930,19 @@ Template:
 - **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
+
+### ADR-059 — Settings in the dashboard
+- **Status:** Accepted (2026-11-06). The product owner asked for settings in the dashboard.
+- **Decision:** each service page has Overview and Settings tabs (`?tab=settings`). Settings edits the branch, root
+  directory and port, and adds, replaces or removes environment variables, through the existing
+  `PATCH /api/services/:id` (it re-checks the source with GitHub and merges env vars; `null` removes one). Values are
+  never shown: to change one, add it again with the same name. After saving, the page says "Deploy to apply the
+  change", because the running version keeps its old settings until the next deploy. An account Settings page
+  (`/app/settings`, linked from the header) shows the email, workspace and role, the GitHub connection with a link to
+  manage repositories, and log out.
+- **Not included:** deleting a service or project and changing the password (no API yet).
+- **Also in this change:** the dashboard, login and sign-up use the landing page's white and purple (primary
+  `#6d4aff`); login and sign-up are split screens with a purple panel; the service page shows a live preview of the
+  app at its URL (sandboxed iframe) instead of internal routing details, and labels use product words ("Root
+  directory", "Environment variables", "Build time").
 

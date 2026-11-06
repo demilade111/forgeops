@@ -122,12 +122,12 @@ export function NewServicePage({ organizationId }: { organizationId: string }) {
             />
           </Field>
           <Field
-            label="Source directory"
-            hint="The folder with the Dockerfile. Leave empty for the root."
+            label="Root directory"
+            hint="The folder with your Dockerfile. Leave empty for the repository root."
           >
             <Input name="sourceDirectory" placeholder="api" className="h-9 font-mono" />
           </Field>
-          <Field label="Port" hint="The port your app listens on inside its container.">
+          <Field label="Port" hint="The port your app listens on.">
             <Input
               name="port"
               type="number"
