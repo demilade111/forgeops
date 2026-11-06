@@ -65,7 +65,9 @@ export type Deployment = {
   id: string;
   serviceId: string;
   status: DeploymentStatus;
-  trigger: "manual" | "rollback";
+  trigger: "manual" | "rollback" | "auto_rollback";
+  watchUntil: string | null;
+  failedAfterLive: string | null;
   rollbackOfId: string | null;
   rollbackOf?: { id: string; commitSha: string | null } | null;
   commitSha: string | null;

@@ -128,6 +128,7 @@ export function ServicePage() {
   const live = list.find((d) => d.status === "succeeded");
   const reloadList = deployments.reload;
   const busy = active(latest);
+  const watching = !!live?.watchUntil;
   const headline = serviceState(list);
 
   const follow = (deployment: Deployment) => {
@@ -143,10 +144,10 @@ export function ServicePage() {
   });
 
   useEffect(() => {
-    if (!busy) return;
-    const timer = setInterval(reloadList, 1500);
+    if (!busy && !watching) return;
+    const timer = setInterval(reloadList, busy ? 1500 : 5000);
     return () => clearInterval(timer);
-  }, [busy, reloadList]);
+  }, [busy, watching, reloadList]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -248,6 +249,13 @@ export function ServicePage() {
               <div className="flex flex-col">
                 <h2 className="text-lg font-medium">Production</h2>
                 <p className="text-muted-foreground text-sm">What visitors see right now.</p>
+                {watching && (
+                  <p className="text-primary mt-3 flex items-center gap-2 text-sm">
+                    <span className="bg-primary size-2 animate-pulse rounded-full" />
+                    Watching this version after go-live. If it breaks, ForgeOps puts the previous
+                    version back.
+                  </p>
+                )}
                 <dl className="mt-6 grid grid-cols-2 gap-x-8 gap-y-5">
                   <div className="col-span-2">
                     <Detail label="URL">
@@ -349,9 +357,14 @@ export function ServicePage() {
                           <span>
                             {shortSha(d.commitSha) ?? (active(d) ? "resolving" : "no commit")}
                           </span>
-                          {d.trigger === "rollback" && (
+                          {d.trigger !== "manual" && (
                             <span className="bg-secondary text-primary rounded-full px-2 py-0.5 font-sans">
-                              Rollback
+                              {d.trigger === "auto_rollback" ? "Automatic rollback" : "Rollback"}
+                            </span>
+                          )}
+                          {d.failedAfterLive && (
+                            <span className="bg-fail/10 text-fail rounded-full px-2 py-0.5 font-sans">
+                              Broke after going live
                             </span>
                           )}
                           <span className="text-muted-foreground flex items-center gap-1 truncate">
@@ -378,9 +391,9 @@ export function ServicePage() {
                             <Loader2 className="text-muted-foreground m-5 size-5 animate-spin" />
                           ) : (
                             <>
-                              {shown.error && (
+                              {(shown.error ?? shown.failedAfterLive) && (
                                 <p className="bg-fail/10 text-fail border-b px-5 py-3 text-sm">
-                                  {shown.error}
+                                  {shown.error ?? shown.failedAfterLive}
                                 </p>
                               )}
                               <DeploymentSteps deployment={shown} />

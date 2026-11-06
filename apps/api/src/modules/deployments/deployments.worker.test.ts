@@ -21,6 +21,7 @@ import { projectsRepository } from "../projects/projects.repository.js";
 import { createTeardownHandler } from "../projects/projects.teardown.js";
 import { run, workspace } from "./deployments.build.js";
 import { deploymentsRepository } from "./deployments.repository.js";
+import { createWatcher } from "./deployments.watch.js";
 import { createDeploymentHandler } from "./deployments.worker.js";
 
 const hello = sourceArchive(webApp);
@@ -108,12 +109,12 @@ const setEnv = (serviceId: string, env: Record<string, string>) =>
 
 const host = "api.sample-shop.localhost";
 
-const checkRoutes = async () => {
+const checkRoutes = async (prefix = "check-") => {
   const res = await fetch(
     `${workerOptions.caddyAdminUrl}/config/apps/http/servers/forgeops/routes`,
   );
   const routes = (await res.json()) as { "@id"?: string }[];
-  return routes.map((r) => r["@id"]).filter((id) => id?.startsWith("check-"));
+  return routes.map((r) => r["@id"]).filter((id) => id?.startsWith(prefix));
 };
 
 const setHealthPath = (serviceId: string, healthCheckPath: string) =>
@@ -570,6 +571,7 @@ it("fails the deploy when the app never passes its health check, and keeps the o
     status: "failed",
     error: "Your app did not pass its health check within 5 seconds",
     url: null,
+    image: expect.stringContaining("@sha256:"),
   });
   expect(done.steps.at(-1)).toMatchObject({
     name: "health",
@@ -765,4 +767,106 @@ it("keeps the live version when the old image is gone from the registry", async 
   });
   expect(await viaRouter(host)).toBe("hello \n 200");
   expect(await containersOf(service.id)).toEqual([`fo-${deployment.id}`]);
+});
+
+const watch = createWatcher(testDb, workerOptions);
+
+const healthyThen = (text: string, seconds: number, breaks: string) => ({
+  Dockerfile: `FROM busybox:1.37\nCMD mkdir -p /www/health; echo ok > /www/health/ready; echo "${text}" > /www/index.html; httpd -p 8080 -h /www; sleep ${seconds}; ${breaks}\n`,
+});
+const failsHealthAfter = (text: string, seconds: number) =>
+  healthyThen(text, seconds, "rm /www/health/ready; exec sleep 300");
+const crashesAfter = (text: string, seconds: number) =>
+  healthyThen(text, seconds, 'echo "out of memory"; exit 1');
+
+async function deployVersion(serviceId: string, userId: string, key: string, files: object) {
+  const next = await create(serviceId, userId, key);
+  withSource(files as Record<string, string>);
+  await handle({ type: "deployment.requested", deploymentId: next.id });
+  return next;
+}
+
+const watchUntilDone = (id: string) =>
+  until(async () => {
+    await watch();
+    return (await reload(id)).watchUntil === null;
+  }, 30_000);
+
+const autoRollbacks = () => testDb.deployment.findMany({ where: { trigger: "auto_rollback" } });
+
+it("rolls back automatically when a live version keeps failing its health check", async () => {
+  const { service, deployment: first, message } = await queued();
+  withSource(version("version one"));
+  await handle(message);
+  const second = await deployVersion(service.id, first.triggeredById!, "k2", {
+    ...failsHealthAfter("version two", 4),
+  });
+  expect((await reload(second.id)).watchUntil).not.toBeNull();
+  await until(async () => (await viaRouter(host)) === "version two\n 200");
+
+  await watchUntilDone(second.id);
+
+  expect((await reload(second.id)).failedAfterLive).toBe(
+    "Your app failed its health check 3 times in a row after going live (GET /health/ready returned 404)",
+  );
+  const [rollback] = await autoRollbacks();
+  expect(rollback).toMatchObject({
+    rollbackOfId: first.id,
+    triggeredById: null,
+    image: (await reload(first.id)).image,
+  });
+  await handle({ type: "deployment.requested", deploymentId: rollback!.id });
+  expect(await reload(rollback!.id)).toMatchObject({ status: "succeeded", watchUntil: null });
+  await until(async () => (await viaRouter(host)) === "version one\n 200");
+  expect(await containersOf(service.id)).toEqual([`fo-${rollback!.id}`]);
+  expect(await checkRoutes("watch-")).toEqual([]);
+});
+
+it("rolls back at once when the live app crashes", async () => {
+  const { service, deployment: first, message } = await queued();
+  withSource(version("version one"));
+  await handle(message);
+  const second = await deployVersion(service.id, first.triggeredById!, "k2", {
+    ...crashesAfter("version two", 3),
+  });
+
+  await watchUntilDone(second.id);
+
+  expect((await reload(second.id)).failedAfterLive).toBe("Your app stopped after going live");
+  expect(await autoRollbacks()).toMatchObject([{ rollbackOfId: first.id }]);
+});
+
+it("records the failure when there is no earlier version to go back to", async () => {
+  const { deployment, message } = await queued();
+  withSource(failsHealthAfter("only version", 2));
+  await handle(message);
+
+  await watchUntilDone(deployment.id);
+
+  expect((await reload(deployment.id)).failedAfterLive).toMatch(
+    /3 times in a row after going live .*There is no earlier version to roll back to\.$/,
+  );
+  expect(await autoRollbacks()).toEqual([]);
+});
+
+it("stops watching a healthy version when the watch window ends", async () => {
+  const { deployment } = await live();
+
+  await watch();
+  expect((await reload(deployment.id)).watchUntil).not.toBeNull();
+  await watch(new Date(Date.now() + 6 * 60_000));
+
+  expect(await reload(deployment.id)).toMatchObject({ watchUntil: null, failedAfterLive: null });
+  expect(await autoRollbacks()).toEqual([]);
+  expect(await checkRoutes("watch-")).toEqual([]);
+});
+
+it("stops watching a version once a newer one is live", async () => {
+  const { service, deployment: first } = await live();
+  const second = await deployVersion(service.id, first.triggeredById!, "k2", webApp);
+
+  await watch();
+
+  expect(await reload(first.id)).toMatchObject({ watchUntil: null, failedAfterLive: null });
+  expect((await reload(second.id)).watchUntil).not.toBeNull();
 });

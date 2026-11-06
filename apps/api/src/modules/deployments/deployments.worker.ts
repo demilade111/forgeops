@@ -34,6 +34,7 @@ type Options = {
   timeouts?: { build: number; push: number };
   health?: { timeoutMs: number; intervalMs: number };
   startupMs?: number;
+  watchMs?: number;
 };
 
 export function createDeploymentHandler(
@@ -48,6 +49,7 @@ export function createDeploymentHandler(
     timeouts = { build: 15 * 60_000, push: 5 * 60_000 },
     health = { timeoutMs: 60_000, intervalMs: 1000 },
     startupMs = 3000,
+    watchMs = 5 * 60_000,
   }: Options,
 ) {
   const repo = deploymentsRepository(db);
@@ -201,7 +203,7 @@ export function createDeploymentHandler(
 
     try {
       const plan =
-        deployment.trigger === "rollback"
+        deployment.trigger !== "manual"
           ? steps.filter(([name]) => ["run", "health", "route"].includes(name))
           : steps;
       for (const [index, [name, work]] of plan.entries()) {
@@ -214,6 +216,7 @@ export function createDeploymentHandler(
           await repo.finish(deploymentId, name, {
             status: "failed",
             commitSha,
+            image: image || undefined,
             error: error.message,
             log: error.log,
           });
@@ -227,6 +230,8 @@ export function createDeploymentHandler(
             image,
             url,
             log,
+            watchUntil:
+              deployment.trigger === "manual" ? new Date(Date.now() + watchMs) : undefined,
           });
       }
     } finally {

@@ -12,6 +12,7 @@ export type RollbackTarget = {
 
 export type Outcome = {
   status: "succeeded" | "failed";
+  watchUntil?: Date;
   commitSha?: string | null;
   image?: string;
   url?: string;
@@ -22,9 +23,10 @@ export type Outcome = {
 export const deploymentsRepository = (db: PrismaClient) => ({
   create: (
     serviceId: string,
-    triggeredById: string,
+    triggeredById: string | null,
     idempotencyKey: string,
     rollbackTo?: RollbackTarget,
+    automatic = false,
   ) =>
     db.$transaction(async (tx) => {
       const [service] = await tx.$queryRaw<{ port: number; healthCheckPath: string }[]>`
@@ -36,7 +38,7 @@ export const deploymentsRepository = (db: PrismaClient) => ({
         data: {
           serviceId,
           activeServiceId: serviceId,
-          trigger: rollbackTo ? "rollback" : "manual",
+          trigger: automatic ? "auto_rollback" : rollbackTo ? "rollback" : "manual",
           triggeredById,
           idempotencyKey,
           rollbackOfId: rollbackTo?.id,
@@ -142,7 +144,11 @@ export const deploymentsRepository = (db: PrismaClient) => ({
       data: { status: "succeeded", log, finishedAt: new Date() },
     }),
 
-  finish: (id: string, step: string, { status, commitSha, image, url, error, log }: Outcome) => {
+  finish: (
+    id: string,
+    step: string,
+    { status, commitSha, image, url, error, log, watchUntil }: Outcome,
+  ) => {
     const finishedAt = new Date();
     return db.$transaction([
       db.deploymentStep.update({
@@ -151,10 +157,46 @@ export const deploymentsRepository = (db: PrismaClient) => ({
       }),
       db.deployment.update({
         where: { id },
-        data: { status, commitSha, image, url, error, finishedAt, activeServiceId: null },
+        data: {
+          status,
+          commitSha,
+          image,
+          url,
+          error,
+          watchUntil,
+          finishedAt,
+          activeServiceId: null,
+        },
       }),
     ]);
   },
+
+  watched: () =>
+    db.deployment.findMany({
+      where: {
+        watchUntil: { not: null },
+        service: { deletingAt: null, project: { deletingAt: null } },
+      },
+      include: { service: { select: { port: true, healthCheckPath: true } } },
+    }),
+
+  countFailure: (id: string, watchFailures: number) =>
+    db.deployment.update({ where: { id }, data: { watchFailures } }),
+
+  stopWatching: (id: string, failedAfterLive?: string) =>
+    db.deployment.update({ where: { id }, data: { watchUntil: null, failedAfterLive } }),
+
+  previousGood: (serviceId: string, before: Date) =>
+    db.deployment.findFirst({
+      where: {
+        serviceId,
+        status: "succeeded",
+        image: { not: null },
+        failedAfterLive: null,
+        createdAt: { lt: before },
+      },
+      orderBy: { createdAt: "desc" },
+    }),
 
   failStale: async (startedBefore: Date) => {
     const where = { status: "running" as const, startedAt: { lt: startedBefore } };

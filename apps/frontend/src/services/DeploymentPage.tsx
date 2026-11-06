@@ -75,9 +75,9 @@ export function DeploymentPage() {
           <StatusBadge status={deployment.status} />
         </div>
         <p className="text-muted-foreground mt-1.5 text-sm">
-          {deployment.trigger === "rollback" && deployment.rollbackOf && (
+          {deployment.trigger !== "manual" && deployment.rollbackOf && (
             <>
-              Rollback to{" "}
+              {deployment.trigger === "auto_rollback" ? "Automatic rollback" : "Rollback"} to{" "}
               <Link
                 to={`/app/deployments/${deployment.rollbackOf.id}`}
                 className="text-primary font-mono underline-offset-4 hover:underline"
@@ -88,7 +88,9 @@ export function DeploymentPage() {
             </>
           )}
           {service.name} in {service.project.name}, started {timeAgo(deployment.createdAt)}
-          {deployment.triggeredBy && ` by ${deployment.triggeredBy.email}`}
+          {deployment.triggeredBy
+            ? ` by ${deployment.triggeredBy.email}`
+            : deployment.trigger === "auto_rollback" && " by ForgeOps"}
         </p>
         {deployment.status === "succeeded" && liveId && liveId !== deployment.id && (
           <div className="mt-4 flex">
@@ -155,8 +157,10 @@ export function DeploymentPage() {
       </section>
 
       <section className="bg-card overflow-hidden rounded-lg border">
-        {deployment.error && (
-          <p className="bg-fail/10 text-fail border-b px-5 py-3 text-sm">{deployment.error}</p>
+        {(deployment.error ?? deployment.failedAfterLive) && (
+          <p className="bg-fail/10 text-fail border-b px-5 py-3 text-sm">
+            {deployment.error ?? deployment.failedAfterLive}
+          </p>
         )}
         <DeploymentSteps deployment={deployment} />
       </section>

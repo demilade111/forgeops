@@ -1,5 +1,6 @@
 import { loadConfig } from "./config.js";
 import { run } from "./modules/deployments/deployments.build.js";
+import { createWatcher } from "./modules/deployments/deployments.watch.js";
 import { createDeploymentHandler } from "./modules/deployments/deployments.worker.js";
 import { deploymentsRepository } from "./modules/deployments/deployments.repository.js";
 import { loadGitHubClient } from "./modules/github/github.client.js";
@@ -79,6 +80,15 @@ const deploy = createDeploymentHandler(db, loadGitHubClient(github), {
   encryptionKey,
 });
 const teardown = createTeardownHandler(db, { caddyAdminUrl });
+const watch = createWatcher(db, { caddyAdminUrl, caddyHttpUrl });
+let watching = false;
+const watcher = setInterval(() => {
+  if (watching) return;
+  watching = true;
+  watch()
+    .catch((error) => console.error("Watching live deployments failed", error))
+    .finally(() => (watching = false));
+}, 10_000);
 await queue.consume((body) =>
   (body as { type?: unknown }).type === "deletion.requested" ? teardown(body) : deploy(body),
 );
@@ -88,6 +98,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, async () => {
     clearInterval(relay);
     clearInterval(sweeper);
+    clearInterval(watcher);
     queue.connection.removeAllListeners("close");
     await queue.close();
     await db.$disconnect();
