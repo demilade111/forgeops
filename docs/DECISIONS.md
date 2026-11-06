@@ -935,6 +935,35 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-065 — Connect GitHub starts with GitHub sign-in; one install can serve several workspaces
+- **Status:** Accepted (2026-11-06). The product owner asked that a new person can always connect easily, and chose
+  option (a) for people with several installs. Replaces rule 4 of ADR-039.
+- **Problem:** Connect sent people straight to the App's install page. When the App was already installed on their
+  GitHub account, GitHub showed its settings page and never came back. And an install linked to one workspace was
+  refused for any other, so a second workspace (or a teammate's) could never connect.
+- **Decision:**
+  1. `GET /api/github/install` redirects to GitHub's OAuth sign-in (`/login/oauth/authorize`) with the same `state`
+     cookie as before. An optional `installationId` (digits only) is stored in the cookie when the person picked
+     an account.
+  2. The callback swaps the `code` for the person's installs of our App (`GET /user/installations`, as in ADR-039).
+     If GitHub sent an `installation_id` (just installed) or the cookie holds a pick, that install must be in the
+     list, or `INSTALLATION_NOT_YOURS`. Otherwise: one install is linked at once; none sends them on to the install
+     page with a fresh `state`; several redirect to `/app?github_choose=id:account,...`, where the dashboard asks
+     "Which GitHub account should this workspace use?". Each button starts Connect again with that pick, so the
+     choice is checked with GitHub again and the list in the URL is never trusted.
+  3. `GitHubInstallation` is keyed by install plus workspace, so the same install can be linked to several
+     workspaces. Safe because linking still needs GitHub to confirm the person can reach that install.
+  4. `GET /api/github/repositories` returns `manageUrl` (the App's page on GitHub). The new-service form and
+     Settings link to it, and the repo list reloads when the tab regains focus.
+- **Options considered:** keep the install page and tick "Redirect on update" (GitHub returns only after the person
+  presses Save, and the second-workspace refusal stays); link every install a person has (a repo would then need to
+  remember its install; more work); a signed cookie holding the choices (needs a new secret; re-checking with
+  GitHub is simpler).
+- **Consequences:** needs the App's Client ID, a client secret, the callback URL and "Request user authorization
+  (OAuth) during installation" on GitHub; without them Connect returns `GITHUB_OAUTH_NOT_CONFIGURED`. The person
+  authorizes ForgeOps on GitHub once; later connects pass straight through. The user token is still used once and
+  never stored.
+
 ### ADR-064 — Brand logos on the landing page
 - **Status:** Accepted (2026-11-06). The product owner asked for real logos and clearer pictures on the landing page.
 - **Decision:** use the `simple-icons` package (CC0 SVG paths with each brand's colour) for the stack tiles (Node.js,

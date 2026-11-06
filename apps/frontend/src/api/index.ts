@@ -28,8 +28,8 @@ export const api = {
     const res = await http.get<Me>("/me", { validateStatus: (s) => s === 200 || s === 401 });
     return res.status === 401 ? null : res.data;
   },
-  githubInstallUrl: (organizationId: string) =>
-    `/api/github/install?organizationId=${encodeURIComponent(organizationId)}`,
+  githubInstallUrl: (organizationId: string, installationId?: string) =>
+    `/api/github/install?${new URLSearchParams({ organizationId, ...(installationId && { installationId }) })}`,
   getGitHubStatus: async (organizationId: string) =>
     (await http.get<GitHubStatus>("/github/repositories", { params: { organizationId } })).data,
   listProjects: async (organizationId: string) =>

@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Loader2, Plus, X } from "lucide-react";
 import { Link, useNavigate, useParams } from "react-router";
 import { api } from "@/api";
@@ -44,6 +44,11 @@ export function NewServicePage({ organizationId }: { organizationId: string }) {
     onSuccess: (service) => navigate(`/app/services/${service.id}`),
   });
   const repos = github.data?.connected ? github.data.repositories : [];
+  const { reload } = github;
+  useEffect(() => {
+    window.addEventListener("focus", reload);
+    return () => window.removeEventListener("focus", reload);
+  }, [reload]);
   const project = useLoad(() => api.getProject(projectId), [projectId]);
   useCrumbs(project.data ? [{ label: project.data.name, to: `/app/projects/${projectId}` }] : []);
 
@@ -96,7 +101,14 @@ export function NewServicePage({ organizationId }: { organizationId: string }) {
           <Field label="Name" hint="Lowercase letters, numbers and dashes. Part of the URL.">
             <Input name="name" placeholder="api" className="h-9 font-mono" required />
           </Field>
-          <Field label="Repository">
+          <Field
+            label="Repository"
+            hint={
+              github.data?.connected
+                ? "Missing one? Add it to the ForgeOps app on GitHub; this list refreshes when you come back."
+                : undefined
+            }
+          >
             <select
               className={select}
               value={repository}
@@ -112,6 +124,16 @@ export function NewServicePage({ organizationId }: { organizationId: string }) {
                 </option>
               ))}
             </select>
+            {github.data?.connected && (
+              <a
+                href={github.data.manageUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-primary mt-2 inline-block text-xs underline-offset-4 hover:underline"
+              >
+                Manage repositories on GitHub
+              </a>
+            )}
           </Field>
           <Field label="Branch" hint="Every deploy builds the latest commit on this branch.">
             <Input

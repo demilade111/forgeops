@@ -19,7 +19,8 @@ export type Repository = { id: number; fullName: string; private: boolean; defau
 export type Source = { repository: string; branch: string; sourceDirectory: string };
 
 export type GitHubClient = {
-  installUrl: (state: string) => string;
+  authorizeUrl: (state: string) => string;
+  installUrl: (state?: string) => string;
   userInstallations: (code: string) => Promise<Installation[]>;
   listRepositories: (installationId: number) => Promise<Repository[]>;
   inspectSource: (installationId: number, source: Source) => Promise<{ repositoryId: number }>;
@@ -79,8 +80,16 @@ export function createGitHubClient(app: GitHubAppCredentials): GitHubClient {
   }
 
   return {
+    authorizeUrl(state) {
+      if (!app.clientId) {
+        throw new HttpError(503, "GITHUB_OAUTH_NOT_CONFIGURED", "GitHub sign-in is not set up yet");
+      }
+      const query = new URLSearchParams({ client_id: app.clientId, state });
+      return `https://github.com/login/oauth/authorize?${query}`;
+    },
+
     installUrl: (state) =>
-      `https://github.com/apps/${app.slug}/installations/new?state=${encodeURIComponent(state)}`,
+      `https://github.com/apps/${app.slug}/installations/new${state ? `?state=${encodeURIComponent(state)}` : ""}`,
 
     async userInstallations(code) {
       if (!app.clientId || !app.clientSecret) {

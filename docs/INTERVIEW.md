@@ -621,6 +621,33 @@ code that works with both, and only remove the old ones once no version needs th
 
 ---
 
+## 16. Connecting GitHub for anyone (ADR-065)
+
+**30-second answer:** "Connect GitHub starts with GitHub sign-in. ForgeOps then asks GitHub which installs of our
+App that person can reach. One is linked at once, none sends them to install it, several show a picker. Any id
+that comes back in a URL is checked against GitHub's list before it is linked, so nobody can attach someone else's
+repositories. Because of that check, one install can safely serve several workspaces."
+
+### What happens when...
+- **The App is already installed:** sign-in finds it and links it. No GitHub settings page dead end.
+- **Someone edits the install id or the picker link:** it is not in their GitHub list, so `INSTALLATION_NOT_YOURS`.
+- **The state cookie is missing or forged:** the callback refuses it before calling GitHub.
+- **OAuth is not configured:** the dashboard says so instead of showing an error page.
+
+### Real evidence
+- 11 GitHub tests; breaking the ownership check or the single-install link made them fail.
+- A real run against GitHub found the Client ID and secret had never been set (ISS-045).
+
+### Known limits
+- The repo list stops at 100 repos (ISS-031). Removing an install on GitHub does not unlink it in ForgeOps yet.
+
+### Questions
+- *Why not trust `installation_id` from the redirect?* Anyone can type it; only GitHub's list for the signed-in
+  person proves access.
+- *Why OAuth if you already have a GitHub App?* The App reads code; OAuth tells us who is clicking.
+- *Why let several workspaces share one install?* Teams and second workspaces need it; access is still checked per
+  person.
+
 ## Product questions
 
 **Q: Why build this when Vercel, Render and Railway exist?** _It runs on infrastructure you own, its internals

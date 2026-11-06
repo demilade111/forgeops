@@ -8,6 +8,20 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-045 — Connecting GitHub had never worked for anyone but me
+- **Situation:** While making Connect GitHub easier for new people, I tested the new flow end to end against real
+  GitHub with a fresh local account. ForgeOps answered "GitHub sign-in isn't set up".
+- **Task:** Find out why, since my own account had been connected for days.
+- **Action:** I compared the settings the API needs with what the server had, by name only. The App ID and private
+  key were set, but the Client ID and client secret never were. My account worked only because the seed script
+  links the install straight into the database, which skips the OAuth check. Every real person would have failed
+  on the way back from GitHub. The unit tests use a fake GitHub client, so they could not see it either.
+- **Result:** I listed the four GitHub settings to fill in and made the missing setup return a clear message on the
+  dashboard instead of an error page. The real end-to-end connect is the check before this task is called
+  verified.
+- **Lesson:** a seed script that writes the result directly can hide a broken flow; test the path a new user takes,
+  against the real service, not just the path I use.
+
 ## ISS-044 — "GitHub is connected but the dashboard says Connect GitHub" (landing polish)
 - **Situation:** The product owner had installed the GitHub App on their account, but the dashboard still showed
   "Connect GitHub to deploy your repositories".

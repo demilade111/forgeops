@@ -26,6 +26,7 @@ import { createDeploymentHandler } from "./deployments.worker.js";
 const hello = sourceArchive(webApp);
 
 const github = {
+  authorizeUrl: () => "https://github.test/authorize",
   installUrl: () => "https://github.test/install",
   userInstallations: vi.fn(async () => []),
   listRepositories: vi.fn(async () => []),

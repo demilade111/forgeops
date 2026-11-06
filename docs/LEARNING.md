@@ -267,6 +267,13 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   they did.
 - **Expand and contract:** change the database in steps so old and new code both work, which keeps rollback safe.
 
+### Connecting GitHub for anyone (ADR-065)
+- **GitHub App vs OAuth:** the App install decides which repos ForgeOps can read; OAuth sign-in proves who the
+  person is, so ForgeOps can ask GitHub which installs that person can reach.
+- **Ask, don't trust:** an install id in a URL or a choice in a link is only a request; it is linked only if GitHub
+  lists it for that person.
+- **Composite key:** keying the link by install plus workspace lets one install serve several workspaces.
+
 ## Interview questions
 
 Moved to `INTERVIEW.md` (trade-offs, failure scenarios and answers for every slice).
