@@ -98,7 +98,8 @@ export function createDeploymentHandler(
     let commitSha = deployment.commitSha;
     let installationId = 0;
     let context = "";
-    let image = "";
+    let image = deployment.image ?? "";
+    const port = deployment.port ?? service.port;
 
     const steps: [string, () => Promise<string | void>][] = [
       [
@@ -166,8 +167,8 @@ export function createDeploymentHandler(
               httpUrl: caddyHttpUrl,
               id: deploymentId,
               container,
-              port: service.port,
-              path: service.healthCheckPath,
+              port,
+              path: deployment.healthCheckPath ?? service.healthCheckPath,
             });
           } catch (error) {
             await run("docker", ["rm", "-f", container], 60_000);
@@ -179,7 +180,7 @@ export function createDeploymentHandler(
         "route",
         async () => {
           try {
-            await routeTo(caddyAdminUrl, `svc-${service.id}`, host, `${container}:${service.port}`);
+            await routeTo(caddyAdminUrl, `svc-${service.id}`, host, `${container}:${port}`);
           } catch (error) {
             await run("docker", ["rm", "-f", container], 60_000);
             throw error;
@@ -190,7 +191,11 @@ export function createDeploymentHandler(
     ];
 
     try {
-      for (const [index, [name, work]] of steps.entries()) {
+      const plan =
+        deployment.trigger === "rollback"
+          ? steps.filter(([name]) => ["run", "health", "route"].includes(name))
+          : steps;
+      for (const [index, [name, work]] of plan.entries()) {
         await repo.startStep(deploymentId, name);
         let log: string | undefined;
         try {
@@ -205,7 +210,7 @@ export function createDeploymentHandler(
           });
           return;
         }
-        if (index < steps.length - 1) await repo.completeStep(deploymentId, name, log);
+        if (index < plan.length - 1) await repo.completeStep(deploymentId, name, log);
         else
           await repo.finish(deploymentId, name, {
             status: "succeeded",
