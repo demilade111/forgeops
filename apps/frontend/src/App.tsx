@@ -7,6 +7,7 @@ import { AppShell } from "@/app/AppShell";
 import { SettingsPage } from "@/app/SettingsPage";
 import { ProjectPage } from "@/projects/ProjectPage";
 import { ProjectsPage } from "@/projects/ProjectsPage";
+import { DeploymentPage } from "@/services/DeploymentPage";
 import { NewServicePage } from "@/services/NewServicePage";
 import { ServicePage } from "@/services/ServicePage";
 import { Landing } from "@/landing/Landing";
@@ -56,6 +57,7 @@ export function App() {
           element={orgId && <NewServicePage organizationId={orgId} />}
         />
         <Route path="services/:serviceId" element={<ServicePage />} />
+        <Route path="deployments/:deploymentId" element={<DeploymentPage />} />
         <Route path="settings" element={me && <SettingsPage me={me} />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />

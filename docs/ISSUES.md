@@ -8,6 +8,20 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-043 — Live build logs froze during slow steps, and a cached build hid it (M1-S8)
+- **Situation:** I added live build logs, saved at most once a second. The test passed, then failed on the next run,
+  even with the code unchanged.
+- **Task:** Work out whether the test or the code was wrong.
+- **Action:** Two causes. First, the test: Docker cached the build step on the second run, so nothing was printed
+  and the build finished instantly. I made each run build fresh with a unique value. Second, the code: it saved only
+  when new output arrived and at least a second had passed since the last save. A step that prints a line and then
+  works silently (the normal slow `RUN` step) never had that line saved until it finished. I changed it to save the
+  latest output one second after it arrives.
+- **Result:** the test passed three runs in a row, and removing the streaming made it fail, so it now proves
+  something.
+- **Lesson:** a flaky test can be reporting a real bug; and a "throttle" must also save the last change, not only
+  drop the extras.
+
 ## ISS-042 — My sabotage-test cleanup wiped the feature I had just written (M1-S7)
 - **Situation:** To prove the new health-check tests could fail, I broke the check on purpose, ran the tests (both
   caught it), then "undid" the sabotage with `git checkout -- deployments.release.ts`.

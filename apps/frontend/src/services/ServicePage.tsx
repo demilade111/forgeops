@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { ChevronDown, ExternalLink, GitBranch, GitCommitHorizontal, Loader2 } from "lucide-react";
-import { useParams, useSearchParams } from "react-router";
+import { Link, useParams, useSearchParams } from "react-router";
 import { api } from "@/api";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { cn } from "@/lib/utils";
 import { useCrumbs } from "@/stores/crumbs";
 import type { Deployment, Service } from "@/types";
 import { DeploymentSteps } from "./DeploymentSteps";
+import { ServiceLogs } from "./ServiceLogs";
 import { ServiceSettings } from "./ServiceSettings";
 
 const active = (d: Deployment | null | undefined) =>
@@ -100,7 +101,8 @@ function Settings({ s }: { s: Service }) {
 export function ServicePage() {
   const { serviceId = "" } = useParams();
   const [params, setParams] = useSearchParams();
-  const tab = params.get("tab") === "settings" ? "settings" : "overview";
+  const tabs = ["overview", "logs", "settings"] as const;
+  const tab = tabs.find((t) => t === params.get("tab")) ?? "overview";
   const service = useLoad(() => api.getService(serviceId), [serviceId]);
   const deployments = useLoad(() => api.listDeployments(serviceId), [serviceId]);
   const projectId = service.data?.projectId;
@@ -215,11 +217,11 @@ export function ServicePage() {
       {deploy.error && <p className="text-fail -mt-6 text-sm">{deploy.error}</p>}
 
       <nav className="-mt-4 flex gap-6 border-b text-sm">
-        {(["overview", "settings"] as const).map((name) => (
+        {tabs.map((name) => (
           <button
             key={name}
             type="button"
-            onClick={() => setParams(name === "settings" ? { tab: "settings" } : {})}
+            onClick={() => setParams(name === "overview" ? {} : { tab: name })}
             className={cn(
               "-mb-px border-b-2 pb-3 capitalize transition-colors",
               tab === name
@@ -232,9 +234,9 @@ export function ServicePage() {
         ))}
       </nav>
 
-      {tab === "settings" ? (
-        <ServiceSettings service={s} onSaved={service.reload} />
-      ) : (
+      {tab === "settings" && <ServiceSettings service={s} onSaved={service.reload} />}
+      {tab === "logs" && <ServiceLogs serviceId={s.id} />}
+      {tab === "overview" && (
         <>
           <section className="bg-card overflow-hidden rounded-lg border">
             <div className="grid gap-8 p-6 lg:grid-cols-[1fr_1.1fr]">
@@ -282,6 +284,23 @@ export function ServicePage() {
                       <GitCommitHorizontal className="size-3.5" />
                       {shortSha(live?.commitSha ?? null) ?? "-"}
                     </span>
+                  </Detail>
+                  <Detail label="Image">
+                    <span className="font-mono" title={live?.image ?? undefined}>
+                      {live?.image?.split("@")[1]?.slice(0, 19) ?? "-"}
+                    </span>
+                  </Detail>
+                  <Detail label="Deploy">
+                    {live ? (
+                      <Link
+                        to={`/app/deployments/${live.id}`}
+                        className="text-primary underline-offset-4 hover:underline"
+                      >
+                        View details
+                      </Link>
+                    ) : (
+                      <span className="text-muted-foreground">-</span>
+                    )}
                   </Detail>
                 </dl>
               </div>
@@ -356,6 +375,14 @@ export function ServicePage() {
                                 </p>
                               )}
                               <DeploymentSteps deployment={shown} />
+                              <div className="border-t px-5 py-3 text-right">
+                                <Link
+                                  to={`/app/deployments/${d.id}`}
+                                  className="text-primary text-sm underline-offset-4 hover:underline"
+                                >
+                                  Open deploy page
+                                </Link>
+                              </div>
                             </>
                           )}
                         </div>

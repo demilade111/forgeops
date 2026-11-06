@@ -73,7 +73,17 @@ export type Deployment = {
   startedAt: string | null;
   finishedAt: string | null;
   steps?: DeploymentStep[];
+  triggeredBy?: { email: string } | null;
+  service?: {
+    id: string;
+    name: string;
+    branch: string;
+    repositoryFullName: string;
+    project: { id: string; name: string };
+  };
 };
+
+export type ServiceLogs = { deploymentId: string | null; running: boolean; log: string };
 
 export type ServiceChanges = Partial<{
   branch: string;

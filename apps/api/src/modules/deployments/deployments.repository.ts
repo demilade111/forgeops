@@ -49,8 +49,23 @@ export const deploymentsRepository = (db: PrismaClient) => ({
 
   find: (id: string, organizationIds: string[]) =>
     db.deployment.findFirst({
-      where: { id, service: { project: { organizationId: { in: organizationIds } } } },
-      include: withSteps,
+      where: {
+        id,
+        service: { deletingAt: null, project: { organizationId: { in: organizationIds } } },
+      },
+      include: {
+        ...withSteps,
+        triggeredBy: { select: { email: true } },
+        service: {
+          select: {
+            id: true,
+            name: true,
+            branch: true,
+            repositoryFullName: true,
+            project: { select: { id: true, name: true } },
+          },
+        },
+      },
     }),
 
   claim: async (id: string) => {
@@ -78,6 +93,18 @@ export const deploymentsRepository = (db: PrismaClient) => ({
         startedAt: new Date(),
         finishedAt: null,
       },
+    }),
+
+  saveStepLog: (deploymentId: string, name: string, log: string) =>
+    db.deploymentStep.updateMany({
+      where: { deploymentId, name, status: "running" },
+      data: { log },
+    }),
+
+  findLive: (serviceId: string) =>
+    db.deployment.findFirst({
+      where: { serviceId, status: "succeeded" },
+      orderBy: { createdAt: "desc" },
     }),
 
   saveCommit: (id: string, commitSha: string) =>

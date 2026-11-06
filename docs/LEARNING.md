@@ -253,6 +253,13 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Probe through the proxy:** a temporary internal route lets the worker reach a container on a private network.
 - **Separate outcomes:** Build, Rollout and Health each point at a different fix.
 
+### Logs and history (M1-S8, done)
+- **stdout/stderr:** what an app prints. Docker keeps it per container; `docker logs --tail 200 --timestamps` reads it.
+- **Streaming by polling:** the worker saves the latest build output every second; the page asks again every 1.5 s.
+- **Throttle with a trailing save:** save at most once a second, but always save the last change too.
+- **Image digest:** the exact fingerprint of a build (`sha256:...`), unlike a tag that can move.
+- **Deep link:** a page with its own URL (one deploy) that can be shared.
+
 ## Interview questions
 
 Moved to `INTERVIEW.md` (trade-offs, failure scenarios and answers for every slice).

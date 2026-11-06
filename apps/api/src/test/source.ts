@@ -63,7 +63,7 @@ export async function until(check: () => Promise<boolean>, timeoutMs = 15_000) {
 
 export const webApp = {
   Dockerfile: `FROM busybox:1.37
-CMD mkdir -p /www/health && echo ok > /www/health/ready && echo "hello $GREETING" > /www/index.html && exec httpd -f -p 8080 -h /www
+CMD echo "web app starting" && mkdir -p /www/health && echo ok > /www/health/ready && echo "hello $GREETING" > /www/index.html && exec httpd -f -p 8080 -h /www
 `,
 };
 

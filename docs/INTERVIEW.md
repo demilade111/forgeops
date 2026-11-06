@@ -506,6 +506,66 @@ release ran a destructive migration, the old version can fail too. ForgeOps reco
 
 ---
 
+## 14. Logs and history (M1-S8)
+
+**The flow:** three kinds of record, each answering a different question:
+- **Step logs:** "what did the build say?" Saved every second while a step runs, so you watch it happen.
+- **App logs:** "what is my app printing right now?" The Logs tab reads the live container's output.
+- **Deploy page:** "what exactly went out?" Commit, image digest, who triggered it, timings, each step's log.
+
+### Why each tool
+| Choice | Why | Alternatives and their cost |
+| --- | --- | --- |
+| **Save the log every second while running** | the page already polls; no new protocol | WebSockets or server-sent events (real-time, but a second channel to secure and keep open); save only at the end (looks frozen for minutes) |
+| **API reads `docker logs` for the live container** | simplest, no new service, real output | worker copies logs into Postgres (table growth, delay); Loki or CloudWatch (the cloud answer, more setup) |
+| **Container name from the database** | the request only names a service the user is a member of | taking a container name from the request (could read another tenant's container) |
+| **Deploy page with its own URL** | shareable in a chat or incident ticket | expandable rows only (can't link to one deploy) |
+| **Image digest, not tag** | the digest is the exact build; a tag can be moved | show the tag (could point at a different build later) |
+
+### What happens when...
+| Situation | What ForgeOps does |
+| --- | --- |
+| A slow build step prints a line, then works for minutes | The line shows within about a second. Tested (ISS-043 was this bug). |
+| The live container was removed (Docker reset) | Logs tab: "Your app is not running. Deploy to start it again." Tested. |
+| Docker can't be reached | 503 "Logs are not available right now". The page keeps retrying every 3 s. |
+| Someone asks for another organization's logs | 404, same as every other service route. Tested. |
+| `?lines=5000` | 400; the limit is 1 to 1000. Tested. |
+| The app prints a secret | It shows in the Logs tab to members of that workspace. Apps should not log secrets. |
+
+### "How do you debug a failed deploy on ForgeOps?" (30-second answer)
+"Open the deploy page. The badges tell me which part failed: Build, Rollout or Health. The failed step has its own
+log, for a build that's the Docker output, for a health check it's the last answer and the app's own output. The page
+also shows the exact commit and image, so I know precisely what was running. If it got live and broke later, the Logs
+tab shows what the app is printing right now."
+
+### Real evidence (M1-S8)
+- 126 API tests. New: build log saved while the build runs (real Docker), live app output with timestamps through
+  the API, container gone, empty logs before the first deploy, `lines` validation, other organizations get 404,
+  deploy detail includes trigger and service but never env vars.
+- Sabotage: turning off streaming and reading the wrong container both failed tests.
+- Browser: Logs tab showed `Sample API listening on port 8080` with its time; the deploy page showed commit, image
+  digest, timings and the three badges. A real deploy through the restarted worker succeeded and served 200.
+- Story: **ISS-043** (a flaky test that was a real bug).
+
+### Known limits
+- Only the live container's logs, only what Docker keeps; no search; old logs go with the old container.
+- Polling, not streaming: up to 3 seconds behind.
+- The API needs Docker access in M1; in the cloud it reads a log service instead.
+
+### Questions
+**Q: Polling or WebSockets for logs?** _Polling every 1.5 to 3 seconds is simple, works through any proxy and reuses
+the normal auth. WebSockets or server-sent events are better when many people watch or when sub-second updates
+matter. For a deploy page, a second's delay is fine._
+
+**Q: How do you make sure one tenant can't read another's logs?** _The request names a service; the API checks
+membership through the service's organization, then takes the container name from our own database. Nothing in the
+request becomes part of the Docker command except a validated line count._
+
+**Q: Why show the image digest?** _It's the fingerprint of the exact build. Tags like `latest` can move; the digest
+can't. It's what rollback (M1-S9) will redeploy._
+
+---
+
 ## Product questions
 
 **Q: Why build this when Vercel, Render and Railway exist?** _It runs on infrastructure you own, its internals

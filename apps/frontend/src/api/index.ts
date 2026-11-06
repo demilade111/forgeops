@@ -9,6 +9,7 @@ import type {
   ProjectDetail,
   Service,
   ServiceChanges,
+  ServiceLogs,
 } from "../types";
 
 export const http = axios.create({ baseURL: "/api", adapter: "fetch", timeout: 15_000 });
@@ -45,6 +46,8 @@ export const api = {
     (await http.patch<Service>(`/services/${id}`, changes)).data,
   listDeployments: async (serviceId: string) =>
     (await http.get<Deployment[]>(`/services/${serviceId}/deployments`)).data,
+  getServiceLogs: async (serviceId: string) =>
+    (await http.get<ServiceLogs>(`/services/${serviceId}/logs`, { params: { lines: 500 } })).data,
   getDeployment: async (id: string) => (await http.get<Deployment>(`/deployments/${id}`)).data,
   deploy: async (serviceId: string, idempotencyKey: string) =>
     (

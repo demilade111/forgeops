@@ -200,6 +200,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-059 | Settings in the dashboard | Service Settings tab edits branch, root directory, port and env vars through the existing `PATCH /api/services/:id`; account Settings page shows account, workspace, GitHub and log out | **Accepted** (2026-11-06) |
 | ADR-060 | Deleting services and projects | Clean delete through the outbox and worker: hide at once, remove the route and containers, then the rows; refused while a deploy is active; project delete takes its services | **Accepted** (2026-11-06) |
 | ADR-061 | Readiness check before go-live | New `health` step between `run` and `route`: call the service's health check path (default `/health/ready`, empty accepts any answer) through a temporary Caddy route every second for up to 60 s; 2xx or 3xx passes; a stopped container fails at once | **Accepted** (2026-11-06) |
+| ADR-062 | Logs and history | Build and push logs saved every second while running; app logs read by the API with `docker logs` for the live container only; deploy detail page at `/app/deployments/:id` with commit, image, trigger and steps | **Accepted** (2026-11-06) |
 | ADR-053 | Local seed script | `pnpm --filter @forgeops/api seed` recreates the demo account, GitHub link, project and service; safe to rerun | **Accepted** (2026-11-03) |
 | ADR-051 | Build logs, time limits and stale deployments | Step logs in `DeploymentStep.log` (last 64 KiB); build 15 min, push 5 min, GitHub calls 2 min; sweeper fails deployments running over 60 min | **Accepted** (2026-11-03) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
@@ -932,6 +933,33 @@ Template:
 - **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
+
+### ADR-062 — Logs and history (M1-S8)
+- **Status:** Accepted (2026-11-06). The product owner approved the recommended options and asked to revisit the
+  details after M1.
+- **Live build logs:** `run` reports output as it arrives; the worker saves the latest output of the build and push
+  steps at most once per second (`saveStepLog`, which only writes while the step is still running, so a late write
+  never overwrites the final log). The page already polls every 1.5 s, so the log grows while you watch.
+  - First version saved only when new output arrived, so output followed by silence (a slow `RUN` step) stayed
+    unsaved until the step ended. A test caught it (ISS-043); the fix saves the latest output one second after it
+    arrives.
+- **App logs:** `GET /api/services/:id/logs?lines=1..1000` (default 200; the UI asks for 500). The API finds the
+  service's latest successful deployment and runs `docker logs --tail N --timestamps fo-<deploymentId>`. The
+  container name always comes from the database, never from the request. Membership is checked like every other
+  service route. If the container is gone it answers `running: false`; if Docker can't be reached, 503
+  `LOGS_UNAVAILABLE`. The Logs tab polls every 3 seconds and follows the newest line.
+  - Options: (1) the API reads Docker directly (chosen for M1: simplest, no new tool); (2) the worker copies logs into
+    PostgreSQL every few seconds (database growth, delay); (3) a log tool such as Loki (new infrastructure, needs
+    approval).
+  - Trade-off accepted: the API process now needs access to Docker on this machine. In the cloud this becomes a call
+    to the log service (for example CloudWatch Logs) and the API needs no Docker access.
+- **History and detail:** `GET /api/deployments/:id` also returns who triggered it (email) and the service, project,
+  branch and repository. A deploy page at `/app/deployments/:id` shows the commit (linked to GitHub), branch,
+  repository, image digest, total time, URL, the three outcome badges and every step with its log. History rows and
+  the Production card link to it; the Production card now shows the image too.
+- **Consequences:** logs are only for the live container and only what Docker keeps (no search, no history after a
+  redeploy replaces the container). Old app logs disappear with the old container. Long-term storage and search are
+  a later observability decision (ADR-013).
 
 ### ADR-061 — Readiness check before go-live (M1-S7)
 - **Status:** Accepted (2026-11-06). The product owner approved the three recommended options.

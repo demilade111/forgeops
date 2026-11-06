@@ -17,12 +17,20 @@ export class StepFailure extends Error {
   }
 }
 
-export function run(command: string, args: string[], timeoutMs: number) {
+export function run(
+  command: string,
+  args: string[],
+  timeoutMs: number,
+  onLog?: (log: string) => void,
+) {
   const signal = AbortSignal.timeout(timeoutMs);
   return new Promise<{ code: number | null; log: string; timedOut: boolean }>((resolve, reject) => {
     const child = spawn(command, args, { stdio: ["ignore", "pipe", "pipe"], signal });
     let log = "";
-    const collect = (chunk: Buffer) => (log = (log + chunk.toString()).slice(-logLimit));
+    const collect = (chunk: Buffer) => {
+      log = (log + chunk.toString()).slice(-logLimit);
+      onLog?.(log);
+    };
     child.stdout.on("data", collect);
     child.stderr.on("data", collect);
     child.on("error", (error) => {
@@ -64,11 +72,17 @@ export async function unpackSource(dir: string, sourceDirectory: string, commit:
   return context;
 }
 
-export async function buildImage(context: string, tag: string, timeoutMs: number) {
+export async function buildImage(
+  context: string,
+  tag: string,
+  timeoutMs: number,
+  onLog?: (log: string) => void,
+) {
   const { code, log, timedOut } = await run(
     "docker",
     ["build", "--progress=plain", "-t", tag, context],
     timeoutMs,
+    onLog,
   );
   if (timedOut) {
     throw new StepFailure("Build took longer than the time limit. See the build log.", log);
@@ -79,8 +93,8 @@ export async function buildImage(context: string, tag: string, timeoutMs: number
   return log;
 }
 
-export async function pushImage(tag: string, timeoutMs: number) {
-  const { code, log, timedOut } = await run("docker", ["push", tag], timeoutMs);
+export async function pushImage(tag: string, timeoutMs: number, onLog?: (log: string) => void) {
+  const { code, log, timedOut } = await run("docker", ["push", tag], timeoutMs, onLog);
   const digest = /digest: (sha256:[a-f0-9]{64})/.exec(log)?.[1];
   if (timedOut || code !== 0 || !digest) {
     throw new StepFailure("Could not push the image to the registry", log);

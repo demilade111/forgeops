@@ -126,6 +126,26 @@ it("lists and reads deployments with their steps", async () => {
   expect(one.body.steps).toEqual([
     expect.objectContaining({ name: "resolve-commit", status: "running" }),
   ]);
+  expect(one.body).toMatchObject({
+    triggeredBy: { email: "dev@example.com" },
+    service: {
+      id: serviceId,
+      name: "api",
+      branch: "main",
+      repositoryFullName: "demilade111/forgeops-sample-api",
+      project: { name: "sample-shop" },
+    },
+  });
+  expect(one.body.service.envVars).toBeUndefined();
+});
+
+it("returns empty app logs before the first successful deploy, and validates lines", async () => {
+  const { agent, serviceId } = await signedIn();
+
+  const logs = await agent.get(`/api/services/${serviceId}/logs`);
+  expect(logs.body).toEqual({ deploymentId: null, running: false, log: "" });
+  expect((await agent.get(`/api/services/${serviceId}/logs?lines=0`)).status).toBe(400);
+  expect((await agent.get(`/api/services/${serviceId}/logs?lines=5000`)).status).toBe(400);
 });
 
 it("hides other organizations' services and deployments", async () => {
@@ -148,6 +168,9 @@ it("hides other organizations' services and deployments", async () => {
   expect(read.body.error.code).toBe("DEPLOYMENT_NOT_FOUND");
   expect((await stranger.agent.get("/api/deployments/not-a-uuid")).status).toBe(404);
 
+  expect((await stranger.agent.get(`/api/services/${owner.serviceId}/logs`)).status).toBe(404);
+
   const anonymous = await request(app).get(`/api/deployments/${created.body.id}`);
   expect(anonymous.status).toBe(401);
+  expect((await request(app).get(`/api/services/${owner.serviceId}/logs`)).status).toBe(401);
 });
