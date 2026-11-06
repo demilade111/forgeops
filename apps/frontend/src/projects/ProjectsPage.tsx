@@ -190,7 +190,7 @@ export function ProjectsPage({ organizationId }: { organizationId: string }) {
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="text-muted-foreground hover:text-foreground hover:border-foreground/25 flex h-44 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed transition-colors"
+                className="text-muted-foreground border-foreground/30 hover:border-primary hover:bg-primary/5 hover:text-primary flex h-44 w-full flex-col items-center justify-center gap-2 rounded-lg border border-dashed transition-colors"
               >
                 <Plus className="size-5" />
                 <span className="text-sm">New project</span>

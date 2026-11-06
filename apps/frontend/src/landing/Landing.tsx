@@ -1,24 +1,57 @@
 import type { ReactNode } from "react";
-import { Check, ChevronRight, Clock, GitBranch, Globe, ListEnd, Lock, Plus, X } from "lucide-react";
+import { Check, ChevronRight, Clock, GitBranch, Globe, ListEnd, Lock, X } from "lucide-react";
 import { Link } from "react-router";
+import {
+  siBun,
+  siDeno,
+  siDjango,
+  siDocker,
+  siDotnet,
+  siElixir,
+  siGithub,
+  siGo,
+  siNodedotjs,
+  siOpenjdk,
+  siPhp,
+  siPython,
+  siRuby,
+  siRust,
+  type SimpleIcon,
+} from "simple-icons";
 import { Logo } from "@/components/Logo";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/stores/session";
 import { DeployMap } from "./DeployMap";
 
-const stacks = [
-  "Node.js",
-  "Python",
-  "Go",
-  "Rust",
-  "Ruby",
-  "PHP",
-  "Java",
-  "Bun",
-  ".NET",
-  "Elixir",
-  "Deno",
-  "Django",
+const stacks: [SimpleIcon, string][] = [
+  [siNodedotjs, "Node.js"],
+  [siPython, "Python"],
+  [siGo, "Go"],
+  [siRust, "Rust"],
+  [siRuby, "Ruby"],
+  [siPhp, "PHP"],
+  [siOpenjdk, "Java"],
+  [siBun, "Bun"],
+  [siDotnet, ".NET"],
+  [siElixir, "Elixir"],
+  [siDeno, "Deno"],
+  [siDjango, "Django"],
+];
+
+const deploySteps = [
+  ["Find latest commit", "0.4s"],
+  ["Download code", "1.1s"],
+  ["Build image", "14.2s"],
+  ["Save image", "3.1s"],
+  ["Start app", "0.5s"],
+  ["Check health", "1.2s"],
+  ["Go live", "0.3s"],
+];
+
+const checks: [SimpleIcon, string][] = [
+  [siGithub, "Repository found"],
+  [siGithub, "Branch main exists"],
+  [siDocker, "Dockerfile found in api/"],
 ];
 
 const timing: [string, number, number][] = [
@@ -60,27 +93,80 @@ function Cta({
   );
 }
 
+function Brand({ icon, className }: { icon: SimpleIcon; className?: string }) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill={`#${icon.hex}`} aria-hidden="true">
+      <path d={icon.path} />
+    </svg>
+  );
+}
+
 function Step({
   n,
   title,
   text,
+  flip,
   children,
 }: {
   n: number;
   title: string;
   text: string;
+  flip?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="grid gap-8 lg:grid-cols-[1fr_1.15fr] lg:gap-16">
-      <div>
-        <span className="flex size-9 items-center justify-center rounded-[3px] bg-[#6d4aff] text-lg font-medium text-white">
+    <div
+      className={cn(
+        "grid items-center gap-10 lg:gap-20",
+        flip ? "lg:grid-cols-[1.15fr_0.85fr]" : "lg:grid-cols-[0.85fr_1.15fr]",
+      )}
+    >
+      <div className={cn(flip && "lg:order-2")}>
+        <span className="flex size-10 items-center justify-center rounded-[3px] bg-[#6d4aff] text-lg font-medium text-white">
           {n}
         </span>
-        <h3 className="mt-5 text-2xl font-medium tracking-[-0.03em] sm:text-3xl">{title}</h3>
-        <p className="text-muted-foreground mt-3 max-w-md text-lg leading-relaxed">{text}</p>
+        <h3 className="mt-6 text-3xl font-medium tracking-[-0.035em] sm:text-4xl">{title}</h3>
+        <p className="text-muted-foreground mt-4 max-w-md text-lg leading-relaxed">{text}</p>
       </div>
-      <div>{children}</div>
+      <div className={cn("min-w-0", flip && "lg:order-1")}>{children}</div>
+    </div>
+  );
+}
+
+function Stage({ children }: { children: ReactNode }) {
+  return (
+    <div className="relative overflow-hidden rounded-lg border border-[#e4def9] p-4 shadow-[0_30px_80px_-40px_rgba(76,47,200,0.4)] sm:p-8">
+      <div
+        aria-hidden="true"
+        className="absolute inset-0 bg-[radial-gradient(ellipse_80%_75%_at_90%_100%,rgba(109,74,255,0.38),transparent_70%),radial-gradient(ellipse_60%_55%_at_10%_0%,rgba(236,120,170,0.16),transparent_70%),linear-gradient(#fbfaff,#fbfaff)]"
+      />
+      <div aria-hidden="true" className="noise absolute inset-0" />
+      <div className="relative space-y-4">{children}</div>
+    </div>
+  );
+}
+
+function Window({
+  title,
+  right,
+  children,
+}: {
+  title: string;
+  right?: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <div className="overflow-hidden rounded-md border border-[#e7e4f2] bg-white shadow-[0_20px_50px_-24px_rgba(40,20,120,0.35)]">
+      <div className="flex items-center gap-1.5 border-b px-4 py-3">
+        <span className="size-2.5 rounded-full bg-[#e7e4f2]" />
+        <span className="size-2.5 rounded-full bg-[#e7e4f2]" />
+        <span className="size-2.5 rounded-full bg-[#e7e4f2]" />
+        <span className="text-muted-foreground ml-3 flex-1 truncate font-mono text-xs">
+          {title}
+        </span>
+        {right}
+      </div>
+      {children}
     </div>
   );
 }
@@ -148,15 +234,6 @@ export function Landing() {
             <a href="#how" className="hover:text-foreground">
               How it works
             </a>
-            <a href="#stack" className="hover:text-foreground">
-              Stacks
-            </a>
-            <a href="#logs" className="hover:text-foreground">
-              Logs
-            </a>
-            <a href="#failures" className="hover:text-foreground">
-              Failures
-            </a>
           </nav>
         </div>
         <div className="flex items-center gap-4">
@@ -219,112 +296,139 @@ export function Landing() {
         <Step
           n={1}
           title="Create a service"
-          text="Pick what to run. Web services work today; background workers and scheduled jobs are next."
+          text="Name it and pick what to run. Web services work today; background workers and scheduled jobs are next."
         >
-          <div className="space-y-2">
-            <Panel className="text-muted-foreground flex items-center gap-3 px-5 py-4 text-lg">
-              <Plus className="size-5" />
-              New service
-            </Panel>
-            <Panel className="divide-y overflow-hidden">
-              {serviceTypes.map(([Icon, label, active]) => (
-                <div
-                  key={label}
-                  className={cn(
-                    "flex items-center gap-4 px-5 py-4 text-lg",
-                    active ? "bg-[#6d4aff] text-white" : "text-muted-foreground",
-                  )}
-                >
-                  <Icon className="size-5" strokeWidth={1.5} />
-                  <span className="flex-1">{label}</span>
-                  {active ? <Check className="size-5" /> : <span className="text-sm">Coming</span>}
+          <Stage>
+            <Window title="sample-shop / new service">
+              <div className="space-y-5 p-5 sm:p-6">
+                <div className="space-y-2">
+                  <p className="text-sm">Name</p>
+                  <p className="flex h-11 items-center rounded-[3px] border border-[#6d4aff] px-4 font-mono shadow-[0_0_0_3px_#ece7ff]">
+                    api
+                  </p>
                 </div>
-              ))}
-            </Panel>
-          </div>
+                <div className="space-y-2">
+                  <p className="text-sm">Type</p>
+                  <div className="grid gap-2 sm:grid-cols-3">
+                    {serviceTypes.map(([Icon, label, active]) => (
+                      <div
+                        key={label}
+                        className={cn(
+                          "relative rounded-md border p-4",
+                          active
+                            ? "border-[#6d4aff] bg-[#f6f3ff] shadow-[0_0_0_1px_#6d4aff]"
+                            : "text-muted-foreground border-dashed",
+                        )}
+                      >
+                        <Icon
+                          className={cn("size-5", active && "text-[#6d4aff]")}
+                          strokeWidth={1.5}
+                        />
+                        <p className={cn("mt-3 text-sm font-medium", active && "text-foreground")}>
+                          {label}
+                        </p>
+                        <p className="text-muted-foreground mt-0.5 text-xs">
+                          {active ? "Ready" : "Coming"}
+                        </p>
+                        {active && (
+                          <Check
+                            className="absolute top-4 right-4 size-4 text-[#6d4aff]"
+                            strokeWidth={2.5}
+                          />
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex justify-end border-t pt-5">
+                  <span className="inline-flex h-10 items-center rounded-[3px] bg-[#6d4aff] px-5 text-sm font-medium text-white">
+                    Create service
+                  </span>
+                </div>
+              </div>
+            </Window>
+          </Stage>
         </Step>
 
         <Step
           n={2}
+          flip
           title="Point it at your code"
           text="Choose the repository, branch and folder with your Dockerfile. ForgeOps checks all three with GitHub before saving."
         >
-          <div className="space-y-3">
-            <Panel className="space-y-4 p-5">
-              {[
-                ["Branch", "main"],
-                ["Root directory", "api"],
-                ["Port", "8080"],
-              ].map(([label, value]) => (
-                <div key={label} className="grid grid-cols-[7.5rem_1fr] items-center gap-4">
-                  <span className="text-muted-foreground text-right text-sm sm:text-base">
-                    {label}
-                  </span>
-                  <span className="flex h-12 items-center gap-3 rounded-[3px] border border-[#e7e4f2] bg-[#f8f7fc] px-4 font-mono">
-                    {label === "Branch" && <GitBranch className="size-4" />}
-                    {value}
+          <Stage>
+            <Window title="api / source">
+              <div className="space-y-4 p-5 sm:p-6">
+                <div className="flex items-center gap-3 rounded-md border border-[#e7e4f2] px-4 py-3">
+                  <Brand icon={siGithub} className="size-5 shrink-0" />
+                  <span className="truncate font-mono text-sm">
+                    demilade111/forgeops-sample-api
                   </span>
                 </div>
-              ))}
-            </Panel>
-            <Panel className="space-y-1.5 p-5 font-mono text-sm leading-6">
-              <p className="text-muted-foreground">
-                <span className="text-[#6d4aff]">==&gt;</span> Building your app...
-              </p>
-              <p>
-                <span className="text-ok">✓</span> Built in 14.2s
-              </p>
-              <p>
-                <span className="text-[#6d4aff]">==&gt;</span> Starting your app
-              </p>
-              <p>
-                <span className="text-[#6d4aff]">==&gt;</span> Your service is live
-              </p>
-            </Panel>
-          </div>
+                <div className="grid grid-cols-3 gap-3">
+                  {[
+                    ["Branch", "main"],
+                    ["Folder", "api"],
+                    ["Port", "8080"],
+                  ].map(([label, value]) => (
+                    <div key={label} className="min-w-0 space-y-1.5">
+                      <p className="text-muted-foreground text-xs">{label}</p>
+                      <p className="flex h-10 items-center gap-2 rounded-[3px] border border-[#e7e4f2] bg-[#f8f7fc] px-3 font-mono text-sm">
+                        {label === "Branch" && <GitBranch className="size-3.5 shrink-0" />}
+                        {value}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+                <ul className="space-y-3 rounded-md bg-[#f8f7fc] p-4 text-sm">
+                  {checks.map(([icon, label]) => (
+                    <li key={label} className="flex items-center gap-3">
+                      <Brand icon={icon} className="size-4 shrink-0" />
+                      <span className="flex-1">{label}</span>
+                      <Check className="text-ok size-4" strokeWidth={2.5} />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </Window>
+          </Stage>
         </Step>
 
         <Step
           n={3}
           title="ForgeOps does the rest"
-          text="Press Deploy. ForgeOps takes your latest commit, builds it, starts it and gives it a URL, with every step timed and logged. Auto-deploy on push is coming."
+          text="Press Deploy. ForgeOps takes your latest commit, builds it, checks it is healthy and gives it a URL, with every step timed and logged. Auto-deploy on push is coming."
         >
-          <div className="space-y-4">
-            <div className="space-y-1 px-1 font-mono text-sm leading-7">
-              <p className="text-muted-foreground">
-                ~/sample-api $ git commit -am "Update homepage"
-              </p>
+          <Stage>
+            <div className="rounded-md bg-[#17151f] p-4 font-mono text-xs leading-6 text-white/85 shadow-xl sm:text-sm">
+              <p className="text-white/50">~/sample-api $ git commit -am "Update homepage"</p>
               <p>[main f2edcd7] Update homepage</p>
-              <p className="text-[#6d4aff]">~/sample-api $ git push</p>
+              <p className="text-[#b9a8ff]">~/sample-api $ git push</p>
             </div>
-            <Panel className="p-5">
-              <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
-                <span className="text-muted-foreground">demilade111/forgeops-sample-api</span>
-                <span className="text-muted-foreground flex items-center gap-1.5">
-                  <GitBranch className="size-4" />
-                  main
+            <Window
+              title="api / deploy f2edcd7"
+              right={
+                <span className="text-ok flex items-center gap-1.5 text-xs">
+                  <Check className="size-3.5" strokeWidth={2.5} />
+                  Live
                 </span>
-              </div>
-              <p className="mt-1 text-[#6d4aff]">http://api.sample-shop.localhost</p>
-              <ul className="mt-4 divide-y border-t">
-                {[
-                  ["Deploy live: f2edcd7", "2:05:22 PM"],
-                  ["Deploy live: a91c3e0", "1:48:09 PM"],
-                  ["Deploy live: 7b2d410", "9:50:12 AM"],
-                ].map(([label, time]) => (
-                  <li key={label} className="flex items-center gap-4 py-4">
-                    <span className="bg-ok flex size-7 items-center justify-center rounded-full">
-                      <Check className="size-4 text-white" strokeWidth={3} />
-                    </span>
-                    <div>
-                      <p>{label}</p>
-                      <p className="text-muted-foreground font-mono text-sm">{time}</p>
-                    </div>
+              }
+            >
+              <ul className="divide-y">
+                {deploySteps.map(([label, time]) => (
+                  <li key={label} className="flex items-center gap-3 px-5 py-2.5 text-sm">
+                    <Check className="text-ok size-4" strokeWidth={2.5} />
+                    <span className="flex-1">{label}</span>
+                    <span className="text-muted-foreground font-mono text-xs">{time}</span>
                   </li>
                 ))}
               </ul>
-            </Panel>
-          </div>
+              <p className="text-ok flex items-center gap-2 border-t bg-[#effaf4] px-5 py-3 text-sm">
+                <Globe className="size-4 shrink-0" />
+                <span className="truncate font-mono">http://api.sample-shop.localhost</span>
+              </p>
+            </Window>
+          </Stage>
         </Step>
       </section>
 
@@ -345,11 +449,12 @@ export function Landing() {
             </Cta>
           </div>
           <ul className="mt-14 grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6">
-            {stacks.map((name) => (
+            {stacks.map(([icon, name]) => (
               <li
                 key={name}
-                className="flex aspect-square items-center justify-center rounded-[3px] border border-[#e2dbfb] bg-white/75 font-mono text-sm text-[#3d3a4d] backdrop-blur"
+                className="flex aspect-square flex-col items-center justify-center gap-3 rounded-[3px] border border-[#e2dbfb] bg-white/75 font-mono text-sm text-[#3d3a4d] backdrop-blur"
               >
+                <Brand icon={icon} className="size-8 sm:size-10" />
                 {name}
               </li>
             ))}
