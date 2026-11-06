@@ -42,8 +42,8 @@ function Tile({
   return (
     <div
       className={cn(
-        "relative flex items-center gap-3 rounded-md border bg-white/90 px-3.5 py-3 backdrop-blur",
-        selected && "border-[#6d4aff] shadow-[0_0_0_1px_#6d4aff]",
+        "relative flex items-center gap-3 rounded-md border bg-card/90 px-3.5 py-3 backdrop-blur",
+        selected && "border-primary shadow-[0_0_0_1px_var(--primary)]",
         (state === "coming" || state === "add") && "border-dashed bg-transparent",
       )}
     >
@@ -55,17 +55,17 @@ function Tile({
         <p className="text-muted-foreground truncate text-xs">{kind}</p>
       </div>
       {state === "live" && (
-        <span className="flex size-6 items-center justify-center rounded-sm bg-[#e3f5ec]">
+        <span className="flex size-6 items-center justify-center rounded-sm bg-ok/10">
           <Check className="text-ok size-3.5" strokeWidth={2.5} />
         </span>
       )}
       {state === "deploying" && (
-        <span className="flex size-6 items-center justify-center rounded-sm bg-[#ece7ff]">
-          <span className="size-3 animate-spin rounded-full border-2 border-[#6d4aff] border-t-transparent" />
+        <span className="flex size-6 items-center justify-center rounded-sm bg-secondary">
+          <span className="size-3 animate-spin rounded-full border-2 border-primary border-t-transparent" />
         </span>
       )}
       {state === "coming" && (
-        <span className="text-muted-foreground absolute -top-2.5 left-3 rounded-sm border border-[#d9d0ff] bg-[#f4f0ff] px-1.5 text-[0.65rem] text-[#6d4aff]">
+        <span className="text-muted-foreground absolute -top-2.5 left-3 rounded-sm border border-primary/30 bg-secondary px-1.5 text-[0.65rem] text-primary">
           Coming
         </span>
       )}
@@ -84,10 +84,10 @@ export function DeployMap() {
   }, [shown, done]);
 
   return (
-    <div className="relative overflow-hidden rounded-lg border border-[#e4def9] p-4 shadow-[0_30px_80px_-40px_rgba(76,47,200,0.4)] sm:p-6">
+    <div className="relative overflow-hidden rounded-lg border border-border p-4 shadow-[0_30px_80px_-40px_rgba(76,47,200,0.4)] sm:p-6">
       <div
         aria-hidden="true"
-        className="absolute inset-0 bg-[radial-gradient(ellipse_80%_75%_at_90%_100%,rgba(109,74,255,0.38),transparent_70%),radial-gradient(ellipse_60%_55%_at_15%_100%,rgba(236,120,170,0.18),transparent_70%),linear-gradient(#fbfaff,#fbfaff)]"
+        className="absolute inset-0 bg-[radial-gradient(ellipse_80%_75%_at_90%_100%,rgba(109,74,255,0.38),transparent_70%),radial-gradient(ellipse_60%_55%_at_15%_100%,rgba(236,120,170,0.18),transparent_70%),linear-gradient(var(--background),var(--background))]"
       />
       <div aria-hidden="true" className="noise absolute inset-0" />
       <div className="relative">
@@ -112,14 +112,14 @@ export function DeployMap() {
           <Tile name="cleanup" kind="Scheduled job" icon={Clock} state="coming" />
           <Tile name="Add service" kind="From any repo" icon={Plus} state="add" />
         </div>
-        <div className="mt-4 overflow-hidden rounded-md border bg-white/95">
+        <div className="mt-4 overflow-hidden rounded-md border bg-card/95">
           <div className="flex items-center justify-between border-b px-4 py-3 font-mono text-xs sm:text-sm">
             <span className="text-muted-foreground truncate">api &nbsp;deploy f2edcd7</span>
             <span className="flex shrink-0 items-center gap-2">
               {done ? (
                 <Check className="text-ok size-4" strokeWidth={2.5} />
               ) : (
-                <span className="size-3.5 animate-spin rounded-full border-2 border-[#a3a3a3] border-t-transparent" />
+                <span className="size-3.5 animate-spin rounded-full border-2 border-muted-foreground border-t-transparent" />
               )}
               {done ? "Live" : "Deploying"}
             </span>
@@ -131,7 +131,7 @@ export function DeployMap() {
                 className={cn(
                   "border-l-2 border-transparent px-4 break-all",
                   index === 0 && "text-muted-foreground pl-[3.25rem]",
-                  index === shown - 1 && !done && "border-[#6d4aff] bg-[#f4f1ff]",
+                  index === shown - 1 && !done && "border-primary bg-secondary",
                   index === lines.length - 1 && "text-ok",
                 )}
               >
@@ -144,11 +144,11 @@ export function DeployMap() {
               {lines.slice(1).map((line, index) => (
                 <span
                   key={line.text}
-                  className="h-0.5 flex-1 overflow-hidden rounded-full bg-[#e8e5f3]"
+                  className="h-0.5 flex-1 overflow-hidden rounded-full bg-muted"
                 >
                   <span
                     className={cn(
-                      "block h-full bg-[#6d4aff] transition-[width] duration-500",
+                      "block h-full bg-primary transition-[width] duration-500",
                       index + 1 < shown ? "w-full" : "w-0",
                     )}
                   />

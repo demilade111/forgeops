@@ -2,6 +2,7 @@ import { Fragment } from "react";
 import { Loader2, LogOut } from "lucide-react";
 import { Link, Outlet } from "react-router";
 import { api } from "@/api";
+import { ThemeToggle } from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useRequest } from "@/hooks/useRequest";
 import { useCrumbStore } from "@/stores/crumbs";
@@ -35,7 +36,7 @@ export function AppShell({ me }: { me: Me }) {
       <header className="sticky top-0 z-20 border-b bg-background/80 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1200px] items-center justify-between gap-4 px-5 sm:px-6">
           <nav className="flex min-w-0 items-center gap-2 text-sm">
-            <Link to="/app" aria-label="Projects">
+            <Link to="/" aria-label="ForgeOps home">
               <Mark />
             </Link>
             <Slash />
@@ -55,6 +56,7 @@ export function AppShell({ me }: { me: Me }) {
             ))}
           </nav>
           <div className="flex items-center gap-3">
+            <ThemeToggle />
             <Link
               to="/app/settings"
               className="text-muted-foreground hover:text-foreground hidden text-sm sm:block"

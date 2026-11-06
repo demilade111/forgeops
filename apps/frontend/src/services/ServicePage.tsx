@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ChevronDown, ExternalLink, GitBranch, GitCommitHorizontal, Loader2 } from "lucide-react";
 import { Link, useParams, useSearchParams } from "react-router";
 import { api } from "@/api";
@@ -11,6 +11,7 @@ import { duration, shortSha, timeAgo } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import { useCrumbs } from "@/stores/crumbs";
 import type { Deployment, Service } from "@/types";
+import { DeployProgress } from "./DeployProgress";
 import { DeploymentSteps } from "./DeploymentSteps";
 import { RollbackButton } from "./RollbackButton";
 import { ServiceLogs } from "./ServiceLogs";
@@ -32,14 +33,14 @@ function LivePreview({ live, latest }: { live?: Deployment; latest?: Deployment 
   const deploying = active(latest);
   const host = live?.url?.replace("http://", "");
   return (
-    <div className="flex flex-col overflow-hidden rounded-md border bg-white">
+    <div className="bg-card flex flex-col overflow-hidden rounded-md border">
       <div className="bg-muted/60 flex items-center gap-2 border-b px-3 py-2">
         <span className="flex gap-1">
-          <span className="size-2 rounded-full bg-[#dcdcdc]" />
-          <span className="size-2 rounded-full bg-[#dcdcdc]" />
-          <span className="size-2 rounded-full bg-[#dcdcdc]" />
+          <span className="size-2 rounded-full bg-border" />
+          <span className="size-2 rounded-full bg-border" />
+          <span className="size-2 rounded-full bg-border" />
         </span>
-        <span className="text-muted-foreground flex-1 truncate rounded bg-white px-2 py-0.5 text-center font-mono text-xs">
+        <span className="text-muted-foreground flex-1 truncate rounded bg-muted px-2 py-0.5 text-center font-mono text-xs">
           {host ?? "Not live yet"}
         </span>
       </div>
@@ -57,7 +58,7 @@ function LivePreview({ live, latest }: { live?: Deployment; latest?: Deployment 
               href={live.url}
               target="_blank"
               rel="noreferrer"
-              className="absolute right-3 bottom-3 flex items-center gap-1.5 rounded-md border bg-white/95 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:bg-white"
+              className="absolute right-3 bottom-3 flex items-center gap-1.5 rounded-md border bg-card/95 px-2.5 py-1 text-xs font-medium shadow-sm backdrop-blur hover:bg-card"
             >
               Open
               <ExternalLink className="size-3" />
@@ -114,6 +115,7 @@ export function ServicePage() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [detail, setDetail] = useState<Deployment | null>(null);
   const [key, setKey] = useState(() => crypto.randomUUID());
+  const [progress, setProgress] = useState<string | null>(null);
   useCrumbs(
     project.data && service.data
       ? [
@@ -132,10 +134,16 @@ export function ServicePage() {
   const headline = serviceState(list);
 
   const follow = (deployment: Deployment) => {
-    setExpanded(deployment.id);
-    setDetail(deployment);
+    setProgress(deployment.id);
     reloadList();
   };
+
+  const latestId = latest?.id;
+  useEffect(() => {
+    if (busy && latestId) setProgress(latestId);
+  }, [busy, latestId]);
+
+  const closeProgress = useCallback(() => setProgress(null), []);
   const deploy = useRequest(() => api.deploy(serviceId, key), {
     onSuccess: (deployment) => {
       setKey(crypto.randomUUID());
@@ -243,6 +251,13 @@ export function ServicePage() {
       {tab === "logs" && <ServiceLogs serviceId={s.id} />}
       {tab === "overview" && (
         <>
+          {progress && (
+            <DeployProgress
+              deploymentId={progress}
+              onClose={closeProgress}
+              onFinished={reloadList}
+            />
+          )}
           <section className="bg-card overflow-hidden rounded-lg border">
             <div className="grid gap-8 p-6 lg:grid-cols-[1fr_1.1fr]">
               <LivePreview live={live} latest={latest} />

@@ -4,7 +4,7 @@ import { duration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 import type { Deployment } from "@/types";
 
-const order = [
+export const stepLabels = [
   ["resolve-commit", "Find latest commit"],
   ["fetch-source", "Download code"],
   ["build", "Build image"],
@@ -72,7 +72,7 @@ export function DeploymentSteps({ deployment }: { deployment: Deployment }) {
         })}
       </div>
       <ol className="divide-y">
-        {order.map(([name, label]) => {
+        {stepLabels.map(([name, label]) => {
           const step = steps.find((s) => s.name === name);
           const state = step?.status ?? "waiting";
           const expanded = open === name && !!step?.log;
