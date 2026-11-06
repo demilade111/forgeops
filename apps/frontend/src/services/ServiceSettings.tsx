@@ -153,7 +153,7 @@ export function ServiceSettings({ service, onSaved }: { service: Service; onSave
             <Input
               value={root}
               onChange={(e) => setRoot(e.target.value)}
-              placeholder="api"
+              placeholder="(repository root)"
               className="h-9 font-mono"
             />
           </Field>
