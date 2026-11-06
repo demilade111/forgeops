@@ -86,8 +86,8 @@ enum BuildMethod {
 }
 
 model Service {
-  id                 String       @id @default(uuid(7)) @db.Uuid
-  projectId          String       @db.Uuid
+  id                 String         @id @default(uuid(7)) @db.Uuid
+  projectId          String         @db.Uuid
   name               String
   type               ServiceType
   repositoryId       BigInt
@@ -96,13 +96,14 @@ model Service {
   sourceDirectory    String
   buildMethod        BuildMethod
   port               Int
-  healthCheckPath    String       @default("/health/ready")
+  healthCheckPath    String         @default("/health/ready")
   envVars            String
-  createdAt          DateTime     @default(now())
-  updatedAt          DateTime     @updatedAt
+  createdAt          DateTime       @default(now())
+  updatedAt          DateTime       @updatedAt
   deletingAt         DateTime?
-  project            Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  project            Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   deployments        Deployment[]
+  metrics            MetricSample[]
 
   @@unique([projectId, name])
 }
@@ -180,4 +181,18 @@ model Outbox {
   sentAt    DateTime?
 
   @@index([sentAt])
+}
+
+model MetricSample {
+  id           BigInt   @id @default(autoincrement())
+  serviceId    String   @db.Uuid
+  deploymentId String   @db.Uuid
+  cpuPercent   Float
+  memoryBytes  BigInt
+  memoryLimit  BigInt
+  takenAt      DateTime @default(now())
+  service      Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId, takenAt])
+  @@index([takenAt])
 }

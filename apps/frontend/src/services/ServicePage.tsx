@@ -15,6 +15,7 @@ import { DeployProgress } from "./DeployProgress";
 import { DeploymentSteps } from "./DeploymentSteps";
 import { RollbackButton } from "./RollbackButton";
 import { ServiceLogs } from "./ServiceLogs";
+import { ServiceMetrics } from "./ServiceMetrics";
 import { ServiceSettings } from "./ServiceSettings";
 
 const active = (d: Deployment | null | undefined) =>
@@ -103,7 +104,7 @@ function Settings({ s }: { s: Service }) {
 export function ServicePage() {
   const { serviceId = "" } = useParams();
   const [params, setParams] = useSearchParams();
-  const tabs = ["overview", "logs", "settings"] as const;
+  const tabs = ["overview", "logs", "metrics", "settings"] as const;
   const tab = tabs.find((t) => t === params.get("tab")) ?? "overview";
   const service = useLoad(() => api.getService(serviceId), [serviceId]);
   const deployments = useLoad(() => api.listDeployments(serviceId), [serviceId]);
@@ -249,6 +250,7 @@ export function ServicePage() {
 
       {tab === "settings" && <ServiceSettings service={s} onSaved={service.reload} />}
       {tab === "logs" && <ServiceLogs serviceId={s.id} />}
+      {tab === "metrics" && <ServiceMetrics serviceId={s.id} />}
       {tab === "overview" && (
         <>
           {progress && (
