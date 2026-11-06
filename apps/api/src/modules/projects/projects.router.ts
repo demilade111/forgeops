@@ -213,5 +213,25 @@ export function createProjectsRouter(
     res.json(toService(await repo.updateService(current.id, data)));
   });
 
+  async function requestDeletion(target: { projectId: string } | { serviceId: string }) {
+    if (!(await repo.requestDeletion(target))) {
+      throw new HttpError(
+        409,
+        "DEPLOYMENT_IN_PROGRESS",
+        "A deploy is still running. Wait for it to finish, then delete.",
+      );
+    }
+  }
+
+  router.delete("/projects/:id", async (req, res) => {
+    await requestDeletion({ projectId: (await findProject(res, req.params.id)).id });
+    res.sendStatus(202);
+  });
+
+  router.delete("/services/:id", async (req, res) => {
+    await requestDeletion({ serviceId: (await findService(res, req.params.id)).id });
+    res.sendStatus(202);
+  });
+
   return router;
 }

@@ -198,6 +198,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-057 | Visual design | White-and-purple Render-style landing page, light app; Inter Tight headings, Inter body, Geist Mono for code; amber, green, red only for deploy status | **Accepted** (2026-11-06) |
 | ADR-058 | Mini frontend data flow | `useLoad` hook for reads; the service page polls the open deployment every 1.5 s while queued or running; Deploy keeps one Idempotency-Key per attempt | **Accepted** (2026-11-06) |
 | ADR-059 | Settings in the dashboard | Service Settings tab edits branch, root directory, port and env vars through the existing `PATCH /api/services/:id`; account Settings page shows account, workspace, GitHub and log out | **Accepted** (2026-11-06) |
+| ADR-060 | Deleting services and projects | Clean delete through the outbox and worker: hide at once, remove the route and containers, then the rows; refused while a deploy is active; project delete takes its services | **Accepted** (2026-11-06) |
 | ADR-053 | Local seed script | `pnpm --filter @forgeops/api seed` recreates the demo account, GitHub link, project and service; safe to rerun | **Accepted** (2026-11-03) |
 | ADR-051 | Build logs, time limits and stale deployments | Step logs in `DeploymentStep.log` (last 64 KiB); build 15 min, push 5 min, GitHub calls 2 min; sweeper fails deployments running over 60 min | **Accepted** (2026-11-03) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
@@ -930,6 +931,36 @@ Template:
 - **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
+
+### ADR-060 — Deleting services and projects
+- **Status:** Accepted (2026-11-06). The product owner asked for the recommended option ("do the best thing").
+- **Options:** (1) simple delete: remove the database rows only; (2) clean delete: also take the app offline and
+  free its URL, run by the worker.
+- **Why not (1):** the container keeps running and answering at its URL with nothing left to track it, and a new
+  service with the same name fails its first deploy because Caddy still routes that host to the old service.
+  Render, Heroku, Vercel and Railway all tear the app down on delete.
+- **Decision:** `DELETE /api/services/:id` and `DELETE /api/projects/:id` return 202. In one transaction the API
+  locks the service rows (`FOR UPDATE`), refuses with 409 `DEPLOYMENT_IN_PROGRESS` if any deploy is queued or
+  running, sets `deletingAt` (on the project and every service for a project delete) and writes a
+  `deletion.requested` outbox row. Rows with `deletingAt` are hidden from every read, so the delete looks instant.
+  The worker removes the Caddy route (`DELETE /id/svc-<id>`, 404 counts as done), removes the containers by label,
+  then deletes the rows; deployments and steps go by cascade. Every step is safe to repeat, and the worker only
+  deletes rows whose deletion was requested, so a stray message cannot remove a live service.
+- **Deploy race:** creating a deployment now locks the service row and checks `deletingAt` in the same
+  transaction, so a deploy and a delete cannot both win.
+- **Retries:** a failed teardown is redelivered by RabbitMQ (up to 5 times). The worker's one-minute sweeper
+  requests again any deletion older than 10 minutes, so a router or Docker outage only delays it.
+- **Choices taken:** project delete removes its services (one confirmation, like Vercel and Render); rows are
+  removed after teardown (no tombstone; an audit log can come later); only owners can delete, which today is
+  every member because `owner` is the only role (PD-008), so no extra check yet.
+- **UI:** a "Delete service" section at the bottom of the service Settings tab and "Delete project" at the bottom
+  of the project page; the button stays disabled until the exact name is typed.
+- **Consequences:** a name stays taken until the worker finishes (seconds, longer if a long build is ahead in the
+  queue). Pushed images stay in the local registry (registry garbage collection is not set up). A service
+  created in the same instant as its project is deleted is still removed, because the worker tears down every
+  service in the project, not only the marked ones.
+- **Also changed:** removing old containers after a successful deploy now reports failures to the log instead of
+  ignoring them, without failing the deploy.
 
 ### ADR-059 — Settings in the dashboard
 - **Status:** Accepted (2026-11-06). The product owner asked for settings in the dashboard.

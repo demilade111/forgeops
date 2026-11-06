@@ -4,6 +4,8 @@ import { createDeploymentHandler } from "./modules/deployments/deployments.worke
 import { deploymentsRepository } from "./modules/deployments/deployments.repository.js";
 import { loadGitHubClient } from "./modules/github/github.client.js";
 import { appsNetwork } from "./modules/deployments/deployments.release.js";
+import { projectsRepository } from "./modules/projects/projects.repository.js";
+import { createTeardownHandler } from "./modules/projects/projects.teardown.js";
 import { connectQueue } from "./queue.js";
 import { readEncryptionKey } from "./secrets.js";
 import { createDb } from "./server.js";
@@ -34,7 +36,9 @@ const encryptionKey = readEncryptionKey(encryptionKeyPath);
 const db = createDb(databaseUrl);
 const queue = await connectQueue(rabbitmqUrl);
 const deployments = deploymentsRepository(db);
+const projects = projectsRepository(db);
 const staleAfterMs = 60 * 60_000;
+const deletionRetryMs = 10 * 60_000;
 
 queue.connection.on("close", () => {
   console.error("Lost the RabbitMQ connection, exiting");
@@ -52,16 +56,22 @@ const sweeper = setInterval(() => {
     .failStale(new Date(Date.now() - staleAfterMs))
     .then((count) => count > 0 && console.error(`Marked ${count} stale deployment(s) as failed`))
     .catch((error) => console.error("Stale deployment sweep failed", error));
+  projects
+    .retryDeletions(new Date(Date.now() - deletionRetryMs))
+    .then((count) => count > 0 && console.error(`Retrying ${count} unfinished deletion(s)`))
+    .catch((error) => console.error("Deletion retry sweep failed", error));
 }, 60_000);
 
-await queue.consume(
-  createDeploymentHandler(db, loadGitHubClient(github), {
-    registryHost,
-    caddyAdminUrl,
-    encryptionKey,
-  }),
+const deploy = createDeploymentHandler(db, loadGitHubClient(github), {
+  registryHost,
+  caddyAdminUrl,
+  encryptionKey,
+});
+const teardown = createTeardownHandler(db, { caddyAdminUrl });
+await queue.consume((body) =>
+  (body as { type?: unknown }).type === "deletion.requested" ? teardown(body) : deploy(body),
 );
-console.log("Worker listening for deployments");
+console.log("Worker listening for deployments and deletions");
 
 for (const signal of ["SIGINT", "SIGTERM"]) {
   process.on(signal, async () => {

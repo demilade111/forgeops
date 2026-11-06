@@ -140,7 +140,7 @@ export function createDeploymentHandler(
             await run("docker", ["rm", "-f", container], 60_000);
             throw error;
           }
-          await removeContainers(service.id, container);
+          await removeContainers(service.id, container).catch((error) => console.error(error));
         },
       ],
     ];

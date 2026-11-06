@@ -14,6 +14,11 @@ export type Outcome = {
 export const deploymentsRepository = (db: PrismaClient) => ({
   create: (serviceId: string, triggeredById: string, idempotencyKey: string) =>
     db.$transaction(async (tx) => {
+      const [service] = await tx.$queryRaw<{ id: string }[]>`
+        SELECT s.id FROM "Service" s JOIN "Project" p ON p.id = s."projectId"
+        WHERE s.id = ${serviceId}::uuid AND s."deletingAt" IS NULL AND p."deletingAt" IS NULL
+        FOR UPDATE OF s`;
+      if (!service) return null;
       const deployment = await tx.deployment.create({
         data: {
           serviceId,

@@ -8,6 +8,18 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-041 — The local Docker data was gone a fifth time, found while testing delete (deletion)
+- **Situation:** While checking delete in the browser, the dev database held only the test account I had just
+  created. The demo account, project, service, app container and Caddy routes were all gone.
+- **Task:** Find out whether my new migration had wiped the database, and get the environment back.
+- **Action:** I checked before assuming. Every migration showed the same timestamp, which fits both a reset and an
+  empty database. But `docker volume inspect` showed the Postgres and Caddy volumes were created at 09:05:07, by
+  my own `docker compose up -d`, a minute before the migration ran. The earlier worker crash ("Lost the RabbitMQ
+  connection") was the moment Docker lost its data. I re-ran the seed script.
+- **Result:** the migration was cleared, and the demo was back in one command (the seed wrote a new password to
+  the same file). The root cause of the repeated Docker data loss is still unknown.
+- **Lesson:** read timestamps on the evidence (volume creation time) before blaming the last thing I touched.
+
 ## ISS-040 — The landing page showed "Can't reach ForgeOps" whenever the API was down (mini frontend)
 - **Situation:** After a restart, the new landing page rendered only an error box: the app waited for `/api/me`
   before rendering any route, and the database containers were stopped.

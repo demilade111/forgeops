@@ -61,7 +61,7 @@ it("moves a deployment from the outbox through RabbitMQ to a finished worker run
   } satisfies GitHubClient;
   const repo = deploymentsRepository(testDb);
   const service = await createService();
-  const deployment = await repo.create(service.id, (await createUser()).id, "k1");
+  const deployment = (await repo.create(service.id, (await createUser()).id, "k1"))!;
 
   await queue.consume(createDeploymentHandler(testDb, github, workerOptions));
   expect(await repo.relayOutbox(queue.publish)).toBe(1);

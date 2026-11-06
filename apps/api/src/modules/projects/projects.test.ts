@@ -172,7 +172,63 @@ it("hides other organizations' projects and services", async () => {
   expect((await owner.agent.get("/api/services/not-a-uuid")).status).toBe(404);
 });
 
+it("deletes a service in the background, hiding it at once and refusing new deploys", async () => {
+  const { agent, projectId } = await signedIn();
+  const { id } = (await agent.post(`/api/projects/${projectId}/services`).send(service)).body;
+
+  expect((await agent.delete(`/api/services/${id}`)).status).toBe(202);
+
+  expect((await agent.get(`/api/services/${id}`)).status).toBe(404);
+  expect((await agent.get(`/api/projects/${projectId}`)).body.services).toEqual([]);
+  const deploy = await agent.post(`/api/services/${id}/deployments`).set("Idempotency-Key", "k1");
+  expect(deploy.status).toBe(404);
+  expect((await agent.delete(`/api/services/${id}`)).status).toBe(404);
+  const outbox = await testDb.outbox.findMany();
+  expect(outbox.map((o) => [o.type, o.payload])).toEqual([
+    ["deletion.requested", { serviceId: id }],
+  ]);
+});
+
+it("deletes a project with its services, and hides it from the list", async () => {
+  const { agent, orgId, projectId } = await signedIn();
+  const { id } = (await agent.post(`/api/projects/${projectId}/services`).send(service)).body;
+
+  expect((await agent.delete(`/api/projects/${projectId}`)).status).toBe(202);
+
+  expect((await agent.get(`/api/projects?organizationId=${orgId}`)).body).toEqual([]);
+  expect((await agent.get(`/api/projects/${projectId}`)).status).toBe(404);
+  expect((await agent.get(`/api/services/${id}`)).status).toBe(404);
+  expect((await testDb.service.findUniqueOrThrow({ where: { id } })).deletingAt).not.toBeNull();
+  const outbox = await testDb.outbox.findMany();
+  expect(outbox.map((o) => o.payload)).toEqual([{ projectId }]);
+});
+
+it("refuses to delete while a deploy is running", async () => {
+  const { agent, projectId } = await signedIn();
+  const { id } = (await agent.post(`/api/projects/${projectId}/services`).send(service)).body;
+  await agent.post(`/api/services/${id}/deployments`).set("Idempotency-Key", "k1");
+
+  for (const path of [`/api/services/${id}`, `/api/projects/${projectId}`]) {
+    const res = await agent.delete(path);
+    expect(res.status).toBe(409);
+    expect(res.body.error.code).toBe("DEPLOYMENT_IN_PROGRESS");
+  }
+  expect((await agent.get(`/api/services/${id}`)).status).toBe(200);
+});
+
+it("does not let other organizations delete", async () => {
+  const owner = await signedIn("owner@example.com");
+  const { id } = (await owner.agent.post(`/api/projects/${owner.projectId}/services`).send(service))
+    .body;
+  const other = await signedIn("other@example.com");
+
+  expect((await other.agent.delete(`/api/services/${id}`)).status).toBe(404);
+  expect((await other.agent.delete(`/api/projects/${owner.projectId}`)).status).toBe(404);
+  expect((await owner.agent.get(`/api/services/${id}`)).status).toBe(200);
+});
+
 it("requires login", async () => {
   expect((await request(app).get("/api/projects")).status).toBe(401);
   expect((await request(app).get("/api/services/x")).status).toBe(401);
+  expect((await request(app).delete("/api/projects/x")).status).toBe(401);
 });
