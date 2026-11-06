@@ -194,6 +194,9 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-052 | Test image registry | Tests push to a second `registry:3` on `127.0.0.1:5002` with in-memory storage (`TEST_REGISTRY_HOST`), never the dev registry | **Accepted** (2026-11-03) |
 | ADR-054 | Where web services run in M1 | `docker run` on the host's Docker, network `forgeops-apps`, container `fo-<deploymentId>`, restart unless stopped, env vars from a 600 env file | **Accepted** (2026-11-05) |
 | ADR-055 | Runtime tests | A second Caddy (`caddy-test`, admin 2020, HTTP 8081) and real containers; tests remove only their own containers | **Accepted** (2026-11-05) |
+| ADR-056 | Frontend routing | `react-router` 7 (library mode): `/`, `/login`, `/signup`, `/app/...` | **Accepted** (2026-11-06) |
+| ADR-057 | Visual design | Vercel-style: pure black, Geist and Geist Mono, framed layout; amber, green, red only for deploy status | **Accepted** (2026-11-06) |
+| ADR-058 | Mini frontend data flow | `useLoad` hook for reads; the service page polls the open deployment every 1.5 s while queued or running; Deploy keeps one Idempotency-Key per attempt | **Accepted** (2026-11-06) |
 | ADR-053 | Local seed script | `pnpm --filter @forgeops/api seed` recreates the demo account, GitHub link, project and service; safe to rerun | **Accepted** (2026-11-03) |
 | ADR-051 | Build logs, time limits and stale deployments | Step logs in `DeploymentStep.log` (last 64 KiB); build 15 min, push 5 min, GitHub calls 2 min; sweeper fails deployments running over 60 min | **Accepted** (2026-11-03) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
@@ -876,4 +879,33 @@ Template:
 - **Options considered:** mocking Docker and Caddy (fast, but would not have caught ISS-038); using the dev Caddy
   (tests would delete real routes).
 - **Consequences:** the test suite needs `docker compose up -d` and takes about 2 minutes.
+
+### ADR-056 — Frontend routing
+- **Status:** Accepted (2026-11-06). Needed once the app had a landing page, login and several dashboard screens.
+- **Options considered:** `react-router` (the standard, nested layouts, URL params); TanStack Router (typed routes,
+  more setup); a hand-written router on `history.pushState` (no dependency, but code to own and test).
+- **Decision:** `react-router` 7 in library mode. `/` landing, `/login`, `/signup`, and `/app` with nested routes for
+  projects, a project, adding a service and a service. The landing page renders without the API; only `/login`,
+  `/signup` and `/app` wait for the session. GitHub's install callback now returns to `/app` instead of `/`.
+- **Consequences:** refreshing any page keeps its place; links are shareable. Supersedes "no router yet" in ADR-033.
+
+### ADR-057 — Visual design
+- **Status:** Accepted (2026-11-06). The product owner asked for Vercel's look ("reclone Vercel") with ForgeOps' own
+  words and content, after rejecting a lighter first version as plain.
+- **Decision:** pure black background, light grey text, white pill buttons; Geist and Geist Mono (open source); the
+  landing page sits in a framed column with guide lines and corner marks. Amber, green and red appear only for
+  deploy status. The hero shows a real ForgeOps deploy replaying its six actual steps and logs. No Vercel logo, mark,
+  wording or artwork.
+- **Trade-offs:** borrowing a well-known look is fast and polished, but less distinctive; the product owner plans to
+  refine it later. Mono text is used only for real code (commits, URLs, logs, repositories).
+
+### ADR-058 — Mini frontend data flow
+- **Status:** Accepted (2026-11-06). Delivers PD-013's mini frontend (service setup, Deploy, status).
+- **Decision:** a small `useLoad(load, deps)` hook for reads (data, error, reload). The service page polls
+  `GET /deployments/:id` every 1.5 s while the open deployment is queued or running, then reloads the list. The
+  Deploy button keeps one `Idempotency-Key` per attempt in memory and makes a new one only after a 202, so a retry
+  after a lost response cannot start a second deploy. The newest succeeded deployment is shown as Live.
+- **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
+  handling); a data library such as TanStack Query (caching and refetching, another dependency).
+- **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 

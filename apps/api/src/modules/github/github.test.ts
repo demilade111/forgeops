@@ -52,7 +52,7 @@ it("links the installation after GitHub confirms it belongs to the user", async 
 
   const res = await agent.get(`/api/github/callback?code=abc&installation_id=42&state=${state}`);
 
-  expect(res.headers.location).toBe("/?github=connected");
+  expect(res.headers.location).toBe("/app?github=connected");
   expect(github.userInstallations).toHaveBeenCalledWith("abc");
   const repos = await agent.get(`/api/github/repositories?organizationId=${orgId}`);
   expect(repos.body).toEqual({
@@ -69,7 +69,7 @@ it("refuses an installation id that is not in the user's own GitHub installation
 
   const res = await agent.get(`/api/github/callback?code=abc&installation_id=999&state=${state}`);
 
-  expect(res.headers.location).toBe("/?github_error=INSTALLATION_NOT_YOURS");
+  expect(res.headers.location).toBe("/app?github_error=INSTALLATION_NOT_YOURS");
   expect(await testDb.gitHubInstallation.count()).toBe(0);
 });
 
@@ -80,7 +80,7 @@ it("refuses a callback whose state does not match the cookie", async () => {
 
   const res = await agent.get("/api/github/callback?code=abc&installation_id=42&state=forged");
 
-  expect(res.headers.location).toBe("/?github_error=INVALID_GITHUB_CALLBACK");
+  expect(res.headers.location).toBe("/app?github_error=INVALID_GITHUB_CALLBACK");
   expect(github.userInstallations).not.toHaveBeenCalled();
   expect(await testDb.gitHubInstallation.count()).toBe(0);
 });
@@ -98,7 +98,7 @@ it("refuses to move an installation that another organization already uses", asy
     `/api/github/callback?code=b&installation_id=42&state=${state}`,
   );
 
-  expect(res.headers.location).toBe("/?github_error=INSTALLATION_IN_USE");
+  expect(res.headers.location).toBe("/app?github_error=INSTALLATION_IN_USE");
 });
 
 it("does not reveal another organization's repositories", async () => {

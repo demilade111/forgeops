@@ -81,8 +81,12 @@ URL saved on `Deployment.url`). A failed start or routing keeps the live version
 http://api.sample-shop.localhost` returns the sample API's response. ADR-019 accepted, ADR-054, ADR-055. The local
 data was gone again (ISS-036); `seed` restored it.
 
-**Next:** the mini frontend (PD-013: service setup, Deploy button, deployment status with the URL), then M1-S7
-Readiness & health.
+**Mini frontend (PD-013): done (2026-11-06).** Vercel-style landing page with a live deploy replay; login and
+sign-up; projects with the GitHub connection; create project; add a web service (repository from GitHub, branch,
+source directory, port, encrypted env vars); service page with Deploy, deployment history, live step-by-step status
+with logs, and the live URL. ADR-056 to ADR-058.
+
+**Next:** M1-S7 Readiness & health (decisions needed: health path per service, readiness time limit).
 
 Local environment (2026-10-27): git 2.50.1 · Docker engine now **OrbStack** (was Docker Desktop) · Node 24.22.1
 LTS via nvm (pinned in `.nvmrc`; run `nvm use` in this folder) · pnpm 11.5.2 via corepack.
@@ -138,6 +142,7 @@ migrations to it automatically. Docker must be running.
 | M1-S4 | Deployment intent & progress (backend) | Done | 92 API + 5 frontend tests, incl. a real RabbitMQ round trip and redelivery; 7 sabotage tests caught a claim that accepted finished deployments, ack before work, a missing outbox row, no lock, a lock never released, a relay that never marks rows sent and an unscoped read. Real run against GitHub: deploy with the worker off waited in the outbox, then succeeded with `main`'s real SHA; replay 202, second key 409, no key 400; missing branch failed with the reason and released the lock; worker exits when RabbitMQ restarts and stops cleanly on SIGTERM |
 | — | Local seed script (ADR-053) | Done | Ran twice: second run changed nothing; password file 600. Full path through the real API with the seeded account: login 200, service shows port 8080 and env var names only, Deploy 202, worker ran all four steps to succeeded with the same digest as the earlier smoke run |
 | M1-S5 | Build & track (backend) | Done | 103 API + 5 frontend tests, builds and pushes run against the real local Docker and registry; 11 sabotage tests caught: no tag cleanup after push, no symlink containment, time-out not detected, digest not parsed, workspace not cleaned, a resumed deployment resolving the branch again, build log not saved, failed step log dropped, image not recorded, sweeper keeping the lock, sweeper failing fresh deployments. Real run against GitHub: `demilade111/forgeops-sample-api` at `f2edcd7` fetched, built and pushed in 22 s; image pulled back by digest runs as `node` and returns 200 on `/` and `/health/ready`; worker refuses to start without `REGISTRY_HOST` or without Docker, and stops cleanly on SIGTERM. Self-review fixes: Docker checked at start-up, local tag removed after push, tests use their own registry on 5002 (ADR-052) |
+| PD-013 | Mini frontend | Done | 5 frontend tests, typecheck, lint, build pass. In the browser: sign-up lands on projects; a bad project name shows the API message; create project; add-service form; Deploy on a service without GitHub showed "GitHub is not connected" on the Pin commit step through the real worker; checked at phone width. The success view (Live badge, URL) was not exercised in the browser, because signing in as the GitHub-linked demo account needs its password |
 | M1-S6 | Run & expose (backend) | Done | 110 API + 5 frontend tests, with real containers and a test Caddy; 5 sabotage tests caught: old containers not removed, URL collision not checked, new container left behind when routing fails, env vars not passed, URL not saved. Real run through the API with the seeded account: all six steps succeeded for `forgeops-sample-api` at `f2edcd7`; `curl http://api.sample-shop.localhost` returned the sample's JSON and `/health/ready` 200; still 200 after a Caddy restart; a redeploy left one container. Unknown hosts get 404 |
 | M1-S1 | Identity & organization | Done | 35 API + 5 frontend tests pass; sabotage tests caught a readable cookie, a skipped password check and a logout that kept the session; in a real browser: sign-up, reload stays signed in, logout, wrong password error, login, duplicate email error |
 
@@ -146,7 +151,6 @@ migrations to it automatically. Docker must be running.
 | Item | Needed when | Notes |
 | --- | --- | --- |
 | GitHub OAuth verification live (Client ID + secret in `~/.forgeops/`) | Before anyone other than the owner uses ForgeOps, and at the latest before M1-S13 | Code and tests done; needs "Request user authorization during installation", Callback URL `http://localhost:5173/api/github/callback`, Client ID and a client secret |
-| Mini frontend: service setup, Deploy button, deployment status (PD-013) | Right after M1-S6 works end to end | Validates the API shape; first demo |
 | Remaining frontend screens (PD-013) | One pass after M1-S12, before M1-S13 | Logs, history, rollback, metrics, alerts |
 | Restrict the GitHub App installation to `forgeops-sample-api` (ISS-031) | Now; owner action on GitHub | Installation settings: "Only select repositories" |
 | Paginate repository listing beyond 100 repos (4.2.9) | Before real users connect large accounts | `listRepositories` reads one page of 100 |

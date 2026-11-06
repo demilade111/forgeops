@@ -8,6 +8,23 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-040 — The landing page showed "Can't reach ForgeOps" whenever the API was down (mini frontend)
+- **Situation:** After a restart, the new landing page rendered only an error box: the app waited for `/api/me`
+  before rendering any route, and the database containers were stopped.
+- **Task:** A marketing page must not depend on the backend.
+- **Action:** I moved the session check into a gate used only by `/login`, `/signup` and `/app`; `/` renders at once.
+- **Result:** the landing page loads with the API off; the app pages still show a clear error or redirect.
+- **Lesson:** decide per route what each page really depends on.
+
+## ISS-039 — A package removal crashed halfway and left package.json out of step (mini frontend)
+- **Situation:** `pnpm remove` of two old font packages crashed in a worker thread. The packages were gone from
+  `node_modules` but still listed in `package.json`, and a later check ran under Node 18 instead of 24 and failed.
+- **Task:** Get the dependency list and the checks back to a trustworthy state.
+- **Action:** I removed the entries by hand, ran `pnpm install` under the project's Node version (`nvm use`), and
+  reran lint, tests and build.
+- **Result:** clean install; lint, 5 frontend tests and the build pass.
+- **Lesson:** after a tool crashes, check the files it was editing; and run checks with the pinned runtime.
+
 ## ISS-038 — My first runtime test timed out because its Dockerfile was malformed, not because of the code (M1-S6)
 - **Situation:** All new run and route tests timed out waiting for a 200 through the test router, while the same
   steps done by hand worked.
