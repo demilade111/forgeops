@@ -621,6 +621,36 @@ code that works with both, and only remove the old ones once no version needs th
 
 ---
 
+## 18. Automatic rollback (M1-S10)
+
+**30-second answer:** "After a deploy goes live, ForgeOps watches it for five minutes. A timer in the worker checks
+its health every ten seconds. Three failures in a row, or a crash, mean it broke, so ForgeOps creates a rollback
+deploy to the previous good image, which still has to pass its own health check before it gets traffic. The broken
+deploy keeps a reason in its history. In a real test I crashed the live app and the old version was back twelve
+seconds later."
+
+### Why each choice
+- **Watch window, not forever:** early failures are release problems; late ones are often infrastructure, and
+  should alert a person (S12) rather than swap code.
+- **Three in a row:** one slow answer is noise; three is a pattern. A crash skips the count.
+- **Reuse the rollback deploy:** one code path for manual and automatic, already tested, already health-checked.
+- **Timer in the worker:** no new service; it never blocks deploys because it only creates a rollback deploy.
+
+### What happens when...
+- **The rollback's old image also fails:** the rollback deploy fails its health step, the broken version stays, and
+  both are recorded. Rollback is an attempt, not a guarantee.
+- **There is no earlier version:** the reason says so; nothing changes.
+- **Someone deploys during the watch:** the new version becomes live and the old watch stops.
+- **The worker restarts:** watch state is in the database, so the next tick carries on.
+- **The database changed in the bad release:** it is not rolled back; that is why schema changes use expand and
+  contract.
+
+### Questions
+- *How is this like Kubernetes?* A Deployment's controller compares desired and actual state in a loop;
+  `kubectl rollout undo` is the manual rollback, and tools like Argo Rollouts add analysis-based automatic rollback.
+- *Could it flap between versions?* No: rollbacks are never watched, and the target skips versions that broke.
+- *How would you scale the watcher?* Lock watched rows with `FOR UPDATE SKIP LOCKED` so several workers share them.
+
 ## 17. Started is not working (ADR-066)
 
 **30-second answer:** "`docker run -d` returns success the moment the process launches, so a crash a second later

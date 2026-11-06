@@ -163,7 +163,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-019 | Managed URL scheme and traffic routing for web services | `http://<service>.<project>.localhost` in M1; Caddy reverse proxy, routes added at runtime through its admin API | **Accepted** (2026-11-05) |
 | ADR-020 | Failure alert delivery channel(s) | Not selected | **Open** |
 | ADR-021 | Source of basic CPU/memory metrics | Not selected (relates to ADR-013) | **Open** |
-| ADR-022 | Failed-rollout criteria that trigger automatic rollback | Not selected (relates to ADR-015) | **Open** |
+| ADR-022 | Failed-rollout criteria that trigger automatic rollback | Watch 5 minutes after go-live, check every 10 s; 3 failed checks in a row or a crash rolls back to the previous good version (ADR-067) | **Accepted** (2026-11-06) |
 | ADR-023 | Repository layout | One Git monorepo with pnpm workspaces: `apps/frontend`, `apps/api`, `apps/worker`, `packages/shared` | **Accepted** (2026-10-25) |
 | ADR-025 | Test tooling | Vitest (runner) + Supertest (HTTP tests against the Express app, no open port) | **Accepted** (2026-10-25) |
 | ADR-026 | Password hashing | Node's built-in `crypto.scrypt` (not argon2 / bcrypt packages) | **Accepted** (2026-10-25) |
@@ -934,6 +934,34 @@ Template:
 - **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
+
+### ADR-067 — Automatic rollback after go-live (M1-S10, closes ADR-022)
+- **Status:** Accepted (2026-11-06). The product owner chose option A ("watch window") and asked for the best
+  version of it.
+- **Problem:** the health check before go-live (ADR-061) proves a version worked at that moment. Some releases break
+  minutes later, under real traffic, while nobody is watching.
+- **Decision (the ADR-022 criteria):**
+  1. A deploy started by a person (`trigger = manual`) gets `watchUntil` = go-live + 5 minutes. Rollbacks, manual or
+     automatic, are not watched: they go back to a version that already worked, and watching them could loop.
+  2. A timer in the worker checks every watched deploy every 10 seconds, without blocking deploys. The check is the
+     S7 probe through a temporary Caddy route (`watch-<id>`, with the `X-Forgeops-Probe` header) plus a container
+     check.
+  3. **Broken** means 3 failed health checks in a row (a good answer resets the count), or the container stopped or
+     restarted (a crash counts at once).
+  4. The target is the newest earlier deploy that succeeded, has an image and did not itself break after going live.
+     ForgeOps creates a normal rollback deploy (`trigger = auto_rollback`, no person, idempotency key
+     `auto-rollback-<id>`), which runs the S9 steps: start, check health, go live. The broken deploy keeps its history
+     and gets `failedAfterLive` with the reason.
+  5. With no earlier version, the reason says so and nothing is rolled back. If a deploy is already running, the
+     watcher waits for the next tick. A newer live version, or the window ending while healthy, stops the watch and
+     removes the route.
+- **Options considered:** watch forever (catches late failures, but replacing a version that ran fine for hours is
+  risky and belongs to alerts, S12); crashes only (misses an app that is up but answers with errors); a separate
+  watcher service or delayed queue messages (more moving parts for the same result).
+- **Consequences:** a version that breaks in the first 5 minutes is replaced within about 30 seconds (12 seconds in
+  the real crash test). The database is never rolled back. Watching happens in the single worker; with several
+  workers it would need a lock (for example `FOR UPDATE SKIP LOCKED` on the watched rows). Also in this change: a
+  failed deploy now keeps its built image digest, so the deploy page no longer says "Not built" when it was built.
 
 ### ADR-066 — A crash on start fails "Start app", not "Check health"
 - **Status:** Accepted (2026-11-06). The product owner pointed out that a crash showed as a health problem.

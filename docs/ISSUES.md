@@ -8,6 +8,16 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-048 — A deploy page said "Not built" for an image that was built (M1-S10)
+- **Situation:** Checking the start-step fix in the browser, the failed deploy's page showed "Image: Not built", but
+  its build and save steps were green and the image was in the registry.
+- **Task:** Find out why the page disagreed with the steps.
+- **Action:** the worker only saved the image digest when the whole deploy succeeded. I made a failed deploy save the
+  digest too, and added that check to the health-failure test.
+- **Result:** a deploy that fails at start or health now shows the image it built, which also helps when debugging
+  the exact build that broke.
+- **Lesson:** record facts as they become true, not only at the happy end.
+
 ## ISS-047 — A crash showed as a health failure, and "Start app" stayed green
 - **Situation:** Explaining what happens to bad code, the product owner asked why we check health when the app has
   already crashed. A deploy of an app that crashed on start showed "Start app" green and "Check health" red.

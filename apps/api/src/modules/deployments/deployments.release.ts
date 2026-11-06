@@ -56,7 +56,15 @@ async function caddy(adminUrl: string, path: string, method = "GET", body?: obje
   return res;
 }
 
-export async function routeTo(adminUrl: string, id: string, host: string, upstream: string) {
+const probeHeaders = { response: { set: { "X-Forgeops-Probe": ["app"] } } };
+
+export async function routeTo(
+  adminUrl: string,
+  id: string,
+  host: string,
+  upstream: string,
+  probe = false,
+) {
   const current = (await (await caddy(adminUrl, routes)).json()) as Route[];
   if (current.some((r) => r["@id"] !== id && r.match?.some((m) => m.host?.includes(host)))) {
     throw new StepFailure(`${host} is already used by another service`);
@@ -64,7 +72,13 @@ export async function routeTo(adminUrl: string, id: string, host: string, upstre
   const route = {
     "@id": id,
     match: [{ host: [host] }],
-    handle: [{ handler: "reverse_proxy", upstreams: [{ dial: upstream }] }],
+    handle: [
+      {
+        handler: "reverse_proxy",
+        upstreams: [{ dial: upstream }],
+        ...(probe && { headers: probeHeaders }),
+      },
+    ],
   };
   if ((await caddy(adminUrl, `/id/${id}`, "PATCH", route)).status === 404) {
     await caddy(adminUrl, `${routes}/0`, "PUT", route);
@@ -146,7 +160,7 @@ export async function waitUntilHealthy(check: HealthCheck) {
       {
         handler: "reverse_proxy",
         upstreams: [{ dial: `${container}:${port}` }],
-        headers: { response: { set: { "X-Forgeops-Probe": ["app"] } } },
+        headers: probeHeaders,
       },
     ],
   });
@@ -171,4 +185,20 @@ export async function waitUntilHealthy(check: HealthCheck) {
   } finally {
     await caddy(adminUrl, `/id/${routeId}`, "DELETE").catch(() => {});
   }
+}
+
+export type LiveCheck = Omit<HealthCheck, "timeoutMs" | "intervalMs">;
+
+export async function checkLive({ adminUrl, httpUrl, id, container, port, path }: LiveCheck) {
+  if (!(await stillRunning(container))) return { crashed: true, detail: "it stopped" };
+  const routeId = `watch-${id}`;
+  const host = `${routeId}.forgeops.internal`;
+  await routeTo(adminUrl, routeId, host, `${container}:${port}`, true);
+  const answer = await probe(httpUrl, host, path);
+  if (answer?.fromApp && (!path || (answer.status >= 200 && answer.status < 400))) return null;
+  const target = `GET ${path || "/"}`;
+  return {
+    crashed: false,
+    detail: answer?.fromApp ? `${target} returned ${answer.status}` : `${target} got no answer`,
+  };
 }

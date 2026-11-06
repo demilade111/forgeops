@@ -267,6 +267,13 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   they did.
 - **Expand and contract:** change the database in steps so old and new code both work, which keeps rollback safe.
 
+### Automatic rollback (M1-S10, ADR-067)
+- **Watch window:** check a new release often for the first minutes after go-live, when releases usually break.
+- **Consecutive failures:** require several failed checks in a row so one blip does not trigger a rollback.
+- **Reconciliation loop:** a timer compares what is true (the app answers) with what should be true and acts; the
+  same idea as Kubernetes controllers.
+- **No loops:** never automatically roll back a rollback.
+
 ### Started is not working (ADR-066)
 - **`docker run -d` succeeds early:** it means the program launched, not that it stays up. Check the container is
   still running a moment later.
