@@ -20,3 +20,55 @@ export type Repository = { id: number; fullName: string; private: boolean; defau
 export type GitHubStatus =
   | { connected: false; repositories: [] }
   | { connected: true; account: string; repositories: Repository[] };
+
+export type Project = { id: string; organizationId: string; name: string; createdAt: string };
+
+export type Service = {
+  id: string;
+  projectId: string;
+  name: string;
+  type: "web";
+  repository: string;
+  branch: string;
+  sourceDirectory: string;
+  buildMethod: "dockerfile";
+  port: number;
+  envVarNames: string[];
+  createdAt: string;
+};
+
+export type ProjectDetail = Project & { services: Service[] };
+
+export type NewService = {
+  name: string;
+  repository: string;
+  branch: string;
+  sourceDirectory: string;
+  port: number;
+  envVars: Record<string, string>;
+};
+
+export type DeploymentStatus = "queued" | "running" | "succeeded" | "failed";
+
+export type DeploymentStep = {
+  name: string;
+  status: "running" | "succeeded" | "failed";
+  error: string | null;
+  log: string | null;
+  startedAt: string;
+  finishedAt: string | null;
+};
+
+export type Deployment = {
+  id: string;
+  serviceId: string;
+  status: DeploymentStatus;
+  commitSha: string | null;
+  image: string | null;
+  url: string | null;
+  error: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  finishedAt: string | null;
+  steps?: DeploymentStep[];
+};

@@ -57,9 +57,9 @@ export function createGitHubRouter(
         throw new HttpError(409, "INSTALLATION_IN_USE", "Already connected elsewhere");
       }
       if (!existing) await repo.link(installationId, installation.account, orgId);
-      res.redirect("/?github=connected");
+      res.redirect("/app?github=connected");
     } catch (error) {
-      if (error instanceof HttpError) return res.redirect(`/?github_error=${error.code}`);
+      if (error instanceof HttpError) return res.redirect(`/app?github_error=${error.code}`);
       throw error;
     }
   });
