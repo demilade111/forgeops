@@ -3,6 +3,7 @@ import type {
   Credentials,
   Deployment,
   GitHubStatus,
+  AlertSettings,
   Me,
   MetricSample,
   NewService,
@@ -55,6 +56,14 @@ export const api = {
     ).data,
   getServiceLogs: async (serviceId: string) =>
     (await http.get<ServiceLogs>(`/services/${serviceId}/logs`, { params: { lines: 500 } })).data,
+  getAlerts: async (organizationId: string) =>
+    (await http.get<AlertSettings>(`/organizations/${organizationId}/alerts`)).data,
+  setSlackWebhook: async (organizationId: string, url: string | null) => {
+    await http.put(`/organizations/${organizationId}/alerts/slack`, { url });
+  },
+  sendTestAlert: async (organizationId: string) => {
+    await http.post(`/organizations/${organizationId}/alerts/test`);
+  },
   getServiceMetrics: async (serviceId: string, minutes: number) =>
     (
       await http.get<{ minutes: number; samples: MetricSample[] }>(

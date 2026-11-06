@@ -12,8 +12,8 @@ export function createWatcher(
 ) {
   const repo = deploymentsRepository(db);
 
-  const stop = async (id: string, reason?: string) => {
-    await repo.stopWatching(id, reason);
+  const stop = async (id: string, reason?: string, rollbackTo?: string | null) => {
+    await repo.stopWatching(id, reason, rollbackTo);
     await removeRoute(caddyAdminUrl, `watch-${id}`).catch((error) => console.error(error));
   };
 
@@ -58,7 +58,8 @@ export function createWatcher(
         { ...target, image: target.image },
         true,
       );
-      await stop(id, rollback ? reason : undefined);
+      if (rollback) await stop(id, reason, target.commitSha ?? target.id);
+      else await stop(id);
     }
   };
 }

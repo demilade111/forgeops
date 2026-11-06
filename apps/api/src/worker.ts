@@ -1,5 +1,6 @@
 import { loadConfig } from "./config.js";
 import { run } from "./modules/deployments/deployments.build.js";
+import { createAlertSender } from "./modules/alerts/alerts.send.js";
 import { createMetricsCollector } from "./modules/deployments/deployments.metrics.js";
 import { createWatcher } from "./modules/deployments/deployments.watch.js";
 import { createDeploymentHandler } from "./modules/deployments/deployments.worker.js";
@@ -20,6 +21,8 @@ const {
   caddyAdminUrl,
   caddyHttpUrl,
   github,
+  smtpUrl,
+  appUrl,
 } = loadConfig(process.env);
 if (!rabbitmqUrl) throw new Error("Invalid configuration\nRABBITMQ_URL is required for the worker");
 if (!registryHost) {
@@ -81,6 +84,7 @@ const deploy = createDeploymentHandler(db, loadGitHubClient(github), {
   encryptionKey,
 });
 const teardown = createTeardownHandler(db, { caddyAdminUrl });
+const alert = createAlertSender(db, { smtpUrl, appUrl, encryptionKey });
 const watch = createWatcher(db, { caddyAdminUrl, caddyHttpUrl });
 const collect = createMetricsCollector(db);
 let collecting = false;
@@ -99,9 +103,12 @@ const watcher = setInterval(() => {
     .catch((error) => console.error("Watching live deployments failed", error))
     .finally(() => (watching = false));
 }, 10_000);
-await queue.consume((body) =>
-  (body as { type?: unknown }).type === "deletion.requested" ? teardown(body) : deploy(body),
-);
+await queue.consume((body) => {
+  const { type } = body as { type?: unknown };
+  if (type === "deletion.requested") return teardown(body);
+  if (type === "alert.requested") return alert(body);
+  return deploy(body);
+});
 console.log("Worker listening for deployments and deletions");
 
 for (const signal of ["SIGINT", "SIGTERM"]) {

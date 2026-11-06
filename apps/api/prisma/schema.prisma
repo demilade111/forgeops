@@ -26,6 +26,8 @@ model Organization {
   memberships         Membership[]
   githubInstallations GitHubInstallation[]
   projects            Project[]
+  slackWebhook        String?
+  alerts              Alert[]
 }
 
 enum Role {
@@ -153,6 +155,7 @@ model Deployment {
   rollbackOf      Deployment?       @relation("Rollback", fields: [rollbackOfId], references: [id], onDelete: SetNull)
   rollbacks       Deployment[]      @relation("Rollback")
   steps           DeploymentStep[]
+  alerts          Alert[]
 
   @@unique([serviceId, idempotencyKey])
   @@index([serviceId, createdAt])
@@ -195,4 +198,26 @@ model MetricSample {
 
   @@index([serviceId, takenAt])
   @@index([takenAt])
+}
+
+enum AlertKind {
+  deploy_failed
+  broke_after_live
+  test
+}
+
+model Alert {
+  id             String       @id @default(uuid(7)) @db.Uuid
+  organizationId String       @db.Uuid
+  deploymentId   String?      @db.Uuid
+  kind           AlertKind
+  title          String
+  message        String
+  emailedAt      DateTime?
+  slackedAt      DateTime?
+  createdAt      DateTime     @default(now())
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  deployment     Deployment?  @relation(fields: [deploymentId], references: [id], onDelete: SetNull)
+
+  @@index([organizationId, createdAt])
 }

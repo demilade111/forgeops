@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { useLoad } from "@/hooks/useLoad";
 import { useRequest } from "@/hooks/useRequest";
 import { useCrumbs } from "@/stores/crumbs";
+import { AlertsCard } from "./AlertsCard";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/stores/session";
 import { useTheme, type ThemeChoice } from "@/stores/theme";
@@ -110,6 +111,12 @@ export function SettingsPage({ me }: { me: Me }) {
           </div>
         )}
       </Card>
+
+      {org && (
+        <Card title="Alerts" text="Where ForgeOps tells you when something breaks.">
+          <AlertsCard organizationId={org.id} />
+        </Card>
+      )}
 
       <Card title="Appearance" text="Light, dark, or follow your computer's setting.">
         <div className="inline-flex rounded-md border p-1" role="radiogroup" aria-label="Theme">
