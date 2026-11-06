@@ -1,5 +1,5 @@
 import { randomBytes } from "node:crypto";
-import { Router } from "express";
+import { Router, type Response } from "express";
 import type { PrismaClient } from "../../generated/prisma/client.js";
 import { HttpError } from "../../http-error.js";
 import { createRequireAuth, memberOrganizationId, readCookie } from "../auth/auth.router.js";
@@ -23,41 +23,52 @@ export function createGitHubRouter(
   });
   router.use("/github", createRequireAuth(db));
 
-  router.get("/github/install", (req, res) => {
-    const organizationId = memberOrganizationId(res, req.query.organizationId);
+  const startState = (res: Response, organizationId: string, installationId = "") => {
     const nonce = randomBytes(16).toString("base64url");
-    res.cookie(STATE_COOKIE, `${nonce}.${organizationId}`, {
+    res.cookie(STATE_COOKIE, `${nonce}.${organizationId}.${installationId}`, {
       httpOnly: true,
       sameSite: "lax",
       secure: secureCookies,
       path: STATE_PATH,
       maxAge: 10 * 60 * 1000,
     });
-    res.redirect(github!.installUrl(nonce));
+    return nonce;
+  };
+
+  router.get("/github/install", (req, res) => {
+    const organizationId = memberOrganizationId(res, req.query.organizationId);
+    const wanted = req.query.installationId;
+    const installationId = typeof wanted === "string" && /^\d{1,19}$/.test(wanted) ? wanted : "";
+    try {
+      res.redirect(github!.authorizeUrl(startState(res, organizationId, installationId)));
+    } catch (error) {
+      if (error instanceof HttpError) return res.redirect(`/app?github_error=${error.code}`);
+      throw error;
+    }
   });
 
   router.get("/github/callback", async (req, res) => {
-    const [nonce, organizationId] = (readCookie(req, STATE_COOKIE) ?? "").split(".");
+    const [nonce, organizationId, wanted] = (readCookie(req, STATE_COOKIE) ?? "").split(".");
     res.clearCookie(STATE_COOKIE, { path: STATE_PATH });
     try {
       const { code, installation_id, state } = req.query;
-      if (!nonce || state !== nonce || typeof code !== "string" || !installation_id) {
+      if (!nonce || state !== nonce || typeof code !== "string") {
         throw new HttpError(400, "INVALID_GITHUB_CALLBACK", "Start connecting GitHub again");
       }
       const orgId = memberOrganizationId(res, organizationId);
-      const installationId = Number(installation_id);
-      const installation = (await github!.userInstallations(code)).find(
-        (i) => i.id === installationId,
-      );
-      if (!installation) {
+      const mine = await github!.userInstallations(code);
+      const pick = Number(typeof installation_id === "string" ? installation_id : wanted);
+      const chosen = pick ? mine.find((i) => i.id === pick) : mine.length === 1 ? mine[0] : null;
+      if (pick && !chosen) {
         throw new HttpError(403, "INSTALLATION_NOT_YOURS", "That installation is not yours");
       }
-      const existing = await repo.find(installationId);
-      if (existing && existing.organizationId !== orgId) {
-        throw new HttpError(409, "INSTALLATION_IN_USE", "Already connected elsewhere");
+      if (chosen) {
+        await repo.link(chosen.id, chosen.account, orgId);
+        return res.redirect("/app?github=connected");
       }
-      if (!existing) await repo.link(installationId, installation.account, orgId);
-      res.redirect("/app?github=connected");
+      if (mine.length === 0) return res.redirect(github!.installUrl(startState(res, orgId)));
+      const choices = mine.map((i) => `${i.id}:${i.account}`).join(",");
+      res.redirect(`/app?github_choose=${encodeURIComponent(choices)}`);
     } catch (error) {
       if (error instanceof HttpError) return res.redirect(`/app?github_error=${error.code}`);
       throw error;
@@ -71,6 +82,7 @@ export function createGitHubRouter(
     res.json({
       connected: true,
       account: installation.accountLogin,
+      manageUrl: github!.installUrl(),
       repositories: await github!.listRepositories(Number(installation.installationId)),
     });
   });

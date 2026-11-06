@@ -38,13 +38,15 @@ if (!(await db.user.findUnique({ where: { email } }))) {
 
 const { organizationId } = await db.membership.findFirstOrThrow({ where: { user: { email } } });
 await db.gitHubInstallation.upsert({
-  where: { installationId: BigInt(installationId) },
+  where: {
+    installationId_organizationId: { installationId: BigInt(installationId), organizationId },
+  },
   create: {
     installationId: BigInt(installationId),
     accountLogin: source.repository.split("/")[0]!,
     organizationId,
   },
-  update: { organizationId },
+  update: {},
 });
 
 const project = await db.project.upsert({

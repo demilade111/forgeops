@@ -52,6 +52,7 @@ it("redelivers a message the consumer did not finish", async () => {
 
 it("moves a deployment from the outbox through RabbitMQ to a finished worker run", async () => {
   const github = {
+    authorizeUrl: () => "",
     installUrl: () => "",
     userInstallations: async () => [],
     listRepositories: async () => [],

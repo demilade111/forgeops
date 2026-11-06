@@ -55,12 +55,13 @@ model Session {
 }
 
 model GitHubInstallation {
-  installationId BigInt       @id
+  installationId BigInt
   accountLogin   String
   organizationId String       @db.Uuid
   createdAt      DateTime     @default(now())
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
+  @@id([installationId, organizationId])
   @@index([organizationId])
 }
 

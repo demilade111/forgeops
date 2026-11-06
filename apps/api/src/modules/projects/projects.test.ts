@@ -7,6 +7,7 @@ import { resetDb, testDb } from "../../test/db.js";
 import type { GitHubClient } from "../github/github.client.js";
 
 const github = {
+  authorizeUrl: () => "https://github.test/authorize",
   installUrl: () => "https://github.test/install",
   userInstallations: vi.fn(async () => []),
   listRepositories: vi.fn(async () => []),

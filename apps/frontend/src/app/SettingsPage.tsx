@@ -90,9 +90,13 @@ export function SettingsPage({ me }: { me: Me }) {
                 variant={github.data.connected ? "outline" : "default"}
                 className="h-9"
               >
-                <a href={api.githubInstallUrl(org.id)}>
-                  {github.data.connected ? "Manage repositories" : "Connect GitHub"}
-                </a>
+                {github.data.connected ? (
+                  <a href={github.data.manageUrl} target="_blank" rel="noreferrer">
+                    Manage repositories on GitHub
+                  </a>
+                ) : (
+                  <a href={api.githubInstallUrl(org.id)}>Connect GitHub</a>
+                )}
               </Button>
             )}
           </div>

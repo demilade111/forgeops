@@ -19,7 +19,7 @@ export type Repository = { id: number; fullName: string; private: boolean; defau
 
 export type GitHubStatus =
   | { connected: false; repositories: [] }
-  | { connected: true; account: string; repositories: Repository[] };
+  | { connected: true; account: string; manageUrl: string; repositories: Repository[] };
 
 export type Project = { id: string; organizationId: string; name: string; createdAt: string };
 
