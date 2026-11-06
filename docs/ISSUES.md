@@ -8,6 +8,17 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-042 — My sabotage-test cleanup wiped the feature I had just written (M1-S7)
+- **Situation:** To prove the new health-check tests could fail, I broke the check on purpose, ran the tests (both
+  caught it), then "undid" the sabotage with `git checkout -- deployments.release.ts`.
+- **Task:** Restore the file to my new version, not to the last commit.
+- **Action:** `git checkout` restores the committed file, so it also removed the 76 uncommitted lines of the
+  health-check feature. I had copied the file before sabotaging it, checked the copy held the real code and none of
+  the sabotage, and restored it.
+- **Result:** nothing lost; the full suite passed afterwards. From now on, sabotage is undone from a backup copy or
+  by reversing the exact edit, never with `git checkout` on a file with uncommitted work.
+- **Lesson:** know exactly what an "undo" command restores to before running it.
+
 ## ISS-041 — The local Docker data was gone a fifth time, found while testing delete (deletion)
 - **Situation:** While checking delete in the browser, the dev database held only the test account I had just
   created. The demo account, project, service, app container and Caddy routes were all gone.

@@ -61,6 +61,7 @@ export function ServiceSettings({ service, onSaved }: { service: Service; onSave
   const [branch, setBranch] = useState(service.branch);
   const [root, setRoot] = useState(service.sourceDirectory);
   const [port, setPort] = useState(String(service.port));
+  const [healthPath, setHealthPath] = useState(service.healthCheckPath);
   const [removed, setRemoved] = useState<string[]>([]);
   const [added, setAdded] = useState<[string, string][]>([]);
   const [savedBuild, setSavedBuild] = useState(false);
@@ -72,6 +73,7 @@ export function ServiceSettings({ service, onSaved }: { service: Service; onSave
         branch: branch.trim(),
         sourceDirectory: root.trim(),
         port: Number(port),
+        healthCheckPath: healthPath.trim(),
       }),
     {
       onSuccess: () => {
@@ -103,7 +105,8 @@ export function ServiceSettings({ service, onSaved }: { service: Service; onSave
   const buildChanged =
     branch.trim() !== service.branch ||
     root.trim() !== service.sourceDirectory ||
-    Number(port) !== service.port;
+    Number(port) !== service.port ||
+    healthPath.trim() !== service.healthCheckPath;
   const envChanged = removed.length > 0 || added.some(([name]) => name.trim());
 
   function submitBuild(event: FormEvent) {
@@ -163,6 +166,17 @@ export function ServiceSettings({ service, onSaved }: { service: Service; onSave
               onChange={(e) => setPort(e.target.value)}
               className="h-9 max-w-32 font-mono"
               required
+            />
+          </Field>
+          <Field
+            label="Health check path"
+            hint="We call this path on your app before sending it traffic. Leave empty to accept any response."
+          >
+            <Input
+              value={healthPath}
+              onChange={(e) => setHealthPath(e.target.value)}
+              placeholder="/health/ready"
+              className="h-9 font-mono"
             />
           </Field>
         </Section>

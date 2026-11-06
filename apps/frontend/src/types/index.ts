@@ -33,6 +33,7 @@ export type Service = {
   sourceDirectory: string;
   buildMethod: "dockerfile";
   port: number;
+  healthCheckPath: string;
   envVarNames: string[];
   createdAt: string;
 };
@@ -45,6 +46,7 @@ export type NewService = {
   branch: string;
   sourceDirectory: string;
   port: number;
+  healthCheckPath: string;
   envVars: Record<string, string>;
 };
 
@@ -77,5 +79,6 @@ export type ServiceChanges = Partial<{
   branch: string;
   sourceDirectory: string;
   port: number;
+  healthCheckPath: string;
   envVars: Record<string, string | null>;
 }>;

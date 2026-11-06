@@ -244,6 +244,15 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Swap then clean up:** the new container starts first, the route moves to it, and only then is the old one
   removed. If anything fails, the old version keeps serving.
 
+### Readiness and health (M1-S7, done)
+- **Readiness check:** an HTTP call to a path like `/health/ready` that the app answers with 2xx only when it can
+  take traffic. ForgeOps waits for it before moving the URL to the new version.
+- **Liveness vs readiness:** alive means the process runs; ready means it can serve requests now.
+- **Timeout and interval:** try every second, give up after 60 seconds.
+- **Fail fast:** if the container has already stopped, there is no point waiting; report the app's own output.
+- **Probe through the proxy:** a temporary internal route lets the worker reach a container on a private network.
+- **Separate outcomes:** Build, Rollout and Health each point at a different fix.
+
 ## Interview questions
 
 Moved to `INTERVIEW.md` (trade-offs, failure scenarios and answers for every slice).

@@ -15,16 +15,23 @@ import {
   workspace,
 } from "./deployments.build.js";
 import { deploymentsRepository } from "./deployments.repository.js";
-import { removeContainers, routeTo, startContainer } from "./deployments.release.js";
+import {
+  removeContainers,
+  routeTo,
+  startContainer,
+  waitUntilHealthy,
+} from "./deployments.release.js";
 
 const message = z.object({ type: z.literal("deployment.requested"), deploymentId: z.guid() });
 
 type Options = {
   registryHost: string;
   caddyAdminUrl: string;
+  caddyHttpUrl: string;
   encryptionKey: Buffer;
   retryDelays?: number[];
   timeouts?: { build: number; push: number };
+  health?: { timeoutMs: number; intervalMs: number };
 };
 
 export function createDeploymentHandler(
@@ -33,9 +40,11 @@ export function createDeploymentHandler(
   {
     registryHost,
     caddyAdminUrl,
+    caddyHttpUrl,
     encryptionKey,
     retryDelays = [1000, 2000, 4000],
     timeouts = { build: 15 * 60_000, push: 5 * 60_000 },
+    health = { timeoutMs: 60_000, intervalMs: 1000 },
   }: Options,
 ) {
   const repo = deploymentsRepository(db);
@@ -129,6 +138,25 @@ export function createDeploymentHandler(
             throw new StepFailure("Could not read the service's env vars");
           }
           await startContainer(container, image, service.id, env, dir);
+        },
+      ],
+      [
+        "health",
+        async () => {
+          try {
+            return await waitUntilHealthy({
+              ...health,
+              adminUrl: caddyAdminUrl,
+              httpUrl: caddyHttpUrl,
+              id: deploymentId,
+              container,
+              port: service.port,
+              path: service.healthCheckPath,
+            });
+          } catch (error) {
+            await run("docker", ["rm", "-f", container], 60_000);
+            throw error;
+          }
         },
       ],
       [

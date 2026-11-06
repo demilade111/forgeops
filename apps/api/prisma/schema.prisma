@@ -95,6 +95,7 @@ model Service {
   sourceDirectory    String
   buildMethod        BuildMethod
   port               Int
+  healthCheckPath    String       @default("/health/ready")
   envVars            String
   createdAt          DateTime     @default(now())
   updatedAt          DateTime     @updatedAt

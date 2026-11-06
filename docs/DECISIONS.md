@@ -199,6 +199,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-058 | Mini frontend data flow | `useLoad` hook for reads; the service page polls the open deployment every 1.5 s while queued or running; Deploy keeps one Idempotency-Key per attempt | **Accepted** (2026-11-06) |
 | ADR-059 | Settings in the dashboard | Service Settings tab edits branch, root directory, port and env vars through the existing `PATCH /api/services/:id`; account Settings page shows account, workspace, GitHub and log out | **Accepted** (2026-11-06) |
 | ADR-060 | Deleting services and projects | Clean delete through the outbox and worker: hide at once, remove the route and containers, then the rows; refused while a deploy is active; project delete takes its services | **Accepted** (2026-11-06) |
+| ADR-061 | Readiness check before go-live | New `health` step between `run` and `route`: call the service's health check path (default `/health/ready`, empty accepts any answer) through a temporary Caddy route every second for up to 60 s; 2xx or 3xx passes; a stopped container fails at once | **Accepted** (2026-11-06) |
 | ADR-053 | Local seed script | `pnpm --filter @forgeops/api seed` recreates the demo account, GitHub link, project and service; safe to rerun | **Accepted** (2026-11-03) |
 | ADR-051 | Build logs, time limits and stale deployments | Step logs in `DeploymentStep.log` (last 64 KiB); build 15 min, push 5 min, GitHub calls 2 min; sweeper fails deployments running over 60 min | **Accepted** (2026-11-03) |
 | ADR-024 | Code-quality toolchain | TypeScript 6.0 (strict, shared base config), ESLint flat config + typescript-eslint, Prettier | **Accepted** (2026-10-25) |
@@ -931,6 +932,38 @@ Template:
 - **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
+
+### ADR-061 — Readiness check before go-live (M1-S7)
+- **Status:** Accepted (2026-11-06). The product owner approved the three recommended options.
+- **Problem:** a deploy counted as live as soon as `docker run` returned, so a release that crashed a second later,
+  or answered every request with errors, still took over the URL.
+- **Decision:**
+  - Each service has a **health check path**, default `/health/ready`, editable in Settings and in the new-service
+    form. Empty means any HTTP answer from the app counts (for apps without a health endpoint). Validated: empty or
+    starting with `/`, no spaces, at most 255 characters.
+  - A new `health` step runs between `run` and `route`. It calls the path every second for up to 60 seconds, each
+    call with a 5-second limit. A 2xx or 3xx answer passes. Before each call it checks the container is still
+    running with no restarts, so a crashing app fails at once with "Your app stopped while starting" instead of
+    waiting the full minute.
+  - On failure the step log holds the last answer (for example `GET /nope returned 404`) and the last 100 lines of
+    the app's own output, the new container is removed, and the route is never switched, so the old version keeps
+    serving.
+- **How the worker reaches the container:** apps live on a private Docker network the worker cannot reach. The
+  worker adds a temporary Caddy route for an internal name (`check-<deploymentId>.forgeops.internal`) to the new
+  container, calls Caddy's HTTP port with that `Host` header, then deletes the route.
+  - Options considered: (1) temporary Caddy route (chosen: reuses what exists, works on any Docker); (2) a
+    throwaway checker container on the app network per deploy (slower, another image); (3) calling the container's
+    IP directly (works on OrbStack, not on Docker Desktop).
+  - Caddy adds a response header (`X-Forgeops-Probe: app`) only to answers that come from the app, so Caddy's own
+    502 when the app is not listening yet is never mistaken for an answer.
+  - New setting `CADDY_HTTP_URL` (dev `http://127.0.0.1:80`, tests `http://127.0.0.1:8081`).
+- **Outcomes in the UI:** each deployment shows three badges: **Build** (find commit to save image), **Rollout**
+  (start app and go live) and **Health** (the check). A rollout that ended early reads "Stopped", so a failed health
+  check shows Build Passed, Rollout Stopped, Health Failed.
+- **Consequences:** a slow-starting app needs to answer within 60 seconds (configurable later). If the worker crashes
+  during a check, the temporary route stays in Caddy pointing at a removed container (harmless, internal name).
+  Health after go-live (an app that breaks an hour later) is not watched yet; that is the trigger for automatic
+  rollback in M1-S10 and alerts in M1-S12, and the exact failed-rollout criteria remain ADR-022.
 
 ### ADR-060 — Deleting services and projects
 - **Status:** Accepted (2026-11-06). The product owner asked for the recommended option ("do the best thing").

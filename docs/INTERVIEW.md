@@ -441,19 +441,68 @@ worker, passed with `--env-file`, and deleted with the workspace. Never on the c
 
 ---
 
-## 13. Rollout and health _(planned: M1-S7 to M1-S10)_
+## 13. Readiness and health (M1-S7)
 
 **The idea to explain:** ForgeOps records three separate outcomes, because each failure points at a different fix:
 - **Build:** did the code become an image? Fails: your code.
-- **Rollout:** did the new version start, pass its readiness check and take over the URL? Fails: your settings
-  (wrong port, missing env var). The old version keeps serving.
-- **Health:** is it still working under real traffic? Fails: a runtime bug. This, after a successful rollout, is
-  what triggers an **automatic rollback attempt** to the previous image. It's an attempt, not a guarantee: if the old
-  image also fails, ForgeOps records that.
+- **Rollout:** did the new version start and take over the URL? Fails: your settings (wrong port, missing env var).
+- **Health:** does it answer its health check? Fails: the app is broken or not ready. The old version keeps serving.
 
-**Q: Your platform has automatic rollback. Does every bad deploy recover?** _No. If the release ran a destructive
-database migration, or a shared dependency is down, the previous version can fail too. ForgeOps records the attempt
-and its outcome, and migrations should be backward-compatible._
+**The flow:** after `run`, a new `health` step calls the service's health check path (default `/health/ready`) every
+second for up to 60 seconds. Only a 2xx or 3xx answer moves on to `route` (go live).
+
+### Why each tool
+| Choice | Why | Alternatives and their cost |
+| --- | --- | --- |
+| **Readiness check before switching traffic** | a release that can't serve never receives users | check after switching (users hit errors first); no check (the old behaviour) |
+| **Temporary Caddy route to reach the container** | reuses the proxy, works on any Docker, no new image | a checker container per deploy (slower, another image); container IP (Docker Desktop can't reach it) |
+| **Marker header on app answers** | tells the app's 502 apart from Caddy's own 502 when nothing is listening yet | treat any 502 as "not ready" (an app that really answers 502 would look like it never started) |
+| **Container status check each second** | a crashing app fails in a second with its own output, not after 60 seconds | only wait for the timeout (slow, no clue why) |
+| **Default `/health/ready`, empty allowed** | matches the sample app and common practice; empty supports apps with no health endpoint | `/` (says the server is up, not that it's ready); required path (blocks simple apps) |
+
+### What happens when...
+| Situation | What ForgeOps does |
+| --- | --- |
+| The app answers `/health/ready` with 200 | Health passes (about 1 second for the sample), then go live. Real run: `GET /health/ready returned 200` in 1.2 s. |
+| The path returns 404 or 503 for a minute | Fails: "Your app did not pass its health check within 60 seconds", last answer and app output in the log, new container removed, old version serving. Real run: the URL answered 200 the whole minute. |
+| The app crashes on start (missing env var) | Fails at once: "Your app stopped while starting", with the app's own error. Tested. |
+| The app listens on the wrong port | Caddy can't reach it, no marker header, so it never counts as an answer: fails after 60 s with "got no answer". Tested. |
+| No health path set | Any answer from the app passes, even 404. Tested. |
+| Caddy is down | The temporary route can't be added: "Could not update the router". |
+| The app breaks an hour after going live | Not watched yet: that is automatic rollback (M1-S10) and alerts (M1-S12). |
+
+### "How do you know a deploy actually works?" (30-second answer)
+"Starting a container isn't proof. Before ForgeOps moves traffic, it calls the app's health check path through a
+temporary private route, every second for up to a minute. Only a 2xx or 3xx answer counts, and only if it came from
+the app itself, not from the proxy. If the app crashes, it fails at once with the app's own output. If it never gets
+healthy, the new container is removed and the old version keeps serving, so a bad release never reaches users."
+
+### Real evidence (M1-S7)
+- 123 API tests. New ones cover: a path that never passes (old version keeps serving, temporary route removed), a
+  crash on start (fails in seconds with the app's output), no path set (any answer passes), an app listening on the
+  wrong port (proxy errors don't count), and health path validation.
+- Sabotage: accepting any status, or counting the proxy's own errors as answers, failed two tests.
+- Real runs with `forgeops-sample-api` at `f2edcd7`: healthy deploy, all seven steps, health 1.2 s, live URL 200.
+  Then with the path set to `/nope`: failed after 60 seconds with `GET /nope returned 404` and the app's log; the URL
+  answered 200 throughout; one container left, the old one.
+- Story: **ISS-042** (my sabotage cleanup with `git checkout` wiped the feature; restored from a backup).
+
+### Known limits
+- The 60-second limit and 1-second interval are fixed for now.
+- Health after go-live isn't monitored yet (M1-S10, M1-S12). No connection draining on swap.
+- A worker crash during a check leaves a harmless temporary route behind.
+
+### Questions
+**Q: Liveness vs readiness?** _Liveness says "the process is alive, don't restart me". Readiness says "I can take
+traffic now", for example after connecting to the database. ForgeOps checks readiness before go-live; the sample app
+has both endpoints._
+
+**Q: Why not just check that the container is running?** _A running process can still be broken: wrong port, failed
+database connection, every request erroring. Only an HTTP answer from the app proves it can serve._
+
+**Q: Your platform has automatic rollback. Does every bad deploy recover?** _No. A readiness check stops a bad release
+before it gets traffic. Rollback (M1-S10) is for a release that breaks after going live, and it's an attempt: if the
+release ran a destructive migration, the old version can fail too. ForgeOps records the outcome._
 
 ---
 

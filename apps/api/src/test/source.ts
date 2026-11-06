@@ -19,7 +19,16 @@ if (!registryHost) throw new Error("TEST_REGISTRY_HOST is not set (see apps/api/
 export const caddyAdminUrl = process.env.TEST_CADDY_ADMIN_URL!;
 if (!caddyAdminUrl) throw new Error("TEST_CADDY_ADMIN_URL is not set (see apps/api/.env.example)");
 
-export const workerOptions = { registryHost, caddyAdminUrl, encryptionKey: testKey };
+export const caddyHttpUrl = process.env.TEST_CADDY_HTTP_URL!;
+if (!caddyHttpUrl) throw new Error("TEST_CADDY_HTTP_URL is not set (see apps/api/.env.example)");
+
+export const workerOptions = {
+  registryHost,
+  caddyAdminUrl,
+  caddyHttpUrl,
+  encryptionKey: testKey,
+  health: { timeoutMs: 5000, intervalMs: 200 },
+};
 
 const caddyConfig = readFileSync(resolve(import.meta.dirname, "../../../../caddy/caddy.json"));
 
@@ -54,11 +63,9 @@ export async function until(check: () => Promise<boolean>, timeoutMs = 15_000) {
 
 export const webApp = {
   Dockerfile: `FROM busybox:1.37
-CMD mkdir -p /www && echo "hello $GREETING" > /www/index.html && exec httpd -f -p 8080 -h /www
+CMD mkdir -p /www/health && echo ok > /www/health/ready && echo "hello $GREETING" > /www/index.html && exec httpd -f -p 8080 -h /www
 `,
 };
-
-export const helloApp = { Dockerfile: "FROM busybox:1.37\nRUN echo forgeops > /hello\n" };
 
 export function sourceArchive(files: Record<string, string>, links: Record<string, string> = {}) {
   const dir = mkdtempSync(join(tmpdir(), "forgeops-source-"));
