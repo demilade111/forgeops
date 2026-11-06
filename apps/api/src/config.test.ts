@@ -13,7 +13,14 @@ it("applies defaults", () => {
     encryptionKeyPath: ENCRYPTION_KEY_PATH,
     rabbitmqUrl: null,
     registryHost: null,
+    caddyAdminUrl: null,
     github: null,
+  });
+});
+
+it("reads CADDY_ADMIN_URL without a trailing slash", () => {
+  expect(loadConfig({ ...base, CADDY_ADMIN_URL: "http://127.0.0.1:2019/" })).toMatchObject({
+    caddyAdminUrl: "http://127.0.0.1:2019",
   });
 });
 

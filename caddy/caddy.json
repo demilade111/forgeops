@@ -1,0 +1,24 @@
+{
+  "admin": { "listen": "0.0.0.0:2019" },
+  "apps": {
+    "http": {
+      "servers": {
+        "forgeops": {
+          "listen": [":80"],
+          "automatic_https": { "disable": true },
+          "routes": [
+            {
+              "handle": [
+                {
+                  "handler": "static_response",
+                  "status_code": 404,
+                  "body": "No service at this address"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}

@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
-import { afterEach, beforeEach, expect, it, vi } from "vitest";
+import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
 import { deploymentsRepository } from "./modules/deployments/deployments.repository.js";
 import { createDeploymentHandler } from "./modules/deployments/deployments.worker.js";
 import type { GitHubClient } from "./modules/github/github.client.js";
 import { connectQueue } from "./queue.js";
 import { createService, createUser, resetDb, testDb } from "./test/db.js";
-import { helloApp, registryHost, sourceArchive } from "./test/source.js";
+import { helloApp, resetRuntime, sourceArchive, workerOptions } from "./test/source.js";
 
 const url = process.env.RABBITMQ_URL;
 if (!url) throw new Error("RABBITMQ_URL is not set (see apps/api/.env.example)");
@@ -14,6 +14,7 @@ let queue: Awaited<ReturnType<typeof connectQueue>>;
 let name: string;
 
 beforeEach(async () => {
+  await resetRuntime();
   await resetDb();
   name = `test-${randomUUID()}`;
   queue = await connectQueue(url, name);
@@ -25,6 +26,8 @@ afterEach(async () => {
   await channel.deleteQueue(`${name}.dead`);
   await queue.close();
 });
+
+afterAll(resetRuntime);
 
 const until = async (check: () => Promise<boolean> | boolean) => {
   for (let i = 0; i < 400 && !(await check()); i++) await new Promise((r) => setTimeout(r, 50));
@@ -60,7 +63,7 @@ it("moves a deployment from the outbox through RabbitMQ to a finished worker run
   const service = await createService();
   const deployment = await repo.create(service.id, (await createUser()).id, "k1");
 
-  await queue.consume(createDeploymentHandler(testDb, github, { registryHost }));
+  await queue.consume(createDeploymentHandler(testDb, github, workerOptions));
   expect(await repo.relayOutbox(queue.publish)).toBe(1);
   await until(
     async () =>

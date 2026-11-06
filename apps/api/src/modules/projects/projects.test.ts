@@ -102,6 +102,7 @@ it.each([
   [{ repository: "not-a-repo" }, "Repository must look like owner/name"],
   [{ name: "My API" }, "Service name must use lowercase letters, numbers and dashes"],
   [{ envVars: { "BAD-NAME": "x" } }, "Env var names use letters, numbers and underscores"],
+  [{ envVars: { KEY: "line1\nline2" } }, "Env var values cannot contain line breaks"],
 ])("rejects %j", async (change, message) => {
   const { agent, projectId } = await signedIn();
   const res = await agent

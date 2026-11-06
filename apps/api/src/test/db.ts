@@ -1,11 +1,15 @@
+import { randomBytes } from "node:crypto";
+import { encrypt } from "../secrets.js";
 import { createDb } from "../server.js";
+
+export const testKey = randomBytes(32);
 
 export const testDb = createDb(process.env.TEST_DATABASE_URL!);
 
 export const resetDb = () =>
   testDb.$executeRaw`TRUNCATE "User", "Organization", "Session", "Outbox" CASCADE`;
 
-export async function createService(organizationId?: string) {
+export async function createService(organizationId?: string, env: Record<string, string> = {}) {
   const orgId = organizationId ?? (await testDb.organization.create({ data: { name: "Test" } })).id;
   await testDb.gitHubInstallation.create({
     data: {
@@ -28,7 +32,7 @@ export async function createService(organizationId?: string) {
       sourceDirectory: "",
       buildMethod: "dockerfile",
       port: 8080,
-      envVars: "encrypted",
+      envVars: encrypt(testKey, JSON.stringify(env)),
     },
   });
 }

@@ -6,6 +6,7 @@ export type Outcome = {
   status: "succeeded" | "failed";
   commitSha?: string | null;
   image?: string;
+  url?: string;
   error?: string;
   log?: string;
 };
@@ -83,7 +84,7 @@ export const deploymentsRepository = (db: PrismaClient) => ({
       data: { status: "succeeded", log, finishedAt: new Date() },
     }),
 
-  finish: (id: string, step: string, { status, commitSha, image, error, log }: Outcome) => {
+  finish: (id: string, step: string, { status, commitSha, image, url, error, log }: Outcome) => {
     const finishedAt = new Date();
     return db.$transaction([
       db.deploymentStep.update({
@@ -92,7 +93,7 @@ export const deploymentsRepository = (db: PrismaClient) => ({
       }),
       db.deployment.update({
         where: { id },
-        data: { status, commitSha, image, error, finishedAt, activeServiceId: null },
+        data: { status, commitSha, image, url, error, finishedAt, activeServiceId: null },
       }),
     ]);
   },
