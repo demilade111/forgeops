@@ -122,7 +122,17 @@ async function stillRunning(container: string) {
 }
 
 const appLogs = async (container: string) =>
-  (await run("docker", ["logs", "--tail", "100", container], 10_000)).log;
+  (await run("docker", ["logs", "--tail", "100", container], 10_000)).log.trim() ||
+  "Your app printed nothing before it stopped. Check that the Dockerfile has a CMD or ENTRYPOINT that starts your server.";
+
+export async function waitUntilStarted(container: string, settleMs: number, intervalMs = 250) {
+  for (const deadline = Date.now() + settleMs; ; await sleep(intervalMs)) {
+    if (!(await stillRunning(container))) {
+      throw new StepFailure("Your app stopped while starting", await appLogs(container));
+    }
+    if (Date.now() >= deadline) return `Still running after ${settleMs / 1000}s`;
+  }
+}
 
 export async function waitUntilHealthy(check: HealthCheck) {
   const { adminUrl, httpUrl, id, container, port, path, timeoutMs, intervalMs } = check;
@@ -144,7 +154,7 @@ export async function waitUntilHealthy(check: HealthCheck) {
     let last = `${target} got no answer`;
     for (const deadline = Date.now() + timeoutMs; ; await sleep(intervalMs)) {
       if (!(await stillRunning(container))) {
-        throw new StepFailure("Your app stopped while starting", await appLogs(container));
+        throw new StepFailure("Your app stopped during its health check", await appLogs(container));
       }
       const answer = await probe(httpUrl, host, path);
       if (answer?.fromApp) {

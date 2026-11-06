@@ -28,6 +28,7 @@ export const workerOptions = {
   caddyHttpUrl,
   encryptionKey: testKey,
   health: { timeoutMs: 5000, intervalMs: 200 },
+  startupMs: 1000,
 };
 
 const caddyConfig = readFileSync(resolve(import.meta.dirname, "../../../../caddy/caddy.json"));

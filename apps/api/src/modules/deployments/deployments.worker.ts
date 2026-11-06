@@ -19,6 +19,7 @@ import {
   removeContainers,
   routeTo,
   startContainer,
+  waitUntilStarted,
   waitUntilHealthy,
 } from "./deployments.release.js";
 
@@ -32,6 +33,7 @@ type Options = {
   retryDelays?: number[];
   timeouts?: { build: number; push: number };
   health?: { timeoutMs: number; intervalMs: number };
+  startupMs?: number;
 };
 
 export function createDeploymentHandler(
@@ -45,6 +47,7 @@ export function createDeploymentHandler(
     retryDelays = [1000, 2000, 4000],
     timeouts = { build: 15 * 60_000, push: 5 * 60_000 },
     health = { timeoutMs: 60_000, intervalMs: 1000 },
+    startupMs = 3000,
   }: Options,
 ) {
   const repo = deploymentsRepository(db);
@@ -155,6 +158,12 @@ export function createDeploymentHandler(
             throw new StepFailure("Could not read the service's env vars");
           }
           await startContainer(container, image, service.id, env, dir);
+          try {
+            return await waitUntilStarted(container, startupMs);
+          } catch (error) {
+            await run("docker", ["rm", "-f", container], 60_000);
+            throw error;
+          }
         },
       ],
       [

@@ -581,19 +581,56 @@ it("fails the deploy when the app never passes its health check, and keeps the o
   expect(await checkRoutes()).toEqual([]);
 });
 
-it("fails fast with the app's own output when it stops while starting", async () => {
+it("fails the start step with the app's own output when it crashes on start", async () => {
   const { service, deployment, message } = await queued();
   withSource({ Dockerfile: 'FROM busybox:1.37\nCMD echo "missing DATABASE_URL" && exit 1\n' });
   const started = Date.now();
 
   await handle(message);
 
+  const done = await reload(deployment.id);
   expect(Date.now() - started).toBeLessThan(15_000);
-  expect((await reload(deployment.id)).steps.at(-1)).toMatchObject({
-    name: "health",
+  expect(done.steps.map((s) => s.name)).not.toContain("health");
+  expect(done.steps.at(-1)).toMatchObject({
+    name: "run",
     status: "failed",
     error: "Your app stopped while starting",
     log: expect.stringContaining("missing DATABASE_URL"),
+  });
+  expect(await containersOf(service.id)).toEqual([]);
+});
+
+it("explains a crash that printed nothing, such as a Dockerfile without a start command", async () => {
+  const { deployment, message } = await queued();
+  withSource({ Dockerfile: "FROM busybox:1.37\nCMD exit 1\n" });
+
+  await handle(message);
+
+  expect((await reload(deployment.id)).steps.at(-1)).toMatchObject({
+    name: "run",
+    error: "Your app stopped while starting",
+    log: expect.stringContaining("Check that the Dockerfile has a CMD or ENTRYPOINT"),
+  });
+});
+
+it("still catches an app that stops later, during its health check", async () => {
+  const { service, deployment, message } = await queued();
+  withSource({
+    Dockerfile: 'FROM busybox:1.37\nCMD sleep 2 && echo "lost the database" && exit 1\n',
+  });
+
+  await handle(message);
+
+  const steps = (await reload(deployment.id)).steps;
+  expect(steps.find((s) => s.name === "run")).toMatchObject({
+    status: "succeeded",
+    log: "Still running after 1s",
+  });
+  expect(steps.at(-1)).toMatchObject({
+    name: "health",
+    status: "failed",
+    error: "Your app stopped during its health check",
+    log: expect.stringContaining("lost the database"),
   });
   expect(await containersOf(service.id)).toEqual([]);
 });
