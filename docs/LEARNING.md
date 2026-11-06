@@ -267,6 +267,14 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   they did.
 - **Expand and contract:** change the database in steps so old and new code both work, which keeps rollback safe.
 
+### Alerts (M1-S12, ADR-070)
+- **Detect vs notify:** checks find failures; alerts push them to a person.
+- **Outbox for alerts:** write the alert with the failure in one transaction so it cannot be lost.
+- **Idempotent delivery:** mark each channel as sent so a retried message does not send twice.
+- **Incoming webhook:** a secret URL a service gives you; you POST JSON to it and it shows up (Slack posts it in a
+  channel).
+- **SSRF:** if users choose a URL your server calls, they can aim it at your internal services; allow-list hosts.
+
 ### Metrics (M1-S11, ADR-069)
 - **Where the numbers come from:** the Linux kernel counts each container's CPU time and memory (cgroups); Docker
   reads them (`docker stats`).

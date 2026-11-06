@@ -621,6 +621,27 @@ code that works with both, and only remove the old ones once no version needs th
 
 ---
 
+## 20. Alerts (M1-S12)
+
+**30-second answer:** "When a deploy fails or a live app breaks, ForgeOps writes an alert in the same transaction as
+the failure, plus an outbox message. The worker sends it by email to the workspace and to Slack through an incoming
+webhook, marking each channel as it succeeds, so retries never double-send. Locally email goes to Mailpit; in the
+cloud it would be SES. The Slack URL is encrypted and limited to Slack's domain to prevent SSRF."
+
+### What happens when...
+- **The SMTP server is down:** the send throws, the queue retries up to 5 times, then dead-letters it; the alert is
+  still listed in Settings as "Sending".
+- **Slack is down after the email went out:** only Slack is retried.
+- **Someone pastes `http://127.0.0.1:2019` as the webhook:** rejected; only `https://hooks.slack.com/services/...`.
+- **Alert storms:** each failure is one alert; grouping and rate limits would be next at scale.
+
+### Questions
+- *Why not send the email right where the deploy fails?* If the worker crashed after marking the deploy failed but
+  before sending, the alert would be lost. The outbox makes it all-or-nothing.
+- *Webhook vs API token for Slack?* An incoming webhook can only post to one channel, which is the least privilege
+  ForgeOps needs.
+- *What would you alert on next?* Services that stay unhealthy, high error rates, and certificates about to expire.
+
 ## 19. Metrics (M1-S11)
 
 **30-second answer:** "Every 15 seconds the worker asks Docker for each live app's CPU and memory. Docker gets them

@@ -15,6 +15,8 @@ it("applies defaults", () => {
     registryHost: null,
     caddyAdminUrl: null,
     caddyHttpUrl: null,
+    smtpUrl: null,
+    appUrl: "http://localhost:5173",
     github: null,
   });
 });

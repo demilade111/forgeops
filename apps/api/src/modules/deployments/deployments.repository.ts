@@ -1,4 +1,5 @@
 import type { Prisma, PrismaClient } from "../../generated/prisma/client.js";
+import { raiseBrokeAfterLive, raiseDeployFailed } from "../alerts/alerts.repository.js";
 
 const withSteps = { steps: { orderBy: { startedAt: "asc" } } } as const;
 
@@ -150,12 +151,12 @@ export const deploymentsRepository = (db: PrismaClient) => ({
     { status, commitSha, image, url, error, log, watchUntil }: Outcome,
   ) => {
     const finishedAt = new Date();
-    return db.$transaction([
-      db.deploymentStep.update({
+    return db.$transaction(async (tx) => {
+      await tx.deploymentStep.update({
         where: { deploymentId_name: { deploymentId: id, name: step } },
         data: { status, error, log, finishedAt },
-      }),
-      db.deployment.update({
+      });
+      await tx.deployment.update({
         where: { id },
         data: {
           status,
@@ -167,8 +168,9 @@ export const deploymentsRepository = (db: PrismaClient) => ({
           finishedAt,
           activeServiceId: null,
         },
-      }),
-    ]);
+      });
+      if (status === "failed") await raiseDeployFailed(tx, id, step, error ?? "unknown error");
+    });
   },
 
   watched: () =>
@@ -183,8 +185,11 @@ export const deploymentsRepository = (db: PrismaClient) => ({
   countFailure: (id: string, watchFailures: number) =>
     db.deployment.update({ where: { id }, data: { watchFailures } }),
 
-  stopWatching: (id: string, failedAfterLive?: string) =>
-    db.deployment.update({ where: { id }, data: { watchUntil: null, failedAfterLive } }),
+  stopWatching: (id: string, failedAfterLive?: string, rollbackTo?: string | null) =>
+    db.$transaction(async (tx) => {
+      await tx.deployment.update({ where: { id }, data: { watchUntil: null, failedAfterLive } });
+      if (failedAfterLive) await raiseBrokeAfterLive(tx, id, failedAfterLive, rollbackTo);
+    }),
 
   previousGood: (serviceId: string, before: Date) =>
     db.deployment.findFirst({

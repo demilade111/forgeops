@@ -161,7 +161,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-017 | Automatic build engine | Not selected (PD-002) | **Open** |
 | ADR-018 | Scheduled job execution mechanism | Not selected (PD-003) | **Open** |
 | ADR-019 | Managed URL scheme and traffic routing for web services | `http://<service>.<project>.localhost` in M1; Caddy reverse proxy, routes added at runtime through its admin API | **Accepted** (2026-11-05) |
-| ADR-020 | Failure alert delivery channel(s) | Not selected | **Open** |
+| ADR-020 | Alert channel | Email to workspace members (Mailpit locally, SMTP such as Amazon SES in the cloud) and an optional Slack incoming webhook (ADR-070) | **Accepted** (2026-11-06) |
 | ADR-021 | Source of basic CPU/memory metrics | `docker stats` sampled every 15 s by the worker into Postgres, kept 24 hours (ADR-069) | **Accepted** (2026-11-06) |
 | ADR-022 | Failed-rollout criteria that trigger automatic rollback | Watch 5 minutes after go-live, check every 10 s; 3 failed checks in a row or a crash rolls back to the previous good version (ADR-067) | **Accepted** (2026-11-06) |
 | ADR-023 | Repository layout | One Git monorepo with pnpm workspaces: `apps/frontend`, `apps/api`, `apps/worker`, `packages/shared` | **Accepted** (2026-10-25) |
@@ -934,6 +934,29 @@ Template:
 - **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
+
+### ADR-070 — Alerts by email and Slack (M1-S12, closes ADR-020)
+- **Status:** Accepted (2026-11-06). The product owner chose email and Slack.
+- **What raises an alert:** a failed deploy, rollback or automatic rollback (`deploy_failed`), a live version that
+  breaks during its watch window (`broke_after_live`), and the Settings "Send test alert" button (`test`). Each one
+  is an `Alert` row written in the same transaction as the failure itself, with an `alert.requested` outbox
+  message, so an alert cannot be lost between "it failed" and "tell someone". The text is built then: which service,
+  which commit, which step, the reason, and whether the old version is still live.
+- **Delivery:** the worker consumes `alert.requested`. Email goes to every member of the workspace through
+  **nodemailer** over SMTP (`SMTP_URL`); locally that is **Mailpit**, a fake inbox at `localhost:8025` that catches
+  everything (a second one on 1026/8026 for tests). In the cloud the same setting points at a real SMTP service
+  such as Amazon SES. Slack gets `{"text": ...}` posted to the workspace's incoming webhook URL. Each channel is
+  marked when it succeeds (`emailedAt`, `slackedAt`), so a retried message never sends twice; a failure throws, the
+  queue retries up to 5 times, then the message goes to the dead-letter queue.
+- **Security:** the webhook URL is a secret (anyone with it can post to the channel), so it is stored encrypted like
+  env vars and never returned. Only `https://hooks.slack.com/services/...` is accepted, checked when saved and again
+  before sending, and redirects are refused, so a user cannot make the worker call internal addresses such as
+  Caddy's admin API (server-side request forgery). Only members can see or change a workspace's alerts.
+- **Options considered:** in-app notifications only (seen only when you open ForgeOps); a hosted email API (needs
+  an account and a key now); generic webhooks to any URL (needs full SSRF protection such as blocking private IP
+  ranges after DNS lookup; later).
+- **Consequences:** two new local containers (Mailpit) and one dependency (nodemailer). Deploys that time out in the
+  stale sweeper do not alert yet. Alerts go to all members; per-person settings come with roles later.
 
 ### ADR-069 — CPU and memory metrics per service (M1-S11, closes ADR-021)
 - **Status:** Accepted (2026-11-06). The product owner chose option B: users see their own app's usage; watching

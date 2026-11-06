@@ -810,6 +810,13 @@ it("rolls back automatically when a live version keeps failing its health check"
   expect((await reload(second.id)).failedAfterLive).toBe(
     "Your app failed its health check 3 times in a row after going live (GET /health/ready returned 404)",
   );
+  expect(await testDb.alert.findMany()).toMatchObject([
+    {
+      kind: "broke_after_live",
+      deploymentId: second.id,
+      message: expect.stringContaining("ForgeOps is rolling back to 9f2c41e."),
+    },
+  ]);
   const [rollback] = await autoRollbacks();
   expect(rollback).toMatchObject({
     rollbackOfId: first.id,

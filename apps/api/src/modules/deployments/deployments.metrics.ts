@@ -39,37 +39,29 @@ export function parseStats(output: string) {
 export function createMetricsCollector(db: PrismaClient, keepMs = 24 * 60 * 60_000) {
   const repo = deploymentsRepository(db);
   return async function collect() {
-    const list = await run(
+    const stats = await run(
       "docker",
-      ["ps", "--filter", "label=forgeops.service", "--format", "{{.Names}}"],
+      ["stats", "--no-stream", "--format", "{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}"],
       30_000,
     );
-    if (list.code !== 0) throw new Error(`docker ps failed: ${list.log}`);
-    const names = list.log.split("\n").filter(Boolean);
-    if (names.length > 0) {
-      const stats = await run(
-        "docker",
-        ["stats", "--no-stream", "--format", "{{.Name}}|{{.CPUPerc}}|{{.MemUsage}}", ...names],
-        30_000,
-      );
-      if (stats.code !== 0) throw new Error(`docker stats failed: ${stats.log}`);
-      const samples = parseStats(stats.log);
-      const live = await repo.liveAmong(samples.map((s) => s.container.slice(3)));
-      const takenAt = new Date();
-      await repo.saveSamples(
-        live.map(({ id, serviceId }) => {
-          const s = samples.find((x) => x.container === `fo-${id}`)!;
-          return {
-            serviceId,
-            deploymentId: id,
-            cpuPercent: s.cpuPercent,
-            memoryBytes: BigInt(s.memoryBytes),
-            memoryLimit: BigInt(s.memoryLimit),
-            takenAt,
-          };
-        }),
-      );
-    }
+    if (stats.code !== 0) throw new Error(`docker stats failed: ${stats.log}`);
+    const samples = parseStats(stats.log);
+    const ids = samples.map((s) => s.container.slice(3)).filter((id) => /^[0-9a-f-]{36}$/.test(id));
+    const live = await repo.liveAmong(ids);
+    const takenAt = new Date();
+    await repo.saveSamples(
+      live.map(({ id, serviceId }) => {
+        const s = samples.find((x) => x.container === `fo-${id}`)!;
+        return {
+          serviceId,
+          deploymentId: id,
+          cpuPercent: s.cpuPercent,
+          memoryBytes: BigInt(s.memoryBytes),
+          memoryLimit: BigInt(s.memoryLimit),
+          takenAt,
+        };
+      }),
+    );
     await repo.pruneSamples(new Date(Date.now() - keepMs));
   };
 }

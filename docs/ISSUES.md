@@ -8,6 +8,17 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-050 — Metrics failed whenever a container disappeared mid-collection (M1-S12)
+- **Situation:** While building alerts I read the worker's log and found "Collecting metrics failed: docker stats
+  failed: EOF" seven times.
+- **Task:** Find out why collection broke when nothing looked wrong.
+- **Action:** the collector listed ForgeOps containers with `docker ps`, then asked `docker stats` about them by
+  name. The test suite was creating and removing containers on the same Docker, and a real deploy removes the old
+  container too. If one vanished between the two commands, `docker stats` failed for all of them. I changed it to
+  ask `docker stats` about every running container in one call and keep only the `fo-<deploy id>` ones.
+- **Result:** one command instead of two, and no window for the race. The metrics tests still pass.
+- **Lesson:** "list, then act on the list" is a race whenever the list can change in between; read it in one step.
+
 ## ISS-049 — "3.9 GB available" read as the app's own memory (M1-S11)
 - **Situation:** The first memory chart said "of 3.9 GB available". The product owner asked why each deploy gets
   3.9 GB when Vercel shows nothing like that.
