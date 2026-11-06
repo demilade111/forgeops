@@ -96,7 +96,7 @@ export function ProjectPage() {
           <li>
             <Link
               to={addService}
-              className="text-muted-foreground hover:text-foreground hover:border-foreground/25 flex h-full min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed transition-colors"
+              className="text-muted-foreground border-foreground/30 hover:border-primary hover:bg-primary/5 hover:text-primary flex h-full min-h-40 flex-col items-center justify-center gap-2 rounded-lg border border-dashed transition-colors"
             >
               <Plus className="size-5" />
               <span className="text-sm">Add service</span>

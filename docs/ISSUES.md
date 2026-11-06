@@ -8,6 +8,18 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-044 — "GitHub is connected but the dashboard says Connect GitHub" (landing polish)
+- **Situation:** The product owner had installed the GitHub App on their account, but the dashboard still showed
+  "Connect GitHub to deploy your repositories".
+- **Task:** Find out whether the connection was lost or the dashboard was wrong.
+- **Action:** I asked the API who was signed in (`GET /api/me`) and checked which organization owns the GitHub
+  installation in the database. The browser was still signed in as the throwaway test account I had used for the
+  S8 checks; the installation belongs to the demo account's organization. The dashboard was right: that
+  organization really has no GitHub connection. I signed the test account out.
+- **Result:** no code change. Signed in as the demo account, GitHub shows as connected.
+- **Lesson:** connections belong to an organization, not a browser; check who is signed in before debugging, and
+  sign test accounts out when the check is done.
+
 ## ISS-043 — Live build logs froze during slow steps, and a cached build hid it (M1-S8)
 - **Situation:** I added live build logs, saved at most once a second. The test passed, then failed on the next run,
   even with the code unchanged.

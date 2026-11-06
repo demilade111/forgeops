@@ -935,6 +935,21 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-064 — Brand logos on the landing page
+- **Status:** Accepted (2026-11-06). The product owner asked for real logos and clearer pictures on the landing page.
+- **Decision:** use the `simple-icons` package (CC0 SVG paths with each brand's colour) for the stack tiles (Node.js,
+  Python, Go, Rust, Ruby, PHP, Java via OpenJDK, Bun, .NET, Elixir, Deno, Django) and the GitHub and Docker marks
+  in "Point it at your code". Named imports, so Vite bundles only the dozen icons used. The header menu keeps only
+  "How it works". The three "Click, click, live." steps each show a product window inside the same purple stage as
+  the hero, alternating sides: the new service form, the source settings with GitHub checks, and a finished deploy
+  with all seven steps timed.
+- **Options considered:** hand-copied SVG paths (no dependency, but hundreds of lines of path data in the source);
+  logo image files from each project's site (inconsistent sizes and licences); keeping text-only tiles (no new
+  dependency, but the product owner wanted logos).
+- **Consequences:** one dev-time dependency in the frontend, shipped as about 12 small paths. Logos show that a
+  stack runs, not an endorsement. The dashboard's "New project" and "Add service" tiles also now show their dashed
+  border all the time and turn purple on hover, instead of the border only standing out on hover.
+
 ### ADR-063 — Manual rollback (M1-S9)
 - **Status:** Accepted (2026-11-06). The product owner approved the three recommended options.
 - **Decision:** `POST /api/deployments/:id/rollback` (with an `Idempotency-Key`, like Deploy) creates a new deployment
