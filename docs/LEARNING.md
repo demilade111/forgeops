@@ -267,6 +267,14 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   they did.
 - **Expand and contract:** change the database in steps so old and new code both work, which keeps rollback safe.
 
+### Metrics (M1-S11, ADR-069)
+- **Where the numbers come from:** the Linux kernel counts each container's CPU time and memory (cgroups); Docker
+  reads them (`docker stats`).
+- **CPU percent:** share of one core; 100% means one core fully busy.
+- **Memory:** RAM the app holds while running, not disk space.
+- **Sampling and retention:** record every 15 s, keep 24 h, so a chart shows trends without the table growing
+  forever.
+
 ### Themes (ADR-068)
 - **Design tokens:** colours are named variables (`--background`, `--primary`); dark mode swaps their values under a
   `.dark` class, so components never hard-code colours.

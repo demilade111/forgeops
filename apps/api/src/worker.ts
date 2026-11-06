@@ -1,5 +1,6 @@
 import { loadConfig } from "./config.js";
 import { run } from "./modules/deployments/deployments.build.js";
+import { createMetricsCollector } from "./modules/deployments/deployments.metrics.js";
 import { createWatcher } from "./modules/deployments/deployments.watch.js";
 import { createDeploymentHandler } from "./modules/deployments/deployments.worker.js";
 import { deploymentsRepository } from "./modules/deployments/deployments.repository.js";
@@ -81,6 +82,15 @@ const deploy = createDeploymentHandler(db, loadGitHubClient(github), {
 });
 const teardown = createTeardownHandler(db, { caddyAdminUrl });
 const watch = createWatcher(db, { caddyAdminUrl, caddyHttpUrl });
+const collect = createMetricsCollector(db);
+let collecting = false;
+const collector = setInterval(() => {
+  if (collecting) return;
+  collecting = true;
+  collect()
+    .catch((error) => console.error("Collecting metrics failed", error))
+    .finally(() => (collecting = false));
+}, 15_000);
 let watching = false;
 const watcher = setInterval(() => {
   if (watching) return;
@@ -99,6 +109,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     clearInterval(relay);
     clearInterval(sweeper);
     clearInterval(watcher);
+    clearInterval(collector);
     queue.connection.removeAllListeners("close");
     await queue.close();
     await db.$disconnect();

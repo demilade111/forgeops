@@ -90,6 +90,13 @@ export type Deployment = {
 
 export type ServiceLogs = { deploymentId: string | null; running: boolean; log: string };
 
+export type MetricSample = {
+  takenAt: string;
+  cpuPercent: number;
+  memoryBytes: number;
+  memoryLimit: number;
+};
+
 export type ServiceChanges = Partial<{
   branch: string;
   sourceDirectory: string;

@@ -4,6 +4,7 @@ import type {
   Deployment,
   GitHubStatus,
   Me,
+  MetricSample,
   NewService,
   Project,
   ProjectDetail,
@@ -54,6 +55,13 @@ export const api = {
     ).data,
   getServiceLogs: async (serviceId: string) =>
     (await http.get<ServiceLogs>(`/services/${serviceId}/logs`, { params: { lines: 500 } })).data,
+  getServiceMetrics: async (serviceId: string, minutes: number) =>
+    (
+      await http.get<{ minutes: number; samples: MetricSample[] }>(
+        `/services/${serviceId}/metrics`,
+        { params: { minutes } },
+      )
+    ).data.samples,
   getDeployment: async (id: string) => (await http.get<Deployment>(`/deployments/${id}`)).data,
   deploy: async (serviceId: string, idempotencyKey: string) =>
     (

@@ -22,6 +22,13 @@ const logLines = z.coerce
   .max(1000, "lines must be between 1 and 1000")
   .default(200);
 
+const metricMinutes = z.coerce
+  .number({ error: "minutes must be a number" })
+  .int("minutes must be a whole number")
+  .min(5, "minutes must be between 5 and 1440")
+  .max(1440, "minutes must be between 5 and 1440")
+  .default(60);
+
 export function createDeploymentsRouter(db: PrismaClient) {
   const repo = deploymentsRepository(db);
   const projects = projectsRepository(db);
@@ -45,7 +52,7 @@ export function createDeploymentsRouter(db: PrismaClient) {
   }
 
   router.use(
-    ["/services/:id/deployments", "/services/:id/logs", "/deployments"],
+    ["/services/:id/deployments", "/services/:id/logs", "/services/:id/metrics", "/deployments"],
     createRequireAuth(db),
   );
 
@@ -91,6 +98,21 @@ export function createDeploymentsRouter(db: PrismaClient) {
   router.get("/services/:id/deployments", async (req, res) => {
     const service = await findService(res, req.params.id);
     res.json(await repo.list(service.id));
+  });
+
+  router.get("/services/:id/metrics", async (req, res) => {
+    const service = await findService(res, req.params.id);
+    const minutes = parse(metricMinutes, req.query.minutes);
+    const rows = await repo.samples(service.id, new Date(Date.now() - minutes * 60_000));
+    res.json({
+      minutes,
+      samples: rows.map((r) => ({
+        takenAt: r.takenAt,
+        cpuPercent: r.cpuPercent,
+        memoryBytes: Number(r.memoryBytes),
+        memoryLimit: Number(r.memoryLimit),
+      })),
+    });
   });
 
   router.get("/services/:id/logs", async (req, res) => {

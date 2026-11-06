@@ -8,6 +8,16 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-049 — "3.9 GB available" read as the app's own memory (M1-S11)
+- **Situation:** The first memory chart said "of 3.9 GB available". The product owner asked why each deploy gets
+  3.9 GB when Vercel shows nothing like that.
+- **Task:** Make the number honest.
+- **Action:** With no `--memory` limit on `docker run`, Docker reports the whole machine's memory as the limit, so
+  every app showed the same 3.9 GB. I changed the note to "No limit set; the server has 3.9 GB" and recorded per-app
+  limits as a later step.
+- **Result:** the chart no longer suggests a plan size ForgeOps does not enforce.
+- **Lesson:** a default value from a tool can read like a promise; label what it really is.
+
 ## ISS-048 — A deploy page said "Not built" for an image that was built (M1-S10)
 - **Situation:** Checking the start-step fix in the browser, the failed deploy's page showed "Image: Not built", but
   its build and save steps were green and the image was in the registry.

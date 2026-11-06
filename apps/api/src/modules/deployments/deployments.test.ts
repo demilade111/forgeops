@@ -252,3 +252,41 @@ it("refuses to roll back to the live deploy, a failed one, or while a deploy run
     .set("Idempotency-Key", "r4");
   expect(theirs.status).toBe(404);
 });
+
+it("returns a service's recent CPU and memory samples, oldest first, and validates minutes", async () => {
+  const { agent, serviceId } = await signedIn();
+  const deploymentId = "01a1b2c4-0000-7000-8000-000000000001";
+  const ago = (minutes: number) => new Date(Date.now() - minutes * 60_000);
+  await testDb.metricSample.createMany({
+    data: [90, 10, 2].map((minutes, i) => ({
+      serviceId,
+      deploymentId,
+      cpuPercent: i * 10,
+      memoryBytes: BigInt(20_000_000 + i),
+      memoryLimit: BigInt(4_000_000_000),
+      takenAt: ago(minutes),
+    })),
+  });
+
+  const res = await agent.get(`/api/services/${serviceId}/metrics`);
+
+  expect(res.status).toBe(200);
+  expect(res.body.minutes).toBe(60);
+  expect(res.body.samples).toEqual([
+    { takenAt: expect.any(String), cpuPercent: 10, memoryBytes: 20_000_001, memoryLimit: 4e9 },
+    { takenAt: expect.any(String), cpuPercent: 20, memoryBytes: 20_000_002, memoryLimit: 4e9 },
+  ]);
+  expect(
+    (await agent.get(`/api/services/${serviceId}/metrics?minutes=120`)).body.samples,
+  ).toHaveLength(3);
+  expect((await agent.get(`/api/services/${serviceId}/metrics?minutes=1`)).status).toBe(400);
+  expect((await agent.get(`/api/services/${serviceId}/metrics?minutes=abc`)).status).toBe(400);
+});
+
+it("does not show one organization's metrics to another", async () => {
+  const owner = await signedIn("owner@example.com");
+  const stranger = await signedIn("stranger@example.com");
+
+  expect((await stranger.agent.get(`/api/services/${owner.serviceId}/metrics`)).status).toBe(404);
+  expect((await request(app).get(`/api/services/${owner.serviceId}/metrics`)).status).toBe(401);
+});

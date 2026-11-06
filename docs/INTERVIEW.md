@@ -621,6 +621,18 @@ code that works with both, and only remove the old ones once no version needs th
 
 ---
 
+## 19. Metrics (M1-S11)
+
+**30-second answer:** "Every 15 seconds the worker asks Docker for each live app's CPU and memory. Docker gets them
+from the kernel's cgroups. ForgeOps stores a sample per app in Postgres, keeps a day, and the Metrics tab draws CPU
+and memory as two charts. Under a real load test the CPU line went from zero to 28 percent. At scale I'd move to
+Prometheus with cAdvisor, which is built for this."
+
+- *Why not Prometheus now?* Two new services to run for two numbers per app; Postgres is already there. The data
+  shape is the same, so moving later is straightforward.
+- *Why only the live container?* During a deploy two containers run; mixing them would make the chart lie.
+- *What would you add next?* Per-app memory limits, request rate, error rate and response time (the golden signals).
+
 ## 18. Automatic rollback (M1-S10)
 
 **30-second answer:** "After a deploy goes live, ForgeOps watches it for five minutes. A timer in the worker checks

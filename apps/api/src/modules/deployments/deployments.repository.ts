@@ -1,4 +1,4 @@
-import type { PrismaClient } from "../../generated/prisma/client.js";
+import type { Prisma, PrismaClient } from "../../generated/prisma/client.js";
 
 const withSteps = { steps: { orderBy: { startedAt: "asc" } } } as const;
 
@@ -196,6 +196,35 @@ export const deploymentsRepository = (db: PrismaClient) => ({
         createdAt: { lt: before },
       },
       orderBy: { createdAt: "desc" },
+    }),
+
+  liveAmong: async (ids: string[]) => {
+    const found = await db.deployment.findMany({
+      where: { id: { in: ids }, status: "succeeded" },
+      select: { id: true, serviceId: true, createdAt: true },
+    });
+    const live = await Promise.all(
+      [...new Set(found.map((d) => d.serviceId))].map((serviceId) =>
+        db.deployment.findFirst({
+          where: { serviceId, status: "succeeded" },
+          orderBy: { createdAt: "desc" },
+          select: { id: true, serviceId: true },
+        }),
+      ),
+    );
+    return live.filter((d) => d && ids.includes(d.id)) as { id: string; serviceId: string }[];
+  },
+
+  saveSamples: (data: Prisma.MetricSampleCreateManyInput[]) => db.metricSample.createMany({ data }),
+
+  pruneSamples: (before: Date) =>
+    db.metricSample.deleteMany({ where: { takenAt: { lt: before } } }),
+
+  samples: (serviceId: string, since: Date) =>
+    db.metricSample.findMany({
+      where: { serviceId, takenAt: { gte: since } },
+      orderBy: { takenAt: "asc" },
+      select: { takenAt: true, cpuPercent: true, memoryBytes: true, memoryLimit: true },
     }),
 
   failStale: async (startedBefore: Date) => {

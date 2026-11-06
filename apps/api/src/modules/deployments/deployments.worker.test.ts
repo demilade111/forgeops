@@ -21,6 +21,7 @@ import { projectsRepository } from "../projects/projects.repository.js";
 import { createTeardownHandler } from "../projects/projects.teardown.js";
 import { run, workspace } from "./deployments.build.js";
 import { deploymentsRepository } from "./deployments.repository.js";
+import { createMetricsCollector } from "./deployments.metrics.js";
 import { createWatcher } from "./deployments.watch.js";
 import { createDeploymentHandler } from "./deployments.worker.js";
 
@@ -869,4 +870,38 @@ it("stops watching a version once a newer one is live", async () => {
 
   expect(await reload(first.id)).toMatchObject({ watchUntil: null, failedAfterLive: null });
   expect((await reload(second.id)).watchUntil).not.toBeNull();
+});
+
+it("records CPU and memory for each service's live container and drops old samples", async () => {
+  const { service, deployment } = await live();
+  await testDb.metricSample.create({
+    data: {
+      serviceId: service.id,
+      deploymentId: deployment.id,
+      cpuPercent: 1,
+      memoryBytes: 1n,
+      memoryLimit: 1n,
+      takenAt: new Date(Date.now() - 2 * 24 * 60 * 60_000),
+    },
+  });
+
+  await createMetricsCollector(testDb)();
+
+  const samples = await testDb.metricSample.findMany();
+  expect(samples).toHaveLength(1);
+  expect(samples[0]).toMatchObject({ serviceId: service.id, deploymentId: deployment.id });
+  expect(samples[0]!.cpuPercent).toBeGreaterThanOrEqual(0);
+  expect(samples[0]!.memoryBytes).toBeGreaterThan(0n);
+  expect(samples[0]!.memoryLimit).toBeGreaterThan(samples[0]!.memoryBytes);
+});
+
+it("does not record a container that is not the live version", async () => {
+  const { service, deployment, message } = await queued();
+  withSource(webApp);
+  await handle(message);
+  await testDb.deployment.update({ where: { id: deployment.id }, data: { status: "failed" } });
+
+  await createMetricsCollector(testDb)();
+
+  expect(await testDb.metricSample.count({ where: { serviceId: service.id } })).toBe(0);
 });

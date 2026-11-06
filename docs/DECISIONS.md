@@ -162,7 +162,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-018 | Scheduled job execution mechanism | Not selected (PD-003) | **Open** |
 | ADR-019 | Managed URL scheme and traffic routing for web services | `http://<service>.<project>.localhost` in M1; Caddy reverse proxy, routes added at runtime through its admin API | **Accepted** (2026-11-05) |
 | ADR-020 | Failure alert delivery channel(s) | Not selected | **Open** |
-| ADR-021 | Source of basic CPU/memory metrics | Not selected (relates to ADR-013) | **Open** |
+| ADR-021 | Source of basic CPU/memory metrics | `docker stats` sampled every 15 s by the worker into Postgres, kept 24 hours (ADR-069) | **Accepted** (2026-11-06) |
 | ADR-022 | Failed-rollout criteria that trigger automatic rollback | Watch 5 minutes after go-live, check every 10 s; 3 failed checks in a row or a crash rolls back to the previous good version (ADR-067) | **Accepted** (2026-11-06) |
 | ADR-023 | Repository layout | One Git monorepo with pnpm workspaces: `apps/frontend`, `apps/api`, `apps/worker`, `packages/shared` | **Accepted** (2026-10-25) |
 | ADR-025 | Test tooling | Vitest (runner) + Supertest (HTTP tests against the Express app, no open port) | **Accepted** (2026-10-25) |
@@ -934,6 +934,25 @@ Template:
 - **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
+
+### ADR-069 — CPU and memory metrics per service (M1-S11, closes ADR-021)
+- **Status:** Accepted (2026-11-06). The product owner chose option B: users see their own app's usage; watching
+  ForgeOps' own servers is a separate job for the cloud phase.
+- **Decision:** a timer in the worker runs `docker ps` (containers labelled `forgeops.service`) and
+  `docker stats --no-stream` every 15 seconds. Docker reads these numbers from the Linux kernel's control groups,
+  which count each container's CPU time and memory. Only each service's live container is recorded, as a
+  `MetricSample` row (service, deployment, CPU percent, memory bytes, memory limit, time); rows older than 24 hours
+  are deleted on each run. `GET /api/services/:id/metrics?minutes=60` (5 to 1440, member-only like logs) returns
+  the samples oldest first. The service page has a Metrics tab with two charts, CPU and memory, each on its own
+  scale (never one chart with two axes), a 1h, 6h or 24h switch, the current value in large type, and a hover
+  read-out.
+- **Options considered:** ask Docker on every page view (no history); Prometheus with cAdvisor (the standard at scale,
+  but two new services to run now; the planned upgrade for the cloud phase); a chart library (more code to ship for
+  two simple line charts).
+- **Consequences:** about 5,760 rows per service per day, pruned daily. CPU is a share of one core, so it can pass
+  100% on a multi-core machine. No memory limit is set per app yet, so the memory "limit" is the whole machine's;
+  the chart says so. Setting limits (`docker run --memory`) is a later step, after which the chart can show usage
+  against the plan's limit like Render or Railway do.
 
 ### ADR-068 — Dark mode by default, and a deploy progress card
 - **Status:** Accepted (2026-11-06). The product owner asked for a clearer view while deploying and for dark and light
