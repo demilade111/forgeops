@@ -1,6 +1,7 @@
 import { GitBranch, Loader2, Plus } from "lucide-react";
 import { Link, useParams } from "react-router";
 import { api } from "@/api";
+import { DeleteSection } from "@/components/DeleteSection";
 import { StatusBadge } from "@/components/StatusBadge";
 import { Button } from "@/components/ui/button";
 import { useLoad } from "@/hooks/useLoad";
@@ -103,6 +104,16 @@ export function ProjectPage() {
           </li>
         </ul>
       )}
+
+      <div className="max-w-4xl pt-8">
+        <DeleteSection
+          what="project"
+          name={name}
+          text="Takes every service in this project offline and removes them with their deploy history. This cannot be undone."
+          remove={() => api.deleteProject(projectId)}
+          then="/app"
+        />
+      </div>
     </div>
   );
 }

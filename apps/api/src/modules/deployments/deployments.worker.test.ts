@@ -16,6 +16,8 @@ import {
   workerOptions,
 } from "../../test/source.js";
 import type { GitHubClient } from "../github/github.client.js";
+import { projectsRepository } from "../projects/projects.repository.js";
+import { createTeardownHandler } from "../projects/projects.teardown.js";
 import { run, workspace } from "./deployments.build.js";
 import { deploymentsRepository } from "./deployments.repository.js";
 import { createDeploymentHandler } from "./deployments.worker.js";
@@ -32,6 +34,8 @@ const github = {
 } satisfies GitHubClient;
 
 const repo = deploymentsRepository(testDb);
+const create = async (serviceId: string, userId: string, key: string) =>
+  (await repo.create(serviceId, userId, key))!;
 const options = { ...workerOptions, retryDelays: [0, 0, 0] };
 const handle = createDeploymentHandler(testDb, github, options);
 const gitHubDown = new HttpError(502, "GITHUB_ERROR", "GitHub request failed (502)");
@@ -39,7 +43,7 @@ const gitHubDown = new HttpError(502, "GITHUB_ERROR", "GitHub request failed (50
 async function queued() {
   const service = await createService();
   const user = await createUser();
-  const deployment = await repo.create(service.id, user.id, "k1");
+  const deployment = await create(service.id, user.id, "k1");
   return {
     service,
     deployment,
@@ -381,7 +385,7 @@ it("replaces the running release on redeploy and removes the old container", asy
 
   await setEnv(service.id, { GREETING: "v2" });
   withSource(webApp);
-  const next = await repo.create(service.id, deployment.triggeredById!, "k2");
+  const next = await create(service.id, deployment.triggeredById!, "k2");
   await handle({ type: "deployment.requested", deploymentId: next.id });
 
   await until(async () => (await viaRouter(host)) === "hello v2\n 200");
@@ -395,7 +399,7 @@ it("keeps the live release when the new container cannot start", async () => {
   await until(async () => (await viaRouter(host)).endsWith(" 200"));
 
   withSource({ Dockerfile: 'FROM busybox:1.37\nCMD ["/does-not-exist"]\n' });
-  const next = await repo.create(service.id, deployment.triggeredById!, "k2");
+  const next = await create(service.id, deployment.triggeredById!, "k2");
   await handle({ type: "deployment.requested", deploymentId: next.id });
 
   const done = await reload(next.id);
@@ -420,7 +424,7 @@ it("refuses a URL that another service already serves", async () => {
 
   const other = await createService();
   const user = await testDb.user.findFirstOrThrow();
-  const deployment = await repo.create(other.id, user.id, "k1");
+  const deployment = await create(other.id, user.id, "k1");
   await handle({ type: "deployment.requested", deploymentId: deployment.id });
 
   expect(await reload(deployment.id)).toMatchObject({
@@ -459,4 +463,71 @@ it("fails clearly when the env vars cannot be decrypted", async () => {
     error: "Could not read the service's env vars",
   });
   expect(await containersOf(service.id)).toEqual([]);
+});
+
+const projects = projectsRepository(testDb);
+const teardown = createTeardownHandler(testDb, workerOptions);
+
+async function live() {
+  const setup = await queued();
+  withSource(webApp);
+  await handle(setup.message);
+  await until(async () => (await viaRouter(host)).endsWith(" 200"));
+  return setup;
+}
+
+it("deletes a service: its URL stops answering and its containers and rows are removed", async () => {
+  const { service, deployment } = await live();
+  expect(await projects.requestDeletion({ serviceId: service.id })).toBe(true);
+  const message = { type: "deletion.requested", serviceId: service.id };
+
+  await teardown(message);
+
+  expect(await viaRouter(host)).toMatch(/ 404$/);
+  expect(await containersOf(service.id)).toEqual([]);
+  expect(await testDb.service.findUnique({ where: { id: service.id } })).toBeNull();
+  expect(await testDb.deployment.findUnique({ where: { id: deployment.id } })).toBeNull();
+  expect(await testDb.project.count()).toBe(1);
+  await teardown(message);
+});
+
+it("deletes a project with every service in it", async () => {
+  const { service } = await live();
+  await projects.requestDeletion({ projectId: service.projectId });
+
+  await teardown({ type: "deletion.requested", projectId: service.projectId });
+
+  expect(await viaRouter(host)).toMatch(/ 404$/);
+  expect(await containersOf(service.id)).toEqual([]);
+  expect(await testDb.project.count()).toBe(0);
+  expect(await testDb.service.count()).toBe(0);
+});
+
+it("leaves a service alone when its deletion was never requested", async () => {
+  const { service } = await live();
+
+  await teardown({ type: "deletion.requested", serviceId: service.id });
+  await teardown({ type: "deletion.requested", projectId: service.projectId });
+
+  expect(await viaRouter(host)).toMatch(/ 200$/);
+  expect(await testDb.service.count()).toBe(1);
+});
+
+it("keeps a deletion pending when the router is down, and requests it again later", async () => {
+  const { service } = await live();
+  await projects.requestDeletion({ serviceId: service.id });
+  const offline = createTeardownHandler(testDb, { caddyAdminUrl: "http://127.0.0.1:1" });
+
+  await expect(offline({ type: "deletion.requested", serviceId: service.id })).rejects.toThrow(
+    "Could not update the router",
+  );
+
+  expect(await testDb.service.count()).toBe(1);
+  expect(await projects.retryDeletions(new Date(Date.now() - 60_000))).toBe(0);
+  expect(await projects.retryDeletions(new Date(Date.now() + 1000))).toBe(1);
+  const outbox = await testDb.outbox.findMany({ orderBy: { id: "asc" } });
+  expect(outbox.at(-1)).toMatchObject({
+    type: "deletion.requested",
+    payload: { serviceId: service.id },
+  });
 });

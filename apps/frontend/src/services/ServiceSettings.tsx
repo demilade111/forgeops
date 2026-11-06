@@ -1,6 +1,7 @@
 import { useState, type FormEvent, type ReactNode } from "react";
 import { Check, Loader2, Plus, Undo2, X } from "lucide-react";
 import { api } from "@/api";
+import { DeleteSection } from "@/components/DeleteSection";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useRequest } from "@/hooks/useRequest";
@@ -259,6 +260,14 @@ export function ServiceSettings({ service, onSaved }: { service: Service; onSave
           </Button>
         </Section>
       </form>
+
+      <DeleteSection
+        what="service"
+        name={service.name}
+        text="Takes the app offline, frees its URL and removes its deploy history. This cannot be undone."
+        remove={() => api.deleteService(service.id)}
+        then={`/app/projects/${service.projectId}`}
+      />
     </div>
   );
 }

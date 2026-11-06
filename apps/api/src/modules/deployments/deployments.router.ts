@@ -44,7 +44,9 @@ export function createDeploymentsRouter(db: PrismaClient) {
     if (existing) return res.status(202).json(existing);
     try {
       const { id: userId } = res.locals.user as SessionUser;
-      res.status(202).json(await repo.create(service.id, userId, key));
+      const deployment = await repo.create(service.id, userId, key);
+      if (!deployment) throw new HttpError(404, "SERVICE_NOT_FOUND", "Service not found");
+      res.status(202).json(deployment);
     } catch (error) {
       if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
         return res.status(202).json(await replayOrConflict(service.id, key));

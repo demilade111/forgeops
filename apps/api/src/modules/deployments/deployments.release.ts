@@ -69,12 +69,20 @@ export async function routeTo(adminUrl: string, id: string, host: string, upstre
   }
 }
 
+export async function removeRoute(adminUrl: string, id: string) {
+  await caddy(adminUrl, `/id/${id}`, "DELETE");
+}
+
 export async function removeContainers(serviceId: string, keep?: string) {
-  const { log } = await run(
+  const list = await run(
     "docker",
     ["ps", "-a", "--filter", `label=forgeops.service=${serviceId}`, "--format", "{{.Names}}"],
     30_000,
   );
-  const names = log.split("\n").filter((name) => name && name !== keep);
-  if (names.length > 0) await run("docker", ["rm", "-f", ...names], 60_000);
+  if (list.code !== 0) throw new StepFailure("Could not list the app's containers", list.log);
+  const names = list.log.split("\n").filter((name) => name && name !== keep);
+  if (names.length === 0) return;
+  const removed = await run("docker", ["rm", "-f", ...names], 60_000);
+  if (removed.code !== 0)
+    throw new StepFailure("Could not remove the app's containers", removed.log);
 }

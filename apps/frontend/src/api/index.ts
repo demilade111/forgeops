@@ -38,6 +38,8 @@ export const api = {
   getProject: async (id: string) => (await http.get<ProjectDetail>(`/projects/${id}`)).data,
   createService: async (projectId: string, service: NewService) =>
     (await http.post<Service>(`/projects/${projectId}/services`, service)).data,
+  deleteProject: (id: string) => http.delete(`/projects/${id}`),
+  deleteService: (id: string) => http.delete(`/services/${id}`),
   getService: async (id: string) => (await http.get<Service>(`/services/${id}`)).data,
   updateService: async (id: string, changes: ServiceChanges) =>
     (await http.patch<Service>(`/services/${id}`, changes)).data,
