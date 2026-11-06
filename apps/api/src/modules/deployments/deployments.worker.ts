@@ -50,6 +50,18 @@ export function createDeploymentHandler(
   const repo = deploymentsRepository(db);
   const installations = githubRepository(db);
 
+  const streamLog = (deploymentId: string, step: string) => {
+    let latest = "";
+    let pending: NodeJS.Timeout | undefined;
+    return (log: string) => {
+      latest = log;
+      pending ??= setTimeout(() => {
+        pending = undefined;
+        repo.saveStepLog(deploymentId, step, latest).catch((error) => console.error(error));
+      }, 1000);
+    };
+  };
+
   async function withRetries<T>(work: () => Promise<T>) {
     for (let attempt = 0; ; attempt++) {
       try {
@@ -119,11 +131,15 @@ export function createDeploymentHandler(
           context = await unpackSource(dir, service.sourceDirectory, short);
         },
       ],
-      ["build", () => buildImage(context, tag, timeouts.build)],
+      ["build", () => buildImage(context, tag, timeouts.build, streamLog(deploymentId, "build"))],
       [
         "push",
         async () => {
-          const { digest, log } = await pushImage(tag, timeouts.push);
+          const { digest, log } = await pushImage(
+            tag,
+            timeouts.push,
+            streamLog(deploymentId, "push"),
+          );
           image = `${imageName}@${digest}`;
           return log;
         },

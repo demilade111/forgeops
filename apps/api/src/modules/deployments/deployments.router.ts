@@ -2,6 +2,7 @@ import { Router, type Response } from "express";
 import { z } from "zod";
 import { Prisma, type PrismaClient } from "../../generated/prisma/client.js";
 import { HttpError, isId, parse } from "../../http-error.js";
+import { run } from "./deployments.build.js";
 import { createRequireAuth, memberOrganizationIds, type SessionUser } from "../auth/auth.router.js";
 import { projectsRepository } from "../projects/projects.repository.js";
 import { deploymentsRepository } from "./deployments.repository.js";
@@ -12,6 +13,13 @@ const idempotencyKey = z
     /^[\w.:-]{1,255}$/,
     "Idempotency-Key must be 1 to 255 letters, numbers, dashes, dots, colons or underscores",
   );
+
+const logLines = z.coerce
+  .number({ error: "lines must be a number" })
+  .int("lines must be a whole number")
+  .min(1, "lines must be between 1 and 1000")
+  .max(1000, "lines must be between 1 and 1000")
+  .default(200);
 
 export function createDeploymentsRouter(db: PrismaClient) {
   const repo = deploymentsRepository(db);
@@ -35,7 +43,10 @@ export function createDeploymentsRouter(db: PrismaClient) {
     );
   }
 
-  router.use(["/services/:id/deployments", "/deployments"], createRequireAuth(db));
+  router.use(
+    ["/services/:id/deployments", "/services/:id/logs", "/deployments"],
+    createRequireAuth(db),
+  );
 
   router.post("/services/:id/deployments", async (req, res) => {
     const service = await findService(res, req.params.id);
@@ -58,6 +69,24 @@ export function createDeploymentsRouter(db: PrismaClient) {
   router.get("/services/:id/deployments", async (req, res) => {
     const service = await findService(res, req.params.id);
     res.json(await repo.list(service.id));
+  });
+
+  router.get("/services/:id/logs", async (req, res) => {
+    const service = await findService(res, req.params.id);
+    const lines = parse(logLines, req.query.lines);
+    const live = await repo.findLive(service.id);
+    if (!live) return res.json({ deploymentId: null, running: false, log: "" });
+    const result = await run(
+      "docker",
+      ["logs", "--tail", String(lines), "--timestamps", `fo-${live.id}`],
+      10_000,
+    ).catch(() => null);
+    if (result?.code === 0)
+      return res.json({ deploymentId: live.id, running: true, log: result.log });
+    if (result?.log.includes("No such container")) {
+      return res.json({ deploymentId: live.id, running: false, log: "" });
+    }
+    throw new HttpError(503, "LOGS_UNAVAILABLE", "Logs are not available right now. Try again.");
   });
 
   router.get("/deployments/:id", async (req, res) => {

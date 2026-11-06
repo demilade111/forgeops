@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
+import request from "supertest";
 import { existsSync } from "node:fs";
 import { Readable } from "node:stream";
 import { afterAll, beforeEach, expect, it, vi } from "vitest";
 import { HttpError } from "../../http-error.js";
 import { createService, createUser, resetDb, testDb, testKey } from "../../test/db.js";
 import { encrypt } from "../../secrets.js";
+import { createApp } from "../../server.js";
 import {
   registryHost,
   resetRuntime,
@@ -613,4 +615,48 @@ it("does not count the router's own error as an answer from the app", async () =
   });
   expect((await reload(deployment.id)).steps.at(-1)!.log).toContain("GET / got no answer");
   expect(await containersOf(service.id)).toEqual([]);
+});
+
+it("saves the build log while the build is still running", async () => {
+  const { deployment, message } = await queued();
+  withSource({
+    Dockerfile: `FROM busybox:1.37\nRUN echo "step one done ${randomUUID()}" && sleep 4\n${webApp.Dockerfile.split("\n")[1]}\n`,
+  });
+
+  const running = handle(message);
+  await until(async () => {
+    const step = await testDb.deploymentStep.findFirst({
+      where: { deploymentId: deployment.id, name: "build" },
+    });
+    return step?.status === "running" && !!step.log?.includes("step one done");
+  });
+  await running;
+
+  expect((await reload(deployment.id)).status).toBe("succeeded");
+});
+
+it("shows the live app's own output to members of its organization", async () => {
+  const app = createApp({ db: testDb, encryptionKey: testKey });
+  const agent = request.agent(app);
+  await agent
+    .post("/api/auth/signup")
+    .send({ email: "logs@example.com", password: "a-long-password" });
+  const orgId = (await agent.get("/api/me")).body.organizations[0].id as string;
+  const service = await createService(orgId);
+  const user = await testDb.user.findUniqueOrThrow({ where: { email: "logs@example.com" } });
+  const deployment = await create(service.id, user.id, "k1");
+  withSource(webApp);
+  await handle({ type: "deployment.requested", deploymentId: deployment.id });
+
+  const logs = await agent.get(`/api/services/${service.id}/logs?lines=50`);
+
+  expect(logs.body).toMatchObject({ deploymentId: deployment.id, running: true });
+  expect(logs.body.log).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z web app starting$/m);
+
+  await run("docker", ["rm", "-f", `fo-${deployment.id}`], 30_000);
+  expect((await agent.get(`/api/services/${service.id}/logs`)).body).toEqual({
+    deploymentId: deployment.id,
+    running: false,
+    log: "",
+  });
 });
