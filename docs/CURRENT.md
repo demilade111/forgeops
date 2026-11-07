@@ -95,7 +95,7 @@ DevOps, in small hands-on steps: 6.2 Dockerize ForgeOps, then 7 CI/CD, 8 AWS and
 Postgres and RabbitMQ with health checks, a one-shot `migrate` job, `api` (`127.0.0.1:4001`), `worker` (host Docker
 through the socket) and `web` (`127.0.0.1:8080`, Caddy serving the built frontend and passing `/api` to the API).
 App logs are collected by the worker (only the worker touches Docker) and Caddy's admin API is private to the
-worker. Acceptance 15/15 through the containers (`docs/evidence/containers-acceptance.md`). ADR-072 to ADR-076.
+worker. Acceptance 15/15 through the containers (`docs/evidence/containers-acceptance.md`). ADR-072 to ADR-077.
 
 **Next:** 7 CI/CD with GitHub Actions, in small hands-on steps. Follow-ups: snapshot env vars per deploy, add the
 `localhost:8080` callback on the GitHub App, rotate the GitHub client secret before going public.

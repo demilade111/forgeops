@@ -935,6 +935,24 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-077 — Migrations: the image says what runs, the orchestrator says when and where (DevOps 6.2)
+- **Status:** Accepted (2026-11-07). Records the split behind ADR-076's migrate job.
+- **Decision:** the `migrate` stage in `apps/api/Dockerfile` defines only the contents and the command: it starts
+  `FROM build` (Prisma CLI and `prisma/migrations` already inside) and runs `prisma migrate deploy`. Everything about
+  running it lives in `docker-compose.yml`: `target: migrate`, the `DATABASE_URL` to use, `depends_on` Postgres being
+  healthy, and `api` and `worker` waiting on `service_completed_successfully`. One Dockerfile builds three images by
+  stage: `api`, `worker` and `migrate`.
+- **Why:** the image never knows which database it will touch, so the same `migrate` image can run against the local
+  database from compose, and later from CI/CD or Kubernetes with a different `DATABASE_URL`, without a rebuild. On a
+  server nobody types `prisma migrate deploy` by hand, so the step has to be part of the start order, before any code
+  that reads the tables, and a failed migration has to stop the rollout.
+- **Options considered:** run migrations by hand before each start (no automation; impossible at 3am or from CI);
+  bake the database address into the image (simple, but one image per environment and a secret in the image); a
+  separate `Dockerfile.migrate` (clearer file name, but duplicates the build stage and can drift from the API's
+  code); run on API start (rejected in ADR-076: races between copies, Prisma CLI in the internet-facing image).
+- **Consequences:** whatever runs ForgeOps must reproduce the order: database ready, migrate exits 0, then api and
+  worker. Migrations must stay backward compatible, because the old version keeps running while they apply.
+
 ### ADR-076 — Frontend image, migrations and one-command start (DevOps 6.2)
 - **Status:** Accepted (2026-11-07). The product owner asked for the whole platform in containers.
 - **Frontend:** `apps/frontend/Dockerfile` builds the Vite app in a Node stage and serves `dist` from `caddy:2.10`

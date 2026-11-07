@@ -657,6 +657,9 @@ healthy, migrations run once, then the API and worker start. The acceptance run 
 ### Questions
 - *Why two stages?* The final image skips compilers and test tools: smaller and less to attack.
 - *Why not run migrations when the API starts?* Two API copies would race, and the API would carry the Prisma CLI.
+- *Is the migration in the Dockerfile or in compose?* Both, with different jobs: the Dockerfile's `migrate` stage
+  says what runs (Prisma plus `migrate deploy`); compose says when and where (after Postgres is healthy, with this
+  `DATABASE_URL`, before the API). The image has no database address, so CI/CD or Kubernetes can reuse it as is.
 - *Why is the worker a separate container from the API?* They fail, scale and get permissions separately; only the
   worker gets Docker.
 - *Why did logs break in the container?* The API secretly ran `docker logs`; now the worker collects logs and the

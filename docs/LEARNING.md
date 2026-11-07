@@ -281,7 +281,7 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   channel).
 - **SSRF:** if users choose a URL your server calls, they can aim it at your internal services; allow-list hosts.
 
-### Dockerizing ForgeOps (DevOps 6.2, ADR-072 to ADR-076)
+### Dockerizing ForgeOps (DevOps 6.2, ADR-072 to ADR-077)
 - **Image vs container:** the image is the frozen package (code, Node, packages); a container is a running copy.
 - **Multi-stage build:** build in a stage with every tool, then copy only the result into a clean stage.
 - **Layers:** each Dockerfile line adds a snapshot; delete caches in the same `RUN` that made them.
@@ -290,6 +290,11 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Docker socket:** the `docker` command is a remote control that talks to the engine through
   `/var/run/docker.sock`; mounting it lets a container drive the host's engine, which is root-level power.
 - **One-shot job:** a container that runs once and exits (migrations); others wait for it to finish successfully.
+- **Dockerfile vs compose:** the Dockerfile is the recipe (what is in the box and which command it runs); compose is
+  the schedule (when it runs, in what order, against which database). The `migrate` stage holds Prisma and the
+  command; compose gives it `DATABASE_URL` and makes the API wait for it.
+- **Stage as target:** one Dockerfile, several named stages; `target:` picks which one becomes an image
+  (`api`, `worker`, `migrate`).
 - **Health check:** a command compose runs to know a container is ready, not just started.
 
 ### Metrics (M1-S11, ADR-069)
