@@ -2,7 +2,6 @@ import { Router, type Request, type Response } from "express";
 import { z } from "zod";
 import { Prisma, type PrismaClient } from "../../generated/prisma/client.js";
 import { HttpError, isId, parse } from "../../http-error.js";
-import { run } from "./deployments.build.js";
 import { createRequireAuth, memberOrganizationIds, type SessionUser } from "../auth/auth.router.js";
 import type { RollbackTarget } from "./deployments.repository.js";
 import { projectsRepository } from "../projects/projects.repository.js";
@@ -120,17 +119,10 @@ export function createDeploymentsRouter(db: PrismaClient) {
     const lines = parse(logLines, req.query.lines);
     const live = await repo.findLive(service.id);
     if (!live) return res.json({ deploymentId: null, running: false, log: "" });
-    const result = await run(
-      "docker",
-      ["logs", "--tail", String(lines), "--timestamps", `fo-${live.id}`],
-      10_000,
-    ).catch(() => null);
-    if (result?.code === 0)
-      return res.json({ deploymentId: live.id, running: true, log: result.log });
-    if (result?.log.includes("No such container")) {
-      return res.json({ deploymentId: live.id, running: false, log: "" });
-    }
-    throw new HttpError(503, "LOGS_UNAVAILABLE", "Logs are not available right now. Try again.");
+    const saved = await repo.appLog(live.id);
+    if (!saved) return res.json({ deploymentId: live.id, running: true, log: "" });
+    const log = saved.log.trimEnd().split("\n").slice(-lines).join("\n");
+    res.json({ deploymentId: live.id, running: saved.running, log });
   });
 
   router.get("/deployments/:id", async (req, res) => {

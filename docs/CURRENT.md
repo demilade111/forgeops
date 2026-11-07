@@ -1,6 +1,6 @@
 # ForgeOps — Current Work
 
-_Last updated: 2026-11-05_
+_Last updated: 2026-11-07_
 
 ## Project status
 
@@ -89,12 +89,16 @@ with logs, and the live URL. ADR-056 to ADR-058.
 
 **M1 is complete (2026-11-07).** All 15 acceptance criteria are demonstrated (`docs/evidence/m1-acceptance.md`), including a real Connect GitHub on the product owner's account.
 
-**Next:** DevOps, in small hands-on steps: 6.2 Dockerize ForgeOps, then 7 CI/CD, 8 AWS and Terraform, 9 Kubernetes.
+DevOps, in small hands-on steps: 6.2 Dockerize ForgeOps, then 7 CI/CD, 8 AWS and Terraform, 9 Kubernetes.
 
-**In progress: 6.2 Dockerize ForgeOps.** Done: the API image (`apps/api/Dockerfile`, two stages, non-root,
-522 MB after dropping pnpm's cache) and an `api` service in `docker-compose.yml` on `127.0.0.1:4001`, healthy
-against Postgres and RabbitMQ by service name (ADR-072). Still to do: the worker container (Docker access, socket
-decision), the frontend image, migrations in a container, and `docker compose up` starting the whole platform.
+**Done: 6.2 Dockerize ForgeOps (2026-11-07).** One `docker compose up` starts the whole platform from empty:
+Postgres and RabbitMQ with health checks, a one-shot `migrate` job, `api` (`127.0.0.1:4001`), `worker` (host Docker
+through the socket) and `web` (`127.0.0.1:8080`, Caddy serving the built frontend and passing `/api` to the API).
+App logs are collected by the worker (only the worker touches Docker) and Caddy's admin API is private to the
+worker. Acceptance 15/15 through the containers (`docs/evidence/containers-acceptance.md`). ADR-072 to ADR-076.
+
+**Next:** 7 CI/CD with GitHub Actions, in small hands-on steps. Follow-ups: snapshot env vars per deploy, add the
+`localhost:8080` callback on the GitHub App, rotate the GitHub client secret before going public.
 
 Local environment (2026-10-27): git 2.50.1 · Docker engine now **OrbStack** (was Docker Desktop) · Node 24.22.1
 LTS via nvm (pinned in `.nvmrc`; run `nvm use` in this folder) · pnpm 11.5.2 via corepack.

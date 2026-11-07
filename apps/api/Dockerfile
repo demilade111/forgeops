@@ -25,3 +25,7 @@ FROM api AS worker
 USER root
 RUN apk add --no-cache docker-cli docker-cli-buildx
 CMD ["node", "dist/worker.js"]
+
+FROM build AS migrate
+WORKDIR /repo/apps/api
+CMD ["pnpm", "exec", "prisma", "migrate", "deploy"]

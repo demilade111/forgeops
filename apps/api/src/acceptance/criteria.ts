@@ -105,12 +105,14 @@ export const criteria: Criterion[] = [
     "View build and deployment logs",
     async (run) => {
       const build = firstDeploy(run).steps.find((s) => s.name === "build")?.log ?? "";
-      const app = await run.client.call<{ log: string }>(
-        "GET",
-        `/services/${run.serviceId}/logs?lines=20`,
-      );
-      if (!build.includes("DONE") || !app.log.includes("Sample API listening"))
-        throw new Error("Logs are missing");
+      if (!build.includes("DONE")) throw new Error("The build log is missing");
+      const app = await until("the app log", 30, async () => {
+        const res = await run.client.call<{ log: string }>(
+          "GET",
+          `/services/${run.serviceId}/logs?lines=20`,
+        );
+        return res.log.includes("Sample API listening") && res;
+      });
       return [
         `Build log: ${build.split("\n").length} lines, ending "${build.trim().split("\n").at(-1)}"`,
         `App log: "${app.log.trim().split("\n").at(-1)}"`,

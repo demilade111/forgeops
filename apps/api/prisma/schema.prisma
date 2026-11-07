@@ -106,6 +106,7 @@ model Service {
   project            Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
   deployments        Deployment[]
   metrics            MetricSample[]
+  appLogs            AppLog[]
 
   @@unique([projectId, name])
 }
@@ -184,6 +185,17 @@ model Outbox {
   sentAt    DateTime?
 
   @@index([sentAt])
+}
+
+model AppLog {
+  deploymentId String   @id @db.Uuid
+  serviceId    String   @db.Uuid
+  running      Boolean
+  log          String
+  collectedAt  DateTime @updatedAt
+  service      Service  @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@index([serviceId])
 }
 
 model MetricSample {

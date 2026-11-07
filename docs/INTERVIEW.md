@@ -621,6 +621,49 @@ code that works with both, and only remove the old ones once no version needs th
 
 ---
 
+## 22. Dockerizing ForgeOps (DevOps 6.2)
+
+**30-second answer:** "ForgeOps runs as three containers built from two Dockerfiles: an API, a worker and a web
+container, plus a one-shot migration job. The API image is multi-stage: build with every tool, ship only `dist`
+and production packages, as a non-root user. The worker is the same image plus the Docker CLI, and drives the
+host's engine through the Docker socket. One `docker compose up` starts everything from empty: Postgres becomes
+healthy, migrations run once, then the API and worker start. The acceptance run passes 15/15 through the containers."
+
+### Why each tool
+- **Docker:** the same package runs on the laptop, in CI and on a server. Alternative: install Node on the server
+  by hand (drifts over time).
+- **Compose:** describes every container, network and order in one file. Alternative: Kubernetes (the next phase,
+  much more to run for one machine).
+- **Caddy for the frontend:** already in the stack. Alternative: nginx (equally good, one more tool).
+- **Docker socket for the worker:** simple and common (CI runners do it). Alternative: Docker-in-Docker (privileged,
+  no shared cache).
+
+### What happens when...
+- **Postgres is slow to start:** `migrate` waits for its health check; the API and worker wait for `migrate`.
+- **A migration fails:** `migrate` exits non-zero, so the API and worker never start against a half-migrated schema.
+- **The worker crashes:** the API and dashboard stay up; compose restarts the worker; queued jobs wait in RabbitMQ.
+- **A user's app attacks the admin API:** it cannot connect; the admin lives on a network only the worker shares.
+
+### Real evidence
+- Image sizes: api 1.21 GB to 522 MB (ISS-053), worker 632 MB, web 59.7 MB.
+- From empty volumes: 14 migrations applied, sign-up through the web container, worker started.
+- Acceptance 15/15 through web, api and worker containers; 150 API tests pass.
+
+### Known limits
+- The worker has root-level power over the host through the socket.
+- Migrations must stay backward compatible, because the old API keeps running while they apply.
+- Connect GitHub from the container frontend needs its callback URL added on the GitHub App.
+
+### Questions
+- *Why two stages?* The final image skips compilers and test tools: smaller and less to attack.
+- *Why not run migrations when the API starts?* Two API copies would race, and the API would carry the Prisma CLI.
+- *Why is the worker a separate container from the API?* They fail, scale and get permissions separately; only the
+  worker gets Docker.
+- *Why did logs break in the container?* The API secretly ran `docker logs`; now the worker collects logs and the
+  API reads the database.
+
+---
+
 ## 21. M1 acceptance run (M1-S13)
 
 **30-second answer:** "M1 had 15 acceptance criteria, from connecting GitHub to automatic rollback. I wrote a script

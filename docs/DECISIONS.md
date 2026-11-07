@@ -935,6 +935,73 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-076 — Frontend image, migrations and one-command start (DevOps 6.2)
+- **Status:** Accepted (2026-11-07). The product owner asked for the whole platform in containers.
+- **Frontend:** `apps/frontend/Dockerfile` builds the Vite app in a Node stage and serves `dist` from `caddy:2.10`
+  (already in the stack, so no new tool). `apps/frontend/Caddyfile` serves files, falls back to `index.html` for app
+  routes like `/app/settings`, and passes `/api` and `/health` to `api:4000`, the same paths the Vite dev proxy
+  uses, so the frontend code is unchanged. Its admin API is off. Image: 59.7 MB. Published on `127.0.0.1:8080`;
+  `APP_URL` for the containers is `http://localhost:8080`.
+- **Migrations:** a `migrate` stage (the build stage, which has the Prisma CLI) runs `prisma migrate deploy` once as
+  the `migrate` service and exits. `api` and `worker` wait for it with `service_completed_successfully`; it waits
+  for Postgres with a `pg_isready` health check. The worker also waits for RabbitMQ to pass `rabbitmq-diagnostics
+  ping`. `api`, `worker` and `web` restart unless stopped.
+- **Why a separate step:** running migrations inside the API's start would race when two API copies start, and puts
+  the Prisma CLI in the internet-facing image. A one-shot job runs once, before anything that needs the tables.
+- **Options considered:** nginx for the frontend (common, but a second web server to learn); serving the files from
+  Express (one less container, but couples frontend releases to the API); migrations on API start (simplest, races).
+- **Evidence:** from empty volumes (a separate `fofresh` compose project), one `docker compose up` applied 14
+  migrations, a new account signed up through the web container and the worker started; then the M1 acceptance run
+  passed 15/15 through web, api and worker containers (`docs/evidence/containers-acceptance.md`).
+- **Consequences:** the migrate image is large (it is the build stage) but never serves traffic. GitHub sends the
+  OAuth callback to the URL registered on the GitHub App (the dev frontend on 5173), so Connect GitHub from the
+  container frontend needs that URL added on GitHub.
+
+### ADR-075 — Caddy's admin API only on a private admin network (DevOps 6.2)
+- **Status:** Accepted (2026-11-07). Security fix found while containerising.
+- **Problem:** Caddy's admin API listened on `0.0.0.0:2019` and Caddy shares the `forgeops-apps` network with every
+  deployed app, so any user's app could read and rewrite all routing (proved with a container on that network).
+- **Decision:** a new `forgeops-admin` network holds only Caddy and the worker. Caddy's admin listens on the alias
+  `caddy-admin:2019` (`CADDY_ADMIN` env), which exists only on that network, and `caddy.json` lists the allowed admin
+  host names. Port 2019 is no longer published to the Mac. The worker leaves `forgeops-apps` (it never needed it;
+  the engine places user containers there). The live config was switched with one admin API call so routes kept.
+- **Test Caddy:** stays on `0.0.0.0:2019` and published on `127.0.0.1:2020`, because tests on the Mac need it. It only
+  routes throwaway test apps.
+- **Options considered:** bind admin to the control-side IP and keep the Mac port (Docker on the Mac forwarded the
+  port to a different network after some restarts, so it was unreliable, ISS-056); admin over a Unix socket (Node
+  `fetch` cannot use one, and the Mac cannot reach it); Caddy's origin check alone (an attacker sets any Host header).
+- **Evidence:** from a container on `forgeops-apps`, `caddy:2019` now refuses the connection; the worker reaches
+  `caddy-admin:2019`; user apps still answer on port 80; acceptance 15/15.
+- **Consequences:** the worker must run in its container to manage routes; `pnpm worker` from source on the Mac can
+  no longer reach the real Caddy.
+
+### ADR-074 — App logs collected by the worker, read from the database (DevOps 6.2)
+- **Status:** Accepted (2026-11-07). The product owner chose this option.
+- **Problem:** the Logs tab made the API run `docker logs`. In a container the API has no Docker access, and giving
+  the internet-facing API the Docker socket would make one API bug a takeover of the machine.
+- **Decision:** only the worker touches Docker. Every 3 seconds it lists `fo-` containers (`docker ps -a`), reads the
+  last 1000 lines of each live deployment's container and upserts one `AppLog` row per live deployment (`running`,
+  `log`), deleting rows for deployments that are no longer live. `GET /services/:id/logs` reads that row and returns
+  the last `lines` lines; the response shape is unchanged. A missing container is saved as not running with no log;
+  a stopped one keeps its last output.
+- **Options considered:** give the API the socket (one line, but the riskiest); ask the worker over RabbitMQ and wait
+  for a reply (no lag, but a new request-reply path that fails when the worker is busy).
+- **Consequences:** logs are up to about 3 seconds behind; one `docker logs` call per live service every 3 seconds;
+  at most one row per service. Same pattern as metrics (ADR-069).
+
+### ADR-073 — Worker container with the host's Docker engine (DevOps 6.2)
+- **Status:** Accepted (2026-11-06). The product owner approved mounting the socket.
+- **Decision:** a `worker` stage extends the `api` image with `docker-cli` and `docker-cli-buildx` and runs
+  `node dist/worker.js`. Compose mounts `/var/run/docker.sock`, so the worker drives the host's engine and user
+  containers start next to ForgeOps, not inside it. The worker runs as root because the socket is root-only on
+  this host (access to the socket is root-equivalent anyway). Config comes from `apps/api/.env` with container
+  addresses and secret file paths overridden; the three secret files are mounted one by one, read-only. The API
+  image does not get the Docker tools.
+- **Options considered:** Docker-in-Docker (a separate engine inside the container: needs privileged mode, which is as
+  powerful, plus no shared build cache); one image for API and worker (the internet-facing API would carry Docker).
+- **Consequences:** whoever controls the worker controls every container on the host; real isolation comes later
+  with separate build machines or Kubernetes. Images: api 522 MB, worker 632 MB.
+
 ### ADR-072 — ForgeOps API image (DevOps 6.2, step 1)
 - **Status:** Accepted (2026-11-06). The product owner asked to Dockerize ForgeOps step by step.
 - **Decision:** `apps/api/Dockerfile`, built from the repository root (`docker build -f apps/api/Dockerfile .`)
@@ -949,8 +1016,8 @@ Template:
   working. The encryption key is mounted read-only as one file (not the whole `~/.forgeops` folder). GitHub settings
   are left out for now (all-or-none, so GitHub is off in this container).
 - **Options considered:** one-stage image (simpler, but ships TypeScript, tsx and vitest); `pnpm deploy` (copies a
-  pruned package, but its file rules skip the git-ignored `dist`); a separate image per process (the worker shares
-  the code, so one image with two commands keeps them the same version).
+  pruned package, but its file rules skip the git-ignored `dist`). The worker and the migration runner are later
+  stages of the same Dockerfile (ADR-073, ADR-076), so all three come from the same build of the same code.
 - **Consequences:** migrations are not run by the container yet (the Prisma CLI is not in the final image). The
   image was 1.21 GB, of which about 690 MB was pnpm's store and cache; deleting them in the same `RUN` as the
   install brought it to 522 MB. The Prisma CLI still comes along as a peer of `@prisma/client` (about 200 MB). The worker container (Docker access) is a separate decision.

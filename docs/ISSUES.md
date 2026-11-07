@@ -8,6 +8,39 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-056 — The Mac reached Caddy's admin port on some restarts and not others (DevOps 6.2)
+- **Situation:** To lock Caddy's admin API to a private network I bound it to Caddy's address on that network and
+  kept the port published to the Mac for tests. It worked, then after a recreate the Mac got "empty reply".
+- **Task:** Keep the admin private without breaking access the tests need.
+- **Action:** I checked inside the container: the admin was listening on the right address and reachable from the
+  Docker host. The Mac's port forwarding was picking the container's other network after some restarts. Rather
+  than depend on that, I stopped publishing the real Caddy's admin port at all (only the worker, on the private
+  network, needs it) and left the test Caddy, which routes only test apps, reachable from the Mac.
+- **Result:** the real admin is reachable only by the worker; tests still pass (150/150).
+- **Lesson:** when a fix depends on behaviour you cannot control, remove the need for it instead.
+
+## ISS-055 — Every deployed app could rewrite ForgeOps' routing (DevOps 6.2)
+- **Situation:** While explaining Docker networks I noticed Caddy's admin API listened on all addresses and Caddy
+  shares a network with every user's app.
+- **Task:** Check whether that was a real hole, and close it.
+- **Action:** I started a throwaway container on the user-apps network and fetched `http://caddy:2019/config/`: it
+  returned the full routing config, so an app could also change it. I moved the admin API to a private network
+  holding only Caddy and the worker, and switched the live config with one admin call so existing routes stayed.
+- **Result:** the same request from the apps network is now refused; user apps still answer on port 80; the
+  acceptance run passed 15/15.
+- **Lesson:** a control API on a shared network is open to everyone on that network; prove a suspected hole with a
+  real request before and after the fix.
+
+## ISS-054 — Logs worked everywhere except in the container (DevOps 6.2)
+- **Situation:** With the API and worker in containers, the acceptance run passed 14 of 15. The Logs tab answered
+  503 "Logs are not available right now".
+- **Task:** Find why, without weakening the security of the internet-facing API.
+- **Action:** I found the logs endpoint ran `docker logs` inside the API; the API container has no Docker. Instead of
+  giving the API the socket, I made the worker save each live app's recent output to the database every 3 seconds
+  and the API read it, the same way metrics already worked.
+- **Result:** 15/15 through the containers; only the worker touches Docker.
+- **Lesson:** moving code into containers exposes hidden dependencies; the acceptance run found it in minutes.
+
 ## ISS-053 — The first ForgeOps image was 1.21 GB for 0.6 MB of code (DevOps 6.2)
 - **Situation:** The first API image built and ran, but `docker images` said 1.21 GB, while the compiled code was
   under 1 MB.

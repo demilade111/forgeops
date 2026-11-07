@@ -281,6 +281,17 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   channel).
 - **SSRF:** if users choose a URL your server calls, they can aim it at your internal services; allow-list hosts.
 
+### Dockerizing ForgeOps (DevOps 6.2, ADR-072 to ADR-076)
+- **Image vs container:** the image is the frozen package (code, Node, packages); a container is a running copy.
+- **Multi-stage build:** build in a stage with every tool, then copy only the result into a clean stage.
+- **Layers:** each Dockerfile line adds a snapshot; delete caches in the same `RUN` that made them.
+- **Compose network:** containers reach each other by service name (`postgres:5432`); `localhost` means the
+  container itself.
+- **Docker socket:** the `docker` command is a remote control that talks to the engine through
+  `/var/run/docker.sock`; mounting it lets a container drive the host's engine, which is root-level power.
+- **One-shot job:** a container that runs once and exits (migrations); others wait for it to finish successfully.
+- **Health check:** a command compose runs to know a container is ready, not just started.
+
 ### Metrics (M1-S11, ADR-069)
 - **Where the numbers come from:** the Linux kernel counts each container's CPU time and memory (cgroups); Docker
   reads them (`docker stats`).
