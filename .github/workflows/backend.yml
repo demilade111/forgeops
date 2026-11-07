@@ -1,0 +1,37 @@
+name: backend
+
+on:
+  push:
+    paths:
+      - "apps/api/**"
+      - "caddy/**"
+      - "docker-compose.yml"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - "eslint.config.js"
+      - ".nvmrc"
+      - ".github/workflows/backend.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: cp apps/api/.env.example apps/api/.env
+      - run: docker compose up -d --wait postgres rabbitmq registry-test caddy-test mailpit-test
+      - run: docker compose exec -T postgres createdb -U forgeops forgeops_test
+      - run: pnpm install --frozen-lockfile --filter . --filter @forgeops/api
+      - run: pnpm exec eslint apps/api
+      - run: pnpm --filter @forgeops/api typecheck
+      - run: pnpm --filter @forgeops/api build
+      - run: pnpm --filter @forgeops/api test
