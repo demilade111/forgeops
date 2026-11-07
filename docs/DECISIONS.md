@@ -935,6 +935,24 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-078 — CI on GitHub Actions, one workflow per app (DevOps 7.2.1, 7.2.2)
+- **Status:** Accepted (2026-11-07). The product owner chose one workflow file per app.
+- **Decision:** CI runs on GitHub Actions (the repository is already on GitHub; no extra service). Each app has its
+  own workflow in `.github/workflows/`, triggered by a `paths` filter on its own folder plus the shared root files
+  (`package.json`, `pnpm-lock.yaml`, `pnpm-workspace.yaml`, `tsconfig.base.json`, `eslint.config.js`, `.nvmrc`) and
+  the workflow file itself. `frontend.yml` is first: checkout, pnpm from `packageManager`, Node from `.nvmrc`,
+  `pnpm install --frozen-lockfile` for the root and the frontend only, then lint, typecheck, test and `vite build`.
+  The token is read-only (`permissions: contents: read`) and the job stops after 10 minutes. Actions are pinned to
+  major versions (`checkout@v7`, `setup-node@v7`, `pnpm/action-setup@v6`).
+- **Options considered:** one `ci.yml` with a job per app (one file, skips cleanly under branch protection, but every
+  push runs both apps unless a change-detection job is added); one workflow per app (chosen: matches how the apps
+  ship separately, and an unrelated change starts no runner). Other CI services such as CircleCI or GitLab CI were
+  not considered further: a second account and integration for no gain at this size.
+- **Consequences:** when branch protection makes these checks required (7.1.2), a workflow skipped by its `paths`
+  filter reports nothing and can leave the merge waiting; that step must handle it. Major-version tags can move;
+  pinning to commit SHAs is part of 7.4.7. A `format.yml` and `backend.yml` follow. The repository is private, so
+  runs use the 2,000 free minutes a month.
+
 ### ADR-077 — Migrations: the image says what runs, the orchestrator says when and where (DevOps 6.2)
 - **Status:** Accepted (2026-11-07). Records the split behind ADR-076's migrate job.
 - **Decision:** the `migrate` stage in `apps/api/Dockerfile` defines only the contents and the command: it starts

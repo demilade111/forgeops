@@ -1,0 +1,32 @@
+name: frontend
+
+on:
+  push:
+    paths:
+      - "apps/frontend/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "tsconfig.base.json"
+      - "eslint.config.js"
+      - ".nvmrc"
+      - ".github/workflows/frontend.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: pnpm/action-setup@v6
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: pnpm install --frozen-lockfile --filter . --filter @forgeops/frontend
+      - run: pnpm exec eslint apps/frontend
+      - run: pnpm --filter @forgeops/frontend typecheck
+      - run: pnpm --filter @forgeops/frontend test
+      - run: pnpm --filter @forgeops/frontend build

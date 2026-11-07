@@ -97,7 +97,11 @@ through the socket) and `web` (`127.0.0.1:8080`, Caddy serving the built fronten
 App logs are collected by the worker (only the worker touches Docker) and Caddy's admin API is private to the
 worker. Acceptance 15/15 through the containers (`docs/evidence/containers-acceptance.md`). ADR-072 to ADR-077.
 
-**Next:** 7 CI/CD with GitHub Actions, in small hands-on steps. Follow-ups: snapshot env vars per deploy, add the
+**In progress: 7 CI/CD with GitHub Actions (2026-11-07).** One workflow per app in `.github/workflows/`, each with
+a `paths` trigger (ADR-078). Step 1: `frontend.yml` (install, lint, typecheck, test, build). Next steps:
+`format.yml`, `backend.yml` with Postgres and RabbitMQ on the runner, then image builds and branch protection.
+
+**Then:** 8 AWS and Terraform. Follow-ups: snapshot env vars per deploy, add the
 `localhost:8080` callback on the GitHub App, rotate the GitHub client secret before going public.
 
 Local environment (2026-10-27): git 2.50.1 · Docker engine now **OrbStack** (was Docker Desktop) · Node 24.22.1

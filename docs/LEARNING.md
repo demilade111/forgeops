@@ -281,6 +281,17 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   channel).
 - **SSRF:** if users choose a URL your server calls, they can aim it at your internal services; allow-list hosts.
 
+### CI with GitHub Actions (DevOps 7.2, ADR-078)
+- **CI (continuous integration):** checks run automatically on every push, not when someone remembers.
+- **Workflow:** a YAML file in `.github/workflows/` at the repository root; GitHub only looks there.
+- **Trigger (`on:`):** when a workflow runs. `paths:` limits it to pushes that changed matching files; `**` means a
+  folder and everything inside it.
+- **Job and runner:** a job is a list of steps; each job gets its own fresh machine (runner) that is deleted after,
+  so jobs run in parallel and fail independently.
+- **Step:** either `uses:` (a ready-made action, such as checking out the code) or `run:` (a shell command).
+- **`--frozen-lockfile`:** install fails if the lockfile does not match `package.json`, so CI installs exactly what
+  was tested locally.
+
 ### Dockerizing ForgeOps (DevOps 6.2, ADR-072 to ADR-077)
 - **Image vs container:** the image is the frozen package (code, Node, packages); a container is a running copy.
 - **Multi-stage build:** build in a stage with every tool, then copy only the result into a clean stage.
