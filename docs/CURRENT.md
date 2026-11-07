@@ -91,6 +91,11 @@ with logs, and the live URL. ADR-056 to ADR-058.
 
 **Next:** DevOps, in small hands-on steps: 6.2 Dockerize ForgeOps, then 7 CI/CD, 8 AWS and Terraform, 9 Kubernetes.
 
+**In progress: 6.2 Dockerize ForgeOps.** Done: the API image (`apps/api/Dockerfile`, two stages, non-root,
+522 MB after dropping pnpm's cache) and an `api` service in `docker-compose.yml` on `127.0.0.1:4001`, healthy
+against Postgres and RabbitMQ by service name (ADR-072). Still to do: the worker container (Docker access, socket
+decision), the frontend image, migrations in a container, and `docker compose up` starting the whole platform.
+
 Local environment (2026-10-27): git 2.50.1 · Docker engine now **OrbStack** (was Docker Desktop) · Node 24.22.1
 LTS via nvm (pinned in `.nvmrc`; run `nvm use` in this folder) · pnpm 11.5.2 via corepack.
 

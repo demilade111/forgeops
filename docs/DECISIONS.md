@@ -935,6 +935,26 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-072 — ForgeOps API image (DevOps 6.2, step 1)
+- **Status:** Accepted (2026-11-06). The product owner asked to Dockerize ForgeOps step by step.
+- **Decision:** `apps/api/Dockerfile`, built from the repository root (`docker build -f apps/api/Dockerfile .`)
+  because the pnpm lockfile and workspace file live there. Two stages: `build` installs all dependencies, runs
+  `prisma generate` and `tsc`; the final stage installs production dependencies only (`--prod`, `--ignore-scripts`
+  because the Prisma CLI is a dev dependency) and copies `dist`. It runs as the `node` user, not root, with
+  `NODE_ENV=production`. pnpm is installed with `npm install -g pnpm@11.5.2` (pinned to `packageManager`) rather than
+  Corepack, which is leaving Node. A root `.dockerignore` keeps `node_modules`, `dist`, generated code, `.env` files,
+  `.git` and docs out of the build context.
+- **Compose:** an `api` service builds and runs this image. Inside the compose network it reaches `postgres:5432`,
+  `rabbitmq:5672` and `mailpit:1025` by service name. It publishes on `127.0.0.1:4001` so the dev API on 4000 keeps
+  working. The encryption key is mounted read-only as one file (not the whole `~/.forgeops` folder). GitHub settings
+  are left out for now (all-or-none, so GitHub is off in this container).
+- **Options considered:** one-stage image (simpler, but ships TypeScript, tsx and vitest); `pnpm deploy` (copies a
+  pruned package, but its file rules skip the git-ignored `dist`); a separate image per process (the worker shares
+  the code, so one image with two commands keeps them the same version).
+- **Consequences:** migrations are not run by the container yet (the Prisma CLI is not in the final image). The
+  image was 1.21 GB, of which about 690 MB was pnpm's store and cache; deleting them in the same `RUN` as the
+  install brought it to 522 MB. The Prisma CLI still comes along as a peer of `@prisma/client` (about 200 MB). The worker container (Docker access) is a separate decision.
+
 ### ADR-071 — Scripted M1 acceptance run (M1-S13)
 - **Status:** Accepted (2026-11-06). The product owner asked for everything to be done and for maintainable code.
 - **Decision:** `pnpm --filter @forgeops/api acceptance` signs in as a real account (default the demo account, or

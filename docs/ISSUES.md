@@ -8,6 +8,17 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-053 — The first ForgeOps image was 1.21 GB for 0.6 MB of code (DevOps 6.2)
+- **Situation:** The first API image built and ran, but `docker images` said 1.21 GB, while the compiled code was
+  under 1 MB.
+- **Task:** Find what was taking the space before the image is pushed and pulled on every deploy.
+- **Action:** I read `docker history` (one line per layer) and ran `du` inside the container. The install layer was
+  1 GB, but `node_modules` was only 340 MB: pnpm's store and cache (about 690 MB) had been saved in the image. I
+  deleted them in the same `RUN` as the install, because deleting in a later line leaves them in the earlier layer.
+- **Result:** 522 MB, still healthy. About 200 MB more is the Prisma CLI pulled in as a peer of `@prisma/client`,
+  noted for later.
+- **Lesson:** measure an image layer by layer before shrinking it; clean up in the same layer that made the mess.
+
 ## ISS-052 — A 412-line script that did four jobs (M1-S13)
 - **Situation:** The first version of the acceptance run was one file: API calls, waiting, the 15 checks and the
   report writer, mixed together. The product owner stopped me: "not good separation of concerns".
