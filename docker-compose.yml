@@ -74,19 +74,57 @@ services:
     build:
       context: .
       dockerfile: apps/api/Dockerfile
+      target: api
     image: forgeops-api:dev
+    env_file: apps/api/.env
     environment:
       DATABASE_URL: postgresql://forgeops:forgeops@postgres:5432/forgeops
       RABBITMQ_URL: amqp://forgeops:forgeops@rabbitmq:5672
       SMTP_URL: smtp://mailpit:1025
+      PORT: 4000
       ENCRYPTION_KEY_PATH: /run/secrets/env-encryption.key
+      GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
+      GITHUB_CLIENT_SECRET_PATH: /run/secrets/github-client-secret
     volumes:
       - ~/.forgeops/env-encryption.key:/run/secrets/env-encryption.key:ro
+      - ~/.forgeops/github-app.pem:/run/secrets/github-app.pem:ro
+      - ~/.forgeops/github-client-secret:/run/secrets/github-client-secret:ro
     ports:
       - "127.0.0.1:4001:4000"
     depends_on:
       - postgres
       - rabbitmq
+
+  worker:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: worker
+    image: forgeops-worker:dev
+    env_file: apps/api/.env
+    environment:
+      DATABASE_URL: postgresql://forgeops:forgeops@postgres:5432/forgeops
+      RABBITMQ_URL: amqp://forgeops:forgeops@rabbitmq:5672
+      SMTP_URL: smtp://mailpit:1025
+      REGISTRY_HOST: localhost:5001
+      CADDY_ADMIN_URL: http://caddy:2019
+      CADDY_HTTP_URL: http://caddy:80
+      ENCRYPTION_KEY_PATH: /run/secrets/env-encryption.key
+      GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
+      GITHUB_CLIENT_SECRET_PATH: /run/secrets/github-client-secret
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ~/.forgeops/env-encryption.key:/run/secrets/env-encryption.key:ro
+      - ~/.forgeops/github-app.pem:/run/secrets/github-app.pem:ro
+      - ~/.forgeops/github-client-secret:/run/secrets/github-client-secret:ro
+    networks:
+      - default
+      - apps
+    depends_on:
+      - postgres
+      - rabbitmq
+      - registry
+      - caddy
 
 networks:
   apps:
