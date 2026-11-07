@@ -22,6 +22,8 @@ import { Logo } from "@/components/Logo";
 import { ThemeToggle } from "@/components/ThemeToggle";
 import { cn } from "@/lib/utils";
 import { useSession } from "@/stores/session";
+import { api } from "@/api";
+import { useRequest } from "@/hooks/useRequest";
 import { DeployMap } from "./DeployMap";
 
 const stacks: [SimpleIcon, string][] = [
@@ -227,6 +229,8 @@ function Panel({ children, className }: { children: ReactNode; className?: strin
 
 export function Landing() {
   const signedIn = useSession((s) => s.session.status === "signed-in");
+  const clear = useSession((s) => s.clear);
+  const logout = useRequest(api.logout, { onSuccess: clear });
   const start = signedIn ? "/app" : "/signup";
 
   return (
@@ -242,7 +246,16 @@ export function Landing() {
         </div>
         <div className="flex items-center gap-4">
           <ThemeToggle />
-          {!signedIn && (
+          {signedIn ? (
+            <button
+              type="button"
+              onClick={() => logout.send()}
+              disabled={logout.isLoading}
+              className="text-muted-foreground hover:text-foreground text-[0.95rem]"
+            >
+              Log out
+            </button>
+          ) : (
             <Link
               to="/login"
               className="text-muted-foreground hover:text-foreground hidden text-[0.95rem] sm:block"
