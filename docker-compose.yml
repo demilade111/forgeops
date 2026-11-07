@@ -70,6 +70,24 @@ services:
       - "127.0.0.1:1026:1025"
       - "127.0.0.1:8026:8025"
 
+  api:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+    image: forgeops-api:dev
+    environment:
+      DATABASE_URL: postgresql://forgeops:forgeops@postgres:5432/forgeops
+      RABBITMQ_URL: amqp://forgeops:forgeops@rabbitmq:5672
+      SMTP_URL: smtp://mailpit:1025
+      ENCRYPTION_KEY_PATH: /run/secrets/env-encryption.key
+    volumes:
+      - ~/.forgeops/env-encryption.key:/run/secrets/env-encryption.key:ro
+    ports:
+      - "127.0.0.1:4001:4000"
+    depends_on:
+      - postgres
+      - rabbitmq
+
 networks:
   apps:
     name: forgeops-apps
