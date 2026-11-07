@@ -7,7 +7,7 @@ RUN pnpm install --frozen-lockfile --filter @forgeops/api --ignore-scripts
 COPY apps/api apps/api
 RUN pnpm --filter @forgeops/api exec prisma generate && pnpm --filter @forgeops/api build
 
-FROM node:24-alpine
+FROM node:24-alpine AS api
 RUN npm install -g pnpm@11.5.2
 ENV NODE_ENV=production
 WORKDIR /repo
@@ -20,3 +20,8 @@ WORKDIR /repo/apps/api
 USER node
 EXPOSE 4000
 CMD ["node", "dist/server.js"]
+
+FROM api AS worker
+USER root
+RUN apk add --no-cache docker-cli docker-cli-buildx
+CMD ["node", "dist/worker.js"]
