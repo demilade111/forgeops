@@ -291,6 +291,12 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Step:** either `uses:` (a ready-made action, such as checking out the code) or `run:` (a shell command).
 - **`--frozen-lockfile`:** install fails if the lockfile does not match `package.json`, so CI installs exactly what
   was tested locally.
+- **Paths trigger + separate files:** each app has its own workflow, so a frontend-only change starts no backend
+  runner, and each can fail on its own.
+- **Branch protection:** CI only reports; a rule on `main` with required checks is what blocks a red merge. Not
+  available on a private repo on the free plan.
+- **Test services in CI:** the runner has Docker, so `docker compose up -d --wait` starts the same Postgres,
+  RabbitMQ, registry and Caddy the laptop uses; `--wait` returns once they are healthy.
 
 ### Dockerizing ForgeOps (DevOps 6.2, ADR-072 to ADR-077)
 - **Image vs container:** the image is the frozen package (code, Node, packages); a container is a running copy.

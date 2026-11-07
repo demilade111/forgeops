@@ -8,6 +8,19 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-057 — The local Docker engine was suddenly empty (DevOps 7.2)
+- **Situation:** Testing the backend CI steps locally, the tests could not reach Postgres. `docker info` showed
+  0 containers, 0 images and 0 volumes on OrbStack, although the whole stack had been running hours earlier.
+- **Task:** Find out what happened without making it worse, then get back to a working stack.
+- **Action:** I checked the Docker context (still OrbStack), confirmed none of my commands could have done it (the
+  only removal that day was the throwaway `fofresh` project), and stopped to ask instead of guessing. Since nothing
+  was left to overwrite, the product owner rebuilt with `docker compose up -d --build`.
+- **Result:** all 12 services came back from empty in about 5 minutes; `migrate` applied the 14 migrations by
+  itself, the web container answered 200, the worker was listening, and the 150 API tests passed. Lost: local data
+  only (demo account, deployed sample apps, registry images). The code was safe in Git.
+- **Lesson:** the one-command start from empty is the recovery plan; local data is disposable, so never keep
+  anything only there.
+
 ## ISS-056 — The Mac reached Caddy's admin port on some restarts and not others (DevOps 6.2)
 - **Situation:** To lock Caddy's admin API to a private network I bound it to Caddy's address on that network and
   kept the port published to the Mac for tests. It worked, then after a recreate the Mac got "empty reply".

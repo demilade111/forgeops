@@ -935,6 +935,34 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-080 — Backend CI runs the real test services from docker-compose.yml (DevOps 7.2.3)
+- **Status:** Accepted (2026-11-07).
+- **Decision:** `backend.yml` starts the test services with the same compose file used locally:
+  `docker compose up -d --wait postgres rabbitmq registry-test caddy-test mailpit-test`, creates `forgeops_test`,
+  copies `apps/api/.env.example` to `.env`, then installs the root and the API only and runs lint, typecheck,
+  `tsc` build and the 150 tests. The runner's own Docker engine runs the deploy tests (build, push, run, route). No
+  secrets: the tests use a random encryption key and a fake GitHub client. Triggered by `apps/api/**`, `caddy/**`,
+  `docker-compose.yml`, the shared root files and the workflow itself; 20-minute timeout; read-only token.
+- **Options considered:** GitHub `services:` containers (built in, but they start before checkout, so the test Caddy
+  cannot mount `caddy/caddy.json`, and the ports and versions would be a second copy of compose that can drift);
+  mocking Docker and Caddy (fast, but the deploy path is exactly what must be tested for real); the compose file
+  (chosen: one source of truth, CI matches the laptop).
+- **Evidence:** in a clean clone with only `.env.example`, against freshly created services: 13 files, 150 tests
+  passed.
+- **Consequences:** the job needs Docker, so it stays on Linux runners. The worker image is not built here; image
+  builds come in the next step.
+
+### ADR-079 — ForgeOps' frontend is served from our own infrastructure, not Vercel (DevOps 7)
+- **Status:** Accepted (2026-11-07). The product owner chose option 2.
+- **Decision:** production serves the frontend from the same `web` image used locally (Caddy serving `dist` and
+  passing `/api` to the API), on our own server in phase 8 and in Kubernetes in phase 9. No Vercel.
+- **Options considered:** Vercel for the frontend (free, worldwide CDN, no server to run; but a second hosting place,
+  its build is not the image tested locally, and the API would need a rewrite to keep `/api` on the same address
+  for session cookies); our own infrastructure (chosen: one image from laptop to production, fits the Kubernetes
+  phase, and the ops work is the point of the project).
+- **Consequences:** the frontend Dockerfile stays and is the production artifact. No worldwide CDN for now; one can
+  be put in front later. A marketing page could still live elsewhere if ever needed.
+
 ### ADR-078 — CI on GitHub Actions, one workflow per app (DevOps 7.2.1, 7.2.2)
 - **Status:** Accepted (2026-11-07). The product owner chose one workflow file per app.
 - **Decision:** CI runs on GitHub Actions (the repository is already on GitHub; no extra service). Each app has its
