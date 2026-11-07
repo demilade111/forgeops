@@ -935,6 +935,26 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-071 — Scripted M1 acceptance run (M1-S13)
+- **Status:** Accepted (2026-11-06). The product owner asked for everything to be done and for maintainable code.
+- **Decision:** `pnpm --filter @forgeops/api acceptance` signs in as a real account (default the demo account, or
+  `ACCEPTANCE_EMAIL` with `ACCEPTANCE_PASSWORD_FILE`) and drives the running stack through its public API, like a
+  user would: it creates a fresh project, deploys `demilade111/forgeops-sample-api`, and proves the 15 M1 criteria
+  in order. It writes `docs/evidence/m1-acceptance.md` with a pass or fail and real proof for each (IDs, step
+  timings, image digests, the URL's answer, logs, metric samples, the alert email from Mailpit, rollback records)
+  and exits non-zero if any criterion fails. Files: `client.ts` (talking to ForgeOps, the router and the inbox),
+  `criteria.ts` (the 15 checks), `report.ts` (results and the evidence file), `index.ts` (runs them).
+- **Unhealthy releases:** criterion 8 uses the sample API's `FAIL_READINESS=true` (blocked before go-live).
+  Criterion 14 uses the new `FAIL_READINESS_AFTER_SECONDS=25` (sample API commit `caaafb9`): healthy at go-live,
+  then failing, so the watcher rolls it back.
+- **Finding:** rollbacks start the old image with the service's current environment variables (ADR-063). If the
+  breaking change is itself an environment variable, the rollback carries it along and does not recover. The run
+  removes the variable right after go-live to model a code bug. Snapshotting env vars per deploy is the follow-up.
+- **Options considered:** a Playwright browser script (closer to a user, but slow and brittle for 15 criteria);
+  a manual checklist with screenshots (no repeatable proof).
+- **Consequences:** each run leaves a project `m1-run-<time>` with real deploys, which is the evidence; delete it
+  from the dashboard when no longer needed.
+
 ### ADR-070 — Alerts by email and Slack (M1-S12, closes ADR-020)
 - **Status:** Accepted (2026-11-06). The product owner chose email and Slack.
 - **What raises an alert:** a failed deploy, rollback or automatic rollback (`deploy_failed`), a live version that

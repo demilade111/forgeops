@@ -621,6 +621,18 @@ code that works with both, and only remove the old ones once no version needs th
 
 ---
 
+## 21. M1 acceptance run (M1-S13)
+
+**30-second answer:** "M1 had 15 acceptance criteria, from connecting GitHub to automatic rollback. I wrote a script
+that uses ForgeOps exactly as a user would, through the API, against the real stack: it creates a project, deploys
+the sample API, breaks it on purpose two ways, and checks logs, metrics, alerts and both kinds of rollback. All 15
+passed in about two and a half minutes, and it writes an evidence file with IDs, timings and responses."
+
+- *What did the acceptance run teach you?* That a rollback restores the image but not the configuration; if the bad
+  change is an environment variable, the rollback brings it back. Next step: snapshot env vars per deploy.
+- *Why a script and not only unit tests?* Unit and integration tests prove pieces; the acceptance run proves the
+  whole promise in one go, and can be rerun after any change.
+
 ## 20. Alerts (M1-S12)
 
 **30-second answer:** "When a deploy fails or a live app breaks, ForgeOps writes an alert in the same transaction as

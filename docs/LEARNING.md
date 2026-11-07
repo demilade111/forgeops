@@ -267,6 +267,12 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   they did.
 - **Expand and contract:** change the database in steps so old and new code both work, which keeps rollback safe.
 
+### Acceptance testing (M1-S13, ADR-071)
+- **Acceptance test:** proves the product does what was promised, end to end, through its public interface,
+  against the real system, not mocks.
+- **Evidence:** keep the proof (IDs, timings, answers) so anyone can check the claim later.
+- **Rollback limits:** rolling back the image does not roll back configuration; snapshot settings per release.
+
 ### Alerts (M1-S12, ADR-070)
 - **Detect vs notify:** checks find failures; alerts push them to a person.
 - **Outbox for alerts:** write the alert with the failure in one transaction so it cannot be lost.

@@ -8,6 +8,26 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-052 — A 412-line script that did four jobs (M1-S13)
+- **Situation:** The first version of the acceptance run was one file: API calls, waiting, the 15 checks and the
+  report writer, mixed together. The product owner stopped me: "not good separation of concerns".
+- **Task:** Make it something another engineer could maintain.
+- **Action:** I split it into `client.ts` (talking to ForgeOps), `criteria.ts` (one small function per criterion),
+  `report.ts` (results and the evidence file) and `index.ts` (runs them), then reran it end to end.
+- **Result:** each file has one job, and changing how a criterion is checked touches only that criterion.
+- **Lesson:** scripts are code too; decide the file split before writing, not after it grows.
+
+## ISS-051 — The acceptance run said the live URL did not answer, but curl said it did (M1-S13)
+- **Situation:** The first acceptance run failed criteria 5 and 8: "no answer" from `http://api.m1-run-….localhost`.
+  The same URL answered 200 in `curl` and in the browser.
+- **Task:** Find out whether ForgeOps or the script was wrong.
+- **Action:** browsers and curl treat every `*.localhost` name as 127.0.0.1 themselves; Node's `fetch` asks the
+  operating system, which on macOS does not resolve subdomains of localhost. I made the script connect to the
+  router at 127.0.0.1 and send the service name in the Host header, the same way the worker's health probe does.
+- **Result:** the next run passed all 15 criteria.
+- **Lesson:** when two clients disagree about the same URL, compare how each resolves the name before blaming the
+  server.
+
 ## ISS-050 — Metrics failed whenever a container disappeared mid-collection (M1-S12)
 - **Situation:** While building alerts I read the worker's log and found "Collecting metrics failed: docker stats
   failed: EOF" seven times.
