@@ -9,6 +9,10 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "forgeops", "-d", "forgeops"]
+      interval: 2s
+      retries: 30
 
   rabbitmq:
     image: rabbitmq:4-management
@@ -20,6 +24,10 @@ services:
       - "127.0.0.1:15673:15672"
     volumes:
       - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      retries: 30
 
   registry:
     image: registry:3
@@ -40,12 +48,16 @@ services:
     command: caddy run --config /etc/caddy/caddy.json --resume
     ports:
       - "127.0.0.1:80:80"
-      - "127.0.0.1:2019:2019"
     volumes:
       - ./caddy/caddy.json:/etc/caddy/caddy.json:ro
       - caddy-config:/config
+    environment:
+      CADDY_ADMIN: caddy-admin:2019
     networks:
-      - apps
+      admin:
+        aliases:
+          - caddy-admin
+      apps: {}
 
   caddy-test:
     image: caddy:2.10
@@ -55,6 +67,8 @@ services:
       - "127.0.0.1:2020:2019"
     volumes:
       - ./caddy/caddy.json:/etc/caddy/caddy.json:ro
+    environment:
+      CADDY_ADMIN: 0.0.0.0:2019
     networks:
       - apps
 
@@ -70,6 +84,18 @@ services:
       - "127.0.0.1:1026:1025"
       - "127.0.0.1:8026:8025"
 
+  migrate:
+    build:
+      context: .
+      dockerfile: apps/api/Dockerfile
+      target: migrate
+    image: forgeops-migrate:dev
+    environment:
+      DATABASE_URL: postgresql://forgeops:forgeops@postgres:5432/forgeops
+    depends_on:
+      postgres:
+        condition: service_healthy
+
   api:
     build:
       context: .
@@ -81,6 +107,7 @@ services:
       DATABASE_URL: postgresql://forgeops:forgeops@postgres:5432/forgeops
       RABBITMQ_URL: amqp://forgeops:forgeops@rabbitmq:5672
       SMTP_URL: smtp://mailpit:1025
+      APP_URL: http://localhost:8080
       PORT: 4000
       ENCRYPTION_KEY_PATH: /run/secrets/env-encryption.key
       GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
@@ -91,9 +118,21 @@ services:
       - ~/.forgeops/github-client-secret:/run/secrets/github-client-secret:ro
     ports:
       - "127.0.0.1:4001:4000"
+    restart: unless-stopped
     depends_on:
-      - postgres
-      - rabbitmq
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+    image: forgeops-web:dev
+    ports:
+      - "127.0.0.1:8080:80"
+    restart: unless-stopped
+    depends_on:
+      - api
 
   worker:
     build:
@@ -106,8 +145,9 @@ services:
       DATABASE_URL: postgresql://forgeops:forgeops@postgres:5432/forgeops
       RABBITMQ_URL: amqp://forgeops:forgeops@rabbitmq:5672
       SMTP_URL: smtp://mailpit:1025
+      APP_URL: http://localhost:8080
       REGISTRY_HOST: localhost:5001
-      CADDY_ADMIN_URL: http://caddy:2019
+      CADDY_ADMIN_URL: http://caddy-admin:2019
       CADDY_HTTP_URL: http://caddy:80
       ENCRYPTION_KEY_PATH: /run/secrets/env-encryption.key
       GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
@@ -119,14 +159,21 @@ services:
       - ~/.forgeops/github-client-secret:/run/secrets/github-client-secret:ro
     networks:
       - default
-      - apps
+      - admin
+    restart: unless-stopped
     depends_on:
-      - postgres
-      - rabbitmq
-      - registry
-      - caddy
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      registry:
+        condition: service_started
+      caddy:
+        condition: service_started
 
 networks:
+  admin:
+    name: forgeops-admin
   apps:
     name: forgeops-apps
 

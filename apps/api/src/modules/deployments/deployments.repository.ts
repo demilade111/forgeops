@@ -220,6 +220,26 @@ export const deploymentsRepository = (db: PrismaClient) => ({
     return live.filter((d) => d && ids.includes(d.id)) as { id: string; serviceId: string }[];
   },
 
+  allLive: () =>
+    db.deployment.findMany({
+      where: { status: "succeeded" },
+      distinct: ["serviceId"],
+      orderBy: [{ serviceId: "asc" }, { createdAt: "desc" }],
+      select: { id: true, serviceId: true },
+    }),
+
+  saveAppLogs: (
+    logs: { deploymentId: string; serviceId: string; running: boolean; log: string }[],
+  ) =>
+    db.$transaction([
+      ...logs.map((l) =>
+        db.appLog.upsert({ where: { deploymentId: l.deploymentId }, create: l, update: l }),
+      ),
+      db.appLog.deleteMany({ where: { deploymentId: { notIn: logs.map((l) => l.deploymentId) } } }),
+    ]),
+
+  appLog: (deploymentId: string) => db.appLog.findUnique({ where: { deploymentId } }),
+
   saveSamples: (data: Prisma.MetricSampleCreateManyInput[]) => db.metricSample.createMany({ data }),
 
   pruneSamples: (before: Date) =>

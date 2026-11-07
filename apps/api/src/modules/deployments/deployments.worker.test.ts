@@ -21,6 +21,7 @@ import { projectsRepository } from "../projects/projects.repository.js";
 import { createTeardownHandler } from "../projects/projects.teardown.js";
 import { run, workspace } from "./deployments.build.js";
 import { deploymentsRepository } from "./deployments.repository.js";
+import { createLogCollector } from "./deployments.logs.js";
 import { createMetricsCollector } from "./deployments.metrics.js";
 import { createWatcher } from "./deployments.watch.js";
 import { createDeploymentHandler } from "./deployments.worker.js";
@@ -698,6 +699,8 @@ it("shows the live app's own output to members of its organization", async () =>
   const deployment = await create(service.id, user.id, "k1");
   withSource(webApp);
   await handle({ type: "deployment.requested", deploymentId: deployment.id });
+  expect((await agent.get(`/api/services/${service.id}/logs`)).body.log).toBe("");
+  await createLogCollector(testDb)();
 
   const logs = await agent.get(`/api/services/${service.id}/logs?lines=50`);
 
@@ -705,6 +708,7 @@ it("shows the live app's own output to members of its organization", async () =>
   expect(logs.body.log).toMatch(/^\d{4}-\d{2}-\d{2}T[\d:.]+Z web app starting$/m);
 
   await run("docker", ["rm", "-f", `fo-${deployment.id}`], 30_000);
+  await createLogCollector(testDb)();
   expect((await agent.get(`/api/services/${service.id}/logs`)).body).toEqual({
     deploymentId: deployment.id,
     running: false,

@@ -1,6 +1,7 @@
 import { loadConfig } from "./config.js";
 import { run } from "./modules/deployments/deployments.build.js";
 import { createAlertSender } from "./modules/alerts/alerts.send.js";
+import { createLogCollector } from "./modules/deployments/deployments.logs.js";
 import { createMetricsCollector } from "./modules/deployments/deployments.metrics.js";
 import { createWatcher } from "./modules/deployments/deployments.watch.js";
 import { createDeploymentHandler } from "./modules/deployments/deployments.worker.js";
@@ -95,6 +96,15 @@ const collector = setInterval(() => {
     .catch((error) => console.error("Collecting metrics failed", error))
     .finally(() => (collecting = false));
 }, 15_000);
+const collectLogs = createLogCollector(db);
+let collectingLogs = false;
+const logCollector = setInterval(() => {
+  if (collectingLogs) return;
+  collectingLogs = true;
+  collectLogs()
+    .catch((error) => console.error("Collecting app logs failed", error))
+    .finally(() => (collectingLogs = false));
+}, 3_000);
 let watching = false;
 const watcher = setInterval(() => {
   if (watching) return;
@@ -117,6 +127,7 @@ for (const signal of ["SIGINT", "SIGTERM"]) {
     clearInterval(sweeper);
     clearInterval(watcher);
     clearInterval(collector);
+    clearInterval(logCollector);
     queue.connection.removeAllListeners("close");
     await queue.close();
     await db.$disconnect();
