@@ -1,7 +1,7 @@
 import nodemailer from "nodemailer";
 import { z } from "zod";
-import type { PrismaClient } from "../../generated/prisma/client.js";
-import { decrypt } from "../../secrets.js";
+import type { PrismaClient } from "../../database/prisma-client/client.js";
+import { decrypt } from "../../lib/encryption.js";
 import { alertsRepository } from "./alerts.repository.js";
 
 export const slackWebhook = /^https:\/\/hooks\.slack\.com\/services\/[\w/-]+$/;

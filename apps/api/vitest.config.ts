@@ -5,7 +5,7 @@ if (existsSync(".env")) process.loadEnvFile();
 
 export default defineConfig({
   test: {
-    globalSetup: "./src/test/global-setup.ts",
+    globalSetup: "./tests/helpers/global-setup.ts",
     fileParallelism: false,
     testTimeout: 30_000,
   },

@@ -1,8 +1,8 @@
 import { sign } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { Readable } from "node:stream";
-import type { Config } from "../../config.js";
-import { HttpError } from "../../http-error.js";
+import type { Config } from "../../config/config.js";
+import { HttpError } from "../../lib/http-error.js";
 
 export type GitHubAppCredentials = {
   appId: number;

@@ -1,7 +1,7 @@
 import request from "supertest";
 import { beforeEach, expect, it } from "vitest";
-import { createApp } from "../../server.js";
-import { resetDb, testDb } from "../../test/db.js";
+import { createApp } from "../../app.js";
+import { resetDb, testDb } from "../../../tests/helpers/db.js";
 
 const app = createApp({ db: testDb });
 const credentials = { email: "dev@example.com", password: "a-long-password" };

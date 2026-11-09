@@ -1,11 +1,11 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
-import { deploymentsRepository } from "./modules/deployments/deployments.repository.js";
-import { createDeploymentHandler } from "./modules/deployments/deployments.worker.js";
-import type { GitHubClient } from "./modules/github/github.client.js";
+import { deploymentsRepository } from "../modules/deployments/deployments.repository.js";
+import { createDeploymentHandler } from "../modules/deployments/jobs/deployments.handler.js";
+import type { GitHubClient } from "../modules/github/github.client.js";
 import { connectQueue } from "./queue.js";
-import { createService, createUser, resetDb, testDb } from "./test/db.js";
-import { webApp, resetRuntime, sourceArchive, workerOptions } from "./test/source.js";
+import { createService, createUser, resetDb, testDb } from "../../tests/helpers/db.js";
+import { webApp, resetRuntime, sourceArchive, workerOptions } from "../../tests/helpers/source.js";
 
 const url = process.env.RABBITMQ_URL;
 if (!url) throw new Error("RABBITMQ_URL is not set (see apps/api/.env.example)");

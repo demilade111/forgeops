@@ -1,12 +1,18 @@
-import { createHash, randomBytes } from "node:crypto";
-import { Router, type Request, type RequestHandler, type Response } from "express";
+import { randomBytes } from "node:crypto";
+import { Router, type Response } from "express";
 import { z } from "zod";
-import { Prisma, type PrismaClient } from "../../generated/prisma/client.js";
-import { HttpError, parse } from "../../http-error.js";
-import { hashPassword, verifyPassword } from "../../password.js";
+import { Prisma, type PrismaClient } from "../../database/prisma-client/client.js";
+import { HttpError, parse } from "../../lib/http-error.js";
+import { hashPassword, verifyPassword } from "../../lib/password.js";
+import {
+  SESSION_COOKIE,
+  createRequireAuth,
+  hashToken,
+  readSessionToken,
+  type SessionUser,
+} from "./auth.middleware.js";
 import { authRepository } from "./auth.repository.js";
 
-const COOKIE = "forgeops_session";
 const SESSION_MS = 7 * 24 * 60 * 60 * 1000;
 
 const email = z
@@ -23,56 +29,6 @@ const signupBody = z.object({
 });
 const loginBody = z.object({ email, password: password.min(1, "Password is required") });
 
-const hashToken = (token: string) => createHash("sha256").update(token).digest("hex");
-
-export type SessionUser = {
-  id: string;
-  email: string;
-  memberships: { role: string; organization: { id: string; name: string } }[];
-};
-
-export const readCookie = (req: Request, name: string) =>
-  req.headers.cookie
-    ?.split(";")
-    .map((c) => c.trim())
-    .find((c) => c.startsWith(`${name}=`))
-    ?.slice(name.length + 1);
-
-const readToken = (req: Request) => readCookie(req, COOKIE);
-
-export function memberOrganizationId(res: Response, organizationId: unknown) {
-  const { memberships } = res.locals.user as SessionUser;
-  const membership = memberships.find((m) => m.organization.id === organizationId);
-  if (!membership) throw new HttpError(404, "ORGANIZATION_NOT_FOUND", "Organization not found");
-  return membership.organization.id;
-}
-
-export const memberOrganizationIds = (res: Response) =>
-  (res.locals.user as SessionUser).memberships.map((m) => m.organization.id);
-
-const requireJson: RequestHandler = (req, _res, next) => {
-  const hasBody =
-    Number(req.headers["content-length"] ?? 0) > 0 || !!req.headers["transfer-encoding"];
-  if (["POST", "PATCH"].includes(req.method) && hasBody && !req.is("application/json")) {
-    throw new HttpError(415, "UNSUPPORTED_MEDIA_TYPE", "Send requests as application/json");
-  }
-  next();
-};
-
-export function createRequireAuth(db: PrismaClient): RequestHandler {
-  const repo = authRepository(db);
-  return async (req, res, next) => {
-    const token = readToken(req);
-    const session = token ? await repo.findSession(hashToken(token)) : null;
-    if (!session || session.expiresAt <= new Date()) {
-      if (token) await repo.deleteSession(hashToken(token));
-      throw new HttpError(401, "UNAUTHENTICATED", "Log in to continue");
-    }
-    res.locals.user = session.user satisfies SessionUser;
-    next();
-  };
-}
-
 export function createAuthRouter(db: PrismaClient, { secureCookies }: { secureCookies: boolean }) {
   const repo = authRepository(db);
   const router = Router();
@@ -82,7 +38,7 @@ export function createAuthRouter(db: PrismaClient, { secureCookies }: { secureCo
     const token = randomBytes(32).toString("base64url");
     const expiresAt = new Date(Date.now() + SESSION_MS);
     await repo.createSession(hashToken(token), userId, expiresAt);
-    res.cookie(COOKIE, token, {
+    res.cookie(SESSION_COOKIE, token, {
       httpOnly: true,
       sameSite: "lax",
       secure: secureCookies,
@@ -92,8 +48,6 @@ export function createAuthRouter(db: PrismaClient, { secureCookies }: { secureCo
   }
 
   const requireAuth = createRequireAuth(db);
-
-  router.use(requireJson);
 
   router.post("/auth/signup", async (req, res) => {
     const { email, password } = parse(signupBody, req.body);
@@ -119,9 +73,9 @@ export function createAuthRouter(db: PrismaClient, { secureCookies }: { secureCo
   });
 
   router.post("/auth/logout", async (req, res) => {
-    const token = readToken(req);
+    const token = readSessionToken(req);
     if (token) await repo.deleteSession(hashToken(token));
-    res.clearCookie(COOKIE, { path: "/" });
+    res.clearCookie(SESSION_COOKIE, { path: "/" });
     res.status(204).end();
   });
 

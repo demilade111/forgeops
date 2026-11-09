@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "../../generated/prisma/client.js";
+import type { Prisma, PrismaClient } from "../../database/prisma-client/client.js";
 
 type Deletion = { projectId: string } | { serviceId: string };
 

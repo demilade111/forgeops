@@ -9,8 +9,8 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
-import { run } from "../modules/deployments/deployments.build.js";
-import { removeContainers } from "../modules/deployments/deployments.release.js";
+import { run } from "../../src/modules/deployments/jobs/deployments.build.js";
+import { removeContainers } from "../../src/modules/deployments/jobs/deployments.release.js";
 import { testDb, testKey } from "./db.js";
 
 export const registryHost = process.env.TEST_REGISTRY_HOST!;

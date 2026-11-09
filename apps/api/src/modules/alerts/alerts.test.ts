@@ -1,8 +1,8 @@
 import request from "supertest";
 import { beforeEach, expect, it, vi } from "vitest";
-import { encrypt } from "../../secrets.js";
-import { createApp } from "../../server.js";
-import { createService, resetDb, testDb, testKey } from "../../test/db.js";
+import { encrypt } from "../../lib/encryption.js";
+import { createApp } from "../../app.js";
+import { createService, resetDb, testDb, testKey } from "../../../tests/helpers/db.js";
 import { deploymentsRepository } from "../deployments/deployments.repository.js";
 import { createAlertSender, type PostJson } from "./alerts.send.js";
 

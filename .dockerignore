@@ -1,6 +1,6 @@
 **/node_modules
 **/dist
-**/src/generated
+**/src/database/prisma-client
 **/.env
 **/.env.*
 **/coverage

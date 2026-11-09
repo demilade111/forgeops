@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
-import { encrypt } from "../secrets.js";
-import { createDb } from "../server.js";
+import { encrypt } from "../../src/lib/encryption.js";
+import { createDb } from "../../src/database/client.js";
 
 export const testKey = randomBytes(32);
 

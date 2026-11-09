@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { z } from "zod";
-import type { PrismaClient } from "../../generated/prisma/client.js";
-import { HttpError, parse } from "../../http-error.js";
-import { encrypt } from "../../secrets.js";
-import { createRequireAuth, memberOrganizationId } from "../auth/auth.router.js";
+import type { PrismaClient } from "../../database/prisma-client/client.js";
+import { HttpError, parse } from "../../lib/http-error.js";
+import { encrypt } from "../../lib/encryption.js";
+import { createRequireAuth, memberOrganizationId } from "../auth/auth.middleware.js";
 import { alertsRepository } from "./alerts.repository.js";
 import { slackWebhook } from "./alerts.send.js";
 

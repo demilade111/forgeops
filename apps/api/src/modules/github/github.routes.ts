@@ -1,8 +1,9 @@
 import { randomBytes } from "node:crypto";
 import { Router, type Response } from "express";
-import type { PrismaClient } from "../../generated/prisma/client.js";
-import { HttpError } from "../../http-error.js";
-import { createRequireAuth, memberOrganizationId, readCookie } from "../auth/auth.router.js";
+import type { PrismaClient } from "../../database/prisma-client/client.js";
+import { HttpError } from "../../lib/http-error.js";
+import { readCookie } from "../../lib/cookies.js";
+import { createRequireAuth, memberOrganizationId } from "../auth/auth.middleware.js";
 import type { GitHubClient } from "./github.client.js";
 import { githubRepository } from "./github.repository.js";
 

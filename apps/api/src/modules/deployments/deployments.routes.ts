@@ -1,8 +1,12 @@
 import { Router, type Request, type Response } from "express";
 import { z } from "zod";
-import { Prisma, type PrismaClient } from "../../generated/prisma/client.js";
-import { HttpError, isId, parse } from "../../http-error.js";
-import { createRequireAuth, memberOrganizationIds, type SessionUser } from "../auth/auth.router.js";
+import { Prisma, type PrismaClient } from "../../database/prisma-client/client.js";
+import { HttpError, isId, parse } from "../../lib/http-error.js";
+import {
+  createRequireAuth,
+  memberOrganizationIds,
+  type SessionUser,
+} from "../auth/auth.middleware.js";
 import type { RollbackTarget } from "./deployments.repository.js";
 import { projectsRepository } from "../projects/projects.repository.js";
 import { deploymentsRepository } from "./deployments.repository.js";

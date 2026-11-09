@@ -1,7 +1,7 @@
 import request from "supertest";
 import { expect, it } from "vitest";
-import { createApp } from "./server.js";
-import { testDb } from "./test/db.js";
+import { createApp } from "./app.js";
+import { testDb } from "../tests/helpers/db.js";
 
 const dbUp = createApp({ db: testDb });
 const dbDown = createApp({ db: testDb, checkDb: () => Promise.reject(new Error("refused")) });
