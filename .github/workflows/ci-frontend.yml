@@ -1,4 +1,4 @@
-name: frontend
+name: ci-frontend
 
 on:
   push:
@@ -10,7 +10,8 @@ on:
       - "tsconfig.base.json"
       - "eslint.config.js"
       - ".nvmrc"
-      - ".github/workflows/frontend.yml"
+      - ".github/workflows/ci-frontend.yml"
+      - ".github/actions/**"
 
 permissions:
   contents: read
@@ -21,10 +22,7 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
+      - uses: ./.github/actions/setup
       - run: pnpm install --frozen-lockfile --filter . --filter @forgeops/frontend
       - run: pnpm exec eslint apps/frontend
       - run: pnpm --filter @forgeops/frontend typecheck
@@ -40,9 +38,11 @@ jobs:
       contents: read
       packages: write
     env:
+      TRIVY: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
       IMAGE: ghcr.io/${{ github.repository_owner }}/forgeops-web:${{ github.sha }}
     steps:
       - uses: actions/checkout@v7
       - run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - run: docker build -f apps/frontend/Dockerfile --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" -t "$IMAGE" .
+      - run: docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache "$TRIVY" image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress "$IMAGE"
       - run: docker push "$IMAGE"
