@@ -2,12 +2,12 @@ import express from "express";
 import type { PrismaClient } from "./database/prisma-client/client.js";
 import { errorHandler } from "./middleware/error-handler.js";
 import { requireJson } from "./middleware/require-json.js";
-import { createAlertsRouter } from "./modules/alerts/alerts.routes.js";
-import { createAuthRouter } from "./modules/auth/auth.routes.js";
-import { createDeploymentsRouter } from "./modules/deployments/deployments.routes.js";
-import type { GitHubClient } from "./modules/github/github.client.js";
-import { createGitHubRouter } from "./modules/github/github.routes.js";
-import { createProjectsRouter } from "./modules/projects/projects.routes.js";
+import { createAlertsRouter } from "./modules/alerts/routes/alerts.routes.js";
+import { createAuthRouter } from "./modules/auth/routes/auth.routes.js";
+import { createDeploymentsRouter } from "./modules/deployments/routes/deployments.routes.js";
+import type { GitHubClient } from "./modules/github/clients/github.client.js";
+import { createGitHubRouter } from "./modules/github/routes/github.routes.js";
+import { createProjectsRouter } from "./modules/projects/routes/projects.routes.js";
 
 type AppOptions = {
   db: PrismaClient;
