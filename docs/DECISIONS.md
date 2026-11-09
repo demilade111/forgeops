@@ -935,6 +935,27 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-081 — Images built after green CI and pushed to GHCR, tagged with the commit (DevOps 7.2, CD part 1)
+- **Status:** Accepted (2026-11-08). The product owner approved the image job.
+- **Decision:** each app workflow gets an `image` job with `needs:` on its test job and `if: github.ref ==
+  'refs/heads/main'`, so only green commits on `main` produce images. It checks out again (a new runner), logs in to
+  GHCR with the run's automatic `GITHUB_TOKEN` (`--password-stdin`, never echoed), runs `docker build` with the
+  app's Dockerfile and pushes `ghcr.io/<owner>/forgeops-<image>:<commit SHA>`. Only this job has
+  `packages: write`; test jobs keep `contents: read`. The image carries the
+  `org.opencontainers.image.source` label so GHCR links the package to the repository. `frontend.yml` pushes
+  `forgeops-web` first; `backend.yml` follows with `api`, `worker` and `migrate`.
+- **Why:** build once, run everywhere: the image is the artifact, so every server and every rollback runs the same
+  bytes instead of rebuilding (slow, uses the live server's CPU, depends on npm, may differ from what was tested).
+  The commit tag is never overwritten, so a rollback is running an older tag and any server traces to one commit.
+- **Options considered:** Docker Hub (a second account and a stored token; free private repos are limited); AWS ECR
+  (comes with phase 8 and costs money); a personal access token (long-lived secret to leak and rotate);
+  `GITHUB_TOKEN` (chosen: exists only for the run); tagging `latest` (overwritten, no rollback, no traceability);
+  `docker/build-push-action` (layer caching and multi-platform builds, but hides the plain commands while learning;
+  can replace them later).
+- **Consequences:** the code is built twice (a check in CI, the real build inside the Dockerfile); testing inside
+  the built image is a later improvement. Images accumulate in GHCR and will need a retention rule. Packages from a
+  private repository are private, so the phase 8 server needs read access to pull.
+
 ### ADR-080 — Backend CI runs the real test services from docker-compose.yml (DevOps 7.2.3)
 - **Status:** Accepted (2026-11-07).
 - **Decision:** `backend.yml` starts the test services with the same compose file used locally:

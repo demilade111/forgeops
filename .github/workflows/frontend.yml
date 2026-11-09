@@ -30,3 +30,19 @@ jobs:
       - run: pnpm --filter @forgeops/frontend typecheck
       - run: pnpm --filter @forgeops/frontend test
       - run: pnpm --filter @forgeops/frontend build
+
+  image:
+    needs: frontend
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      packages: write
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/forgeops-web:${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - run: docker build -f apps/frontend/Dockerfile --label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" -t "$IMAGE" .
+      - run: docker push "$IMAGE"

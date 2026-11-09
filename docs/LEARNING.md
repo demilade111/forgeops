@@ -295,6 +295,12 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   runner, and each can fail on its own.
 - **Branch protection:** CI only reports; a rule on `main` with required checks is what blocks a red merge. Not
   available on a private repo on the free plan.
+- **CI vs CD:** CI checks the code and throws its output away; CD builds the artifact (the image) and keeps it.
+  Every job is a new empty runner, so the image job checks out again and builds inside the Dockerfile.
+- **Registry:** the shelf between the runner that builds (deleted after) and the server that runs. Build once, run
+  everywhere: servers and rollbacks pull the exact tested bytes instead of rebuilding.
+- **Commit tag and GITHUB_TOKEN:** images are tagged with the commit SHA, never `latest`; the workflow logs in with
+  a token that exists only for the run, and only the image job gets `packages: write` (least privilege).
 - **Test services in CI:** the runner has Docker, so `docker compose up -d --wait` starts the same Postgres,
   RabbitMQ, registry and Caddy the laptop uses; `--wait` returns once they are healthy.
 
