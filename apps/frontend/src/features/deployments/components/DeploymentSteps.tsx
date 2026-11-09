@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Check, ChevronRight, X } from "lucide-react";
-import type { Deployment } from "@/features/deployments/deployments.types";
+import type { Deployment } from "@/features/deployments/types/deployments.types";
 import { duration } from "@/lib/format";
 import { cn } from "@/lib/utils";
 

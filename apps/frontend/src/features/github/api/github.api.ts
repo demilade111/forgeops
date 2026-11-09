@@ -1,4 +1,4 @@
-import type { GitHubStatus } from "@/features/github/github.types";
+import type { GitHubStatus } from "@/features/github/types/github.types";
 import { http } from "@/lib/http";
 
 export const githubApi = {

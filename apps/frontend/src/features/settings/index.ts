@@ -1,2 +1,2 @@
-export type { AlertSettings } from "./alerts.types";
+export type { AlertSettings } from "./types/alerts.types";
 export { SettingsPage } from "./pages/SettingsPage";

@@ -1,4 +1,4 @@
-import type { Deployment } from "./deployments.types";
+import type { Deployment } from "../types/deployments.types";
 
 export const isActive = (d: Deployment | null | undefined) =>
   d?.status === "queued" || d?.status === "running";

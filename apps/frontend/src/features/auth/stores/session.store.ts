@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { SessionStore } from "./auth.types";
+import type { SessionStore } from "../types/auth.types";
 import { authApi } from "@/features/auth/api/auth.api";
 
 export const useSession = create<SessionStore>((set) => ({

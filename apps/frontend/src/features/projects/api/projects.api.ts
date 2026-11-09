@@ -1,4 +1,4 @@
-import type { Project, ProjectDetail } from "@/features/projects/projects.types";
+import type { Project, ProjectDetail } from "@/features/projects/types/projects.types";
 import { http } from "@/lib/http";
 
 export const projectsApi = {
