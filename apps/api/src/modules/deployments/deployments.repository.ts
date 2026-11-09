@@ -1,5 +1,5 @@
 import type { Prisma, PrismaClient } from "../../database/prisma-client/client.js";
-import { raiseBrokeAfterLive, raiseDeployFailed } from "../alerts/alerts.repository.js";
+import { raiseBrokeAfterLive, raiseDeployFailed } from "../alerts/alerts.raise.js";
 
 const withSteps = { steps: { orderBy: { startedAt: "asc" } } } as const;
 

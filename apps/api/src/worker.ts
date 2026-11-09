@@ -1,6 +1,6 @@
 import { loadConfig } from "./config/config.js";
 import { run } from "./modules/deployments/jobs/deployments.build.js";
-import { createAlertSender } from "./modules/alerts/alerts.send.js";
+import { createAlertSender } from "./modules/alerts/alerts.sender.js";
 import { createLogCollector } from "./modules/deployments/jobs/deployments.logs.js";
 import { createMetricsCollector } from "./modules/deployments/jobs/deployments.metrics.js";
 import { createWatcher } from "./modules/deployments/jobs/deployments.watch.js";
@@ -9,7 +9,7 @@ import { deploymentsRepository } from "./modules/deployments/deployments.reposit
 import { loadGitHubClient } from "./modules/github/github.client.js";
 import { appsNetwork } from "./modules/deployments/jobs/deployments.release.js";
 import { projectsRepository } from "./modules/projects/projects.repository.js";
-import { createTeardownHandler } from "./modules/projects/projects.teardown.js";
+import { createTeardownHandler } from "./modules/projects/jobs/projects.teardown.js";
 import { connectQueue } from "./lib/queue.js";
 import { readEncryptionKey } from "./lib/encryption.js";
 import { createDb } from "./database/client.js";

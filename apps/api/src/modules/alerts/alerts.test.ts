@@ -4,7 +4,7 @@ import { encrypt } from "../../lib/encryption.js";
 import { createApp } from "../../app.js";
 import { createService, resetDb, testDb, testKey } from "../../../tests/helpers/db.js";
 import { deploymentsRepository } from "../deployments/deployments.repository.js";
-import { createAlertSender, type PostJson } from "./alerts.send.js";
+import { createAlertSender, type PostJson } from "./alerts.sender.js";
 
 const mailpit = process.env.TEST_MAILPIT_URL!;
 const smtpUrl = process.env.TEST_SMTP_URL!;

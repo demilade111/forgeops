@@ -24,7 +24,7 @@ import {
 } from "../../../../tests/helpers/source.js";
 import type { GitHubClient } from "../../github/github.client.js";
 import { projectsRepository } from "../../projects/projects.repository.js";
-import { createTeardownHandler } from "../../projects/projects.teardown.js";
+import { createTeardownHandler } from "../../projects/jobs/projects.teardown.js";
 import { run, workspace } from "./deployments.build.js";
 import { deploymentsRepository } from "../deployments.repository.js";
 import { createLogCollector } from "./deployments.logs.js";

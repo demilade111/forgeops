@@ -5,7 +5,7 @@ import { HttpError, parse } from "../../lib/http-error.js";
 import { encrypt } from "../../lib/encryption.js";
 import { createRequireAuth, memberOrganizationId } from "../auth/auth.middleware.js";
 import { alertsRepository } from "./alerts.repository.js";
-import { slackWebhook } from "./alerts.send.js";
+import { slackWebhook } from "./alerts.sender.js";
 
 const slackBody = z.object({
   url: z
