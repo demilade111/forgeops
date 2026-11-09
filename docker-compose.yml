@@ -10,7 +10,7 @@ services:
     volumes:
       - postgres-data:/var/lib/postgresql
     healthcheck:
-      test: ["CMD", "pg_isready", "-U", "forgeops", "-d", "forgeops"]
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "forgeops", "-d", "forgeops"]
       interval: 2s
       retries: 30
 
