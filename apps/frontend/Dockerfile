@@ -7,6 +7,6 @@ RUN pnpm install --frozen-lockfile --filter @forgeops/frontend
 COPY apps/frontend apps/frontend
 RUN pnpm --filter @forgeops/frontend build
 
-FROM caddy:2.10
+FROM caddy:2.11
 COPY apps/frontend/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /repo/apps/frontend/dist /srv

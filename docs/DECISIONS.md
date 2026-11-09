@@ -961,6 +961,13 @@ Template:
 - **Options considered:** subfolders for workflows (not supported by GitHub); one big workflow with every job
   (one red X hides which part failed and every push runs everything); Snyk or SonarQube (outside accounts and
   tokens); the gitleaks and Trivy GitHub actions (shorter, but more code we do not control).
+- **First run (2026-11-09):** format, gitleaks (whole history, no secrets) and `pnpm audit` passed; Trivy failed
+  both image jobs, as designed, before anything was pushed. Web: 37 HIGH/CRITICAL in the Alpine packages and 68 in
+  the Caddy binary of `caddy:2.10`, fixed by moving to `caddy:2.11` (also in `docker-compose.yml`, one version
+  everywhere). API: 24, all in npm (bundled with the Node image) and the global pnpm, none in our dependencies or
+  the OS. The app runs with `node` alone, so the runtime images now delete npm, pnpm, corepack and yarn after
+  installing, and `migrate` runs `node_modules/.bin/prisma migrate deploy` instead of `pnpm exec`. Fewer tools in
+  the image also means fewer tools an attacker can use inside it.
 - **Consequences:** a push now starts up to five workflow runs. A new CVE in a base image can turn a previously
   green image job red with no code change; the fix is a base image update (Dependabot opens it).
 

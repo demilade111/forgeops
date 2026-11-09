@@ -44,7 +44,7 @@ services:
       - /var/lib/registry
 
   caddy:
-    image: caddy:2.10
+    image: caddy:2.11
     command: caddy run --config /etc/caddy/caddy.json --resume
     ports:
       - "127.0.0.1:80:80"
@@ -60,7 +60,7 @@ services:
       apps: {}
 
   caddy-test:
-    image: caddy:2.10
+    image: caddy:2.11
     command: caddy run --config /etc/caddy/caddy.json
     ports:
       - "127.0.0.1:8081:80"

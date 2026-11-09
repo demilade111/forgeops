@@ -8,6 +8,18 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-061 — The first image scan blocked both releases (DevOps 7.3)
+- **Situation:** I added Trivy between `docker build` and `docker push`. On its first run both image jobs went red:
+  129 HIGH or CRITICAL vulnerabilities with known fixes, while every test was green.
+- **Task:** Find out whether the holes were in our code or in what we ship around it, and fix them without
+  weakening the scan.
+- **Action:** I read the report by file path. The web image's holes were all in `caddy:2.10` (old Alpine packages
+  and a Caddy binary built with an old Go), so I moved to `caddy:2.11`. The API's 24 were all in npm and pnpm under
+  `/usr/local/lib/node_modules`; our own packages and the OS were clean. The app only needs `node` at runtime, so
+  the image now deletes the package managers after installing, and the migration runs Prisma's binary directly.
+- **Result:** the scan stayed strict (HIGH and CRITICAL with a fix still fail the build) and the images got smaller.
+- **Lesson:** most image vulnerabilities live in the base and the tools, not the app; ship only what runs.
+
 ## ISS-060 — The local Docker engine was wiped a third time (2026-11-09)
 - **Situation:** Before running the tests for the controller restructure, OrbStack again had 0 containers, 0 images
   and no ForgeOps volumes; another project's volumes were still there.
