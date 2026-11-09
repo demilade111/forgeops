@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { PrismaClient } from "../../../database/prisma-client/client.js";
 import { removeContainers, removeRoute } from "../../deployments/jobs/deployments.release.js";
-import { projectsRepository } from "../projects.repository.js";
+import { projectsRepository } from "../repositories/projects.repository.js";
 
 const message = z.union([
   z.object({ type: z.literal("deletion.requested"), projectId: z.guid() }),

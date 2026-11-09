@@ -1,5 +1,5 @@
 import type { PrismaClient } from "../../../database/prisma-client/client.js";
-import { deploymentsRepository } from "../deployments.repository.js";
+import { deploymentsRepository } from "../repositories/deployments.repository.js";
 import { checkLive, removeRoute } from "./deployments.release.js";
 
 export function createWatcher(

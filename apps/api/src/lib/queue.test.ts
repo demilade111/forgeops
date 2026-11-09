@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 import { afterAll, afterEach, beforeEach, expect, it, vi } from "vitest";
-import { deploymentsRepository } from "../modules/deployments/deployments.repository.js";
+import { deploymentsRepository } from "../modules/deployments/repositories/deployments.repository.js";
 import { createDeploymentHandler } from "../modules/deployments/jobs/deployments.handler.js";
-import type { GitHubClient } from "../modules/github/github.client.js";
+import type { GitHubClient } from "../modules/github/clients/github.client.js";
 import { connectQueue } from "./queue.js";
 import { createService, createUser, resetDb, testDb } from "../../tests/helpers/db.js";
 import { webApp, resetRuntime, sourceArchive, workerOptions } from "../../tests/helpers/source.js";

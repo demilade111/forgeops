@@ -3,8 +3,8 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { z } from "zod";
 import type { PrismaClient } from "../../../database/prisma-client/client.js";
 import { decrypt } from "../../../lib/encryption.js";
-import type { GitHubClient } from "../../github/github.client.js";
-import { githubService } from "../../github/github.service.js";
+import type { GitHubClient } from "../../github/clients/github.client.js";
+import { githubService } from "../../github/services/github.service.js";
 import {
   StepFailure,
   buildImage,
@@ -14,7 +14,7 @@ import {
   unpackSource,
   workspace,
 } from "./deployments.build.js";
-import { deploymentsRepository } from "../deployments.repository.js";
+import { deploymentsRepository } from "../repositories/deployments.repository.js";
 import {
   removeContainers,
   routeTo,

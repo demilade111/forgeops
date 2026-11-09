@@ -2,7 +2,7 @@ import { createApp } from "./app.js";
 import { loadConfig } from "./config/config.js";
 import { createDb } from "./database/client.js";
 import { readEncryptionKey } from "./lib/encryption.js";
-import { loadGitHubClient } from "./modules/github/github.client.js";
+import { loadGitHubClient } from "./modules/github/clients/github.client.js";
 
 const { port, databaseUrl, production, github, encryptionKeyPath, smtpUrl } = loadConfig(
   process.env,

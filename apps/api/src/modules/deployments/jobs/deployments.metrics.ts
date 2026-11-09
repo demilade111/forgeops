@@ -1,6 +1,6 @@
 import type { PrismaClient } from "../../../database/prisma-client/client.js";
 import { run } from "./deployments.build.js";
-import { deploymentsRepository } from "../deployments.repository.js";
+import { deploymentsRepository } from "../repositories/deployments.repository.js";
 
 const units: Record<string, number> = {
   B: 1,
