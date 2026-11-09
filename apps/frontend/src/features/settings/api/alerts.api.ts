@@ -1,4 +1,4 @@
-import type { AlertSettings } from "@/features/settings/alerts.types";
+import type { AlertSettings } from "@/features/settings/types/alerts.types";
 import { http } from "@/lib/http";
 
 export const alertsApi = {

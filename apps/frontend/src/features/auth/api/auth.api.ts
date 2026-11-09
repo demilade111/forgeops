@@ -1,4 +1,4 @@
-import type { Credentials, Me } from "@/features/auth/auth.types";
+import type { Credentials, Me } from "@/features/auth/types/auth.types";
 import { http } from "@/lib/http";
 
 export const authApi = {

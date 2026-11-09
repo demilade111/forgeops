@@ -1,7 +1,7 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { Loader2 } from "lucide-react";
 import { servicesApi } from "@/features/services/api/services.api";
-import type { MetricSample } from "@/features/services/services.types";
+import type { MetricSample } from "@/features/services/types/services.types";
 import { cn } from "@/lib/utils";
 
 const ranges = [

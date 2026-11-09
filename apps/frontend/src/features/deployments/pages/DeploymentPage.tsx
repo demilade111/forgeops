@@ -5,7 +5,7 @@ import { deploymentsApi } from "@/features/deployments/api/deployments.api";
 import { DeploymentSteps } from "@/features/deployments/components/DeploymentSteps";
 import { RollbackButton } from "@/features/deployments/components/RollbackButton";
 import { StatusBadge } from "@/features/deployments/components/StatusBadge";
-import type { Deployment } from "@/features/deployments/deployments.types";
+import type { Deployment } from "@/features/deployments/types/deployments.types";
 import { duration, shortSha, timeAgo } from "@/lib/format";
 import { useCrumbs } from "@/stores/crumbs.store";
 

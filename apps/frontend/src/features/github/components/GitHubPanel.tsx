@@ -2,7 +2,7 @@ import { useState } from "react";
 import { GitBranch } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { githubApi } from "@/features/github/api/github.api";
-import type { GitHubStatus } from "@/features/github/github.types";
+import type { GitHubStatus } from "@/features/github/types/github.types";
 
 const errorMessages: Record<string, string> = {
   INSTALLATION_NOT_YOURS: "Your GitHub account can't reach that installation. Pick another one.",

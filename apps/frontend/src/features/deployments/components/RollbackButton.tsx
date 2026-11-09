@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Loader2, RotateCcw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { deploymentsApi } from "@/features/deployments/api/deployments.api";
-import type { Deployment } from "@/features/deployments/deployments.types";
+import type { Deployment } from "@/features/deployments/types/deployments.types";
 import { useRequest } from "@/hooks/useRequest";
 import { shortSha } from "@/lib/format";
 

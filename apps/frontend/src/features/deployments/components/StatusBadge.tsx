@@ -1,4 +1,4 @@
-import type { DeploymentStatus } from "@/features/deployments/deployments.types";
+import type { DeploymentStatus } from "@/features/deployments/types/deployments.types";
 import { cn } from "@/lib/utils";
 
 const styles = {

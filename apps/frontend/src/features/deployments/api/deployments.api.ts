@@ -1,4 +1,4 @@
-import type { Deployment } from "@/features/deployments/deployments.types";
+import type { Deployment } from "@/features/deployments/types/deployments.types";
 import { http } from "@/lib/http";
 
 export const deploymentsApi = {

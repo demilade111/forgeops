@@ -4,7 +4,7 @@ import type {
   NewService,
   ServiceChanges,
   ServiceLogs,
-} from "@/features/services/services.types";
+} from "@/features/services/types/services.types";
 import { http } from "@/lib/http";
 
 export const servicesApi = {

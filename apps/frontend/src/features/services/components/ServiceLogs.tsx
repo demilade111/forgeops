@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { servicesApi } from "@/features/services/api/services.api";
-import type { ServiceLogs as Logs } from "@/features/services/services.types";
+import type { ServiceLogs as Logs } from "@/features/services/types/services.types";
 
 const timeOf = (line: string) => {
   const [stamp, ...rest] = line.split(" ");

@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { githubApi } from "@/features/github";
 import { projectsApi } from "@/features/projects";
 import { servicesApi } from "@/features/services/api/services.api";
-import type { NewService } from "@/features/services/services.types";
+import type { NewService } from "@/features/services/types/services.types";
 import { useLoad } from "@/hooks/useLoad";
 import { useRequest } from "@/hooks/useRequest";
 import { useCrumbs } from "@/stores/crumbs.store";
