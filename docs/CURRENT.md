@@ -101,8 +101,8 @@ worker. Acceptance 15/15 through the containers (`docs/evidence/containers-accep
 a `paths` trigger (ADR-078). Step 1: `frontend.yml` (install, lint, typecheck, test, build), green in 34 s. Step 2: `backend.yml` (test services
 from `docker-compose.yml` on the runner, then lint, typecheck, build and the 150 tests; ADR-080). The frontend stays
 on our own infrastructure, not Vercel (ADR-079). Step 3 (CD part 1): an `image` job in
-`frontend.yml` pushes `ghcr.io/demilade111/forgeops-web:<commit>` after green CI on `main` (ADR-081). Next: the
-backend images, `format.yml`, then branch protection
+`frontend.yml` pushes `ghcr.io/demilade111/forgeops-web:<commit>` after green CI on `main`, and `backend.yml` pushes `forgeops-api`, `forgeops-worker` and `forgeops-migrate`
+(ADR-081). Next: `format.yml`, then branch protection
 (needs a public repo or GitHub Pro).
 
 **Then:** 8 AWS and Terraform. Follow-ups: snapshot env vars per deploy, add the

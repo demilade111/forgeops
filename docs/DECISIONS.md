@@ -943,7 +943,8 @@ Template:
   app's Dockerfile and pushes `ghcr.io/<owner>/forgeops-<image>:<commit SHA>`. Only this job has
   `packages: write`; test jobs keep `contents: read`. The image carries the
   `org.opencontainers.image.source` label so GHCR links the package to the repository. `frontend.yml` pushes
-  `forgeops-web` first; `backend.yml` follows with `api`, `worker` and `migrate`.
+  `forgeops-web`; `backend.yml` pushes `forgeops-api`, `forgeops-worker` and `forgeops-migrate` from the one
+  Dockerfile by `--target`, in one job so the shared build stage is built once and reused from the cache.
 - **Why:** build once, run everywhere: the image is the artifact, so every server and every rollback runs the same
   bytes instead of rebuilding (slow, uses the live server's CPU, depends on npm, may differ from what was tested).
   The commit tag is never overwritten, so a rollback is running an older tag and any server traces to one commit.
