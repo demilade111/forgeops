@@ -293,6 +293,21 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   `auth.login`"; the controller reads the request, calls the service, and turns the answer into status codes,
   cookies or redirects. The service never touches `req`/`res`, so the same rule can be called from a worker job.
 
+### Security checks in CI (DevOps 7.3, ADR-084)
+- **DevSecOps / shift left:** run security checks in the pipeline on every push, so problems are caught before
+  deploy instead of after.
+- **Secret scanning (gitleaks):** searches files and the whole git history for keys and passwords. History matters:
+  deleting a secret in a later commit does not remove it from earlier ones.
+- **Dependency scanning (`pnpm audit`, Dependabot):** compares package versions with published **CVEs** (public
+  records of known vulnerabilities). Dependabot also opens pull requests that upgrade them.
+- **Image scanning (Trivy):** lists everything inside a built image (Linux packages, Node, npm packages) and checks
+  each against CVE databases. It runs between build and push, so a vulnerable image is never published.
+- **SAST (CodeQL):** reads our own code for unsafe patterns such as user input reaching a query. **DAST (ZAP):**
+  attacks the running app from outside.
+- **Composite action:** a reusable set of steps in `.github/actions/<name>/action.yml`, used with
+  `uses: ./.github/actions/<name>` after checkout.
+- **Pinning by digest:** `image:tag@sha256:...` runs exactly those bytes even if someone moves the tag.
+
 ### CI with GitHub Actions (DevOps 7.2, ADR-078)
 - **CI (continuous integration):** checks run automatically on every push, not when someone remembers.
 - **Workflow:** a YAML file in `.github/workflows/` at the repository root; GitHub only looks there.

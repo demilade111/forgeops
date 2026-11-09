@@ -1,4 +1,4 @@
-name: backend
+name: ci-backend
 
 on:
   push:
@@ -12,7 +12,8 @@ on:
       - "tsconfig.base.json"
       - "eslint.config.js"
       - ".nvmrc"
-      - ".github/workflows/backend.yml"
+      - ".github/workflows/ci-backend.yml"
+      - ".github/actions/**"
 
 permissions:
   contents: read
@@ -23,10 +24,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6
-      - uses: actions/setup-node@v7
-        with:
-          node-version-file: .nvmrc
+      - uses: ./.github/actions/setup
       - run: cp apps/api/.env.example apps/api/.env
       - run: docker compose up -d --wait postgres rabbitmq registry-test caddy-test mailpit-test
       - run: docker compose exec -T postgres createdb -U forgeops forgeops_test
@@ -46,6 +44,7 @@ jobs:
       packages: write
     env:
       REGISTRY: ghcr.io/${{ github.repository_owner }}
+      TRIVY: aquasec/trivy:0.76.1@sha256:790fd66d1697395d8693d1acaa1ea702406a20f109b6fc7bac8db623eca6c06c
       SOURCE: https://github.com/${{ github.repository }}
     steps:
       - uses: actions/checkout@v7
@@ -54,5 +53,9 @@ jobs:
           for target in api worker migrate; do
             image="$REGISTRY/forgeops-$target:${{ github.sha }}"
             docker build -f apps/api/Dockerfile --target "$target" --label "org.opencontainers.image.source=$SOURCE" -t "$image" .
-            docker push "$image"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache "$TRIVY" image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress "$image"
+          done
+      - run: |
+          for target in api worker migrate; do
+            docker push "$REGISTRY/forgeops-$target:${{ github.sha }}"
           done

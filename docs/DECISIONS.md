@@ -935,6 +935,35 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-084 — Grouped CI workflows, format check and security scans (DevOps 7.3, 2026-11-09)
+- **Status:** Accepted (2026-11-09). The product owner asked for all the workflows, grouped.
+- **Decision:** GitHub only reads workflows directly inside `.github/workflows/` (subfolders are ignored), so
+  workflows are grouped by name prefix: `ci-frontend.yml`, `ci-backend.yml`, `ci-format.yml`, `security.yml`. The
+  repeated pnpm + Node setup moved into a local composite action, `.github/actions/setup/action.yml`, used by every
+  job that needs Node. New checks:
+  - `ci-format.yml`: `prettier --check .` on every push (installs the root only).
+  - `security.yml` on every push and every Monday 06:00 UTC: `secrets` runs **gitleaks** over the whole git history
+    (`fetch-depth: 0`, findings redacted); `dependencies` runs `pnpm audit --prod --audit-level high`.
+  - **Trivy** in both image jobs: every image is scanned after `docker build` and before `docker push`; a HIGH or
+    CRITICAL vulnerability that has a fix fails the job, so the image never reaches GHCR. The backend builds and
+    scans all three images before pushing any, so GHCR never holds half a set.
+  - `.github/dependabot.yml`: weekly update pull requests for npm packages (minor and patch grouped), GitHub
+    Actions and the two Dockerfiles' base images, each waiting 7 days after a release (`cooldown`).
+- **Choices inside it:** gitleaks and Trivy run from their official images pinned by version and digest, as plain
+  `docker run` commands (no third-party wrapper actions that could change under us; Trivy's own action had a
+  supply-chain compromise on 19 March 2026: 76 of 77
+  `trivy-action` tags were rewritten to steal CI secrets and a malicious Trivy 0.69.4 was published; we run 0.76.1). Trivy uses `--ignore-unfixed`, so a vulnerability with no fix yet does not
+  block every build. `pnpm audit` blocks only high and critical; today it reports one low and one moderate issue in
+  `deepmerge` under shadcn. The weekly schedule catches vulnerabilities published after the code last changed.
+- **Not added yet:** CodeQL (code scanning on a private repository needs paid GitHub Code Security; add it when the
+  repository goes public); OWASP ZAP (needs a running server, phase 8); `infra.yml` for Terraform (no Terraform
+  code, AWS account, OIDC role or state bucket exist yet, so its values would be invented; it comes with phase 8).
+- **Options considered:** subfolders for workflows (not supported by GitHub); one big workflow with every job
+  (one red X hides which part failed and every push runs everything); Snyk or SonarQube (outside accounts and
+  tokens); the gitleaks and Trivy GitHub actions (shorter, but more code we do not control).
+- **Consequences:** a push now starts up to five workflow runs. A new CVE in a base image can turn a previously
+  green image job red with no code change; the fix is a base image update (Dependabot opens it).
+
 ### ADR-083 — Every API module split into layer folders with controllers (2026-11-09)
 - **Status:** Accepted (2026-11-09). The product owner asked for routes, controllers, services and repositories as
   folders in every module. Replaces the "no controller files" and "services only where there are rules" choices of

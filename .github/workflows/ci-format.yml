@@ -1,0 +1,16 @@
+name: ci-format
+
+on: push
+
+permissions:
+  contents: read
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/setup
+      - run: pnpm install --frozen-lockfile --filter .
+      - run: pnpm format:check

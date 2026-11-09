@@ -102,8 +102,9 @@ a `paths` trigger (ADR-078). Step 1: `frontend.yml` (install, lint, typecheck, t
 from `docker-compose.yml` on the runner, then lint, typecheck, build and the 150 tests; ADR-080). The frontend stays
 on our own infrastructure, not Vercel (ADR-079). Step 3 (CD part 1): an `image` job in
 `frontend.yml` pushes `ghcr.io/demilade111/forgeops-web:<commit>` after green CI on `main`, and `backend.yml` pushes `forgeops-api`, `forgeops-worker` and `forgeops-migrate`
-(ADR-081). Next: `format.yml`, then branch protection
-(needs a public repo or GitHub Pro).
+(ADR-081). Step 4: workflows grouped by prefix (`ci-frontend`, `ci-backend`, `ci-format`, `security`), a shared
+setup action, a Prettier check, gitleaks, `pnpm audit`, Trivy before every image push, and Dependabot (ADR-084).
+Next: branch protection (needs a public repo or GitHub Pro), then CodeQL once public.
 
 **Done: code structure (2026-11-08).** API restructured by layer and module, frontend by feature, with
 dependency rules (ADR-082, `docs/ARCHITECTURE.md`). Behaviour unchanged; all checks and the browser walk-through

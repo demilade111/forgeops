@@ -81,6 +81,10 @@ by feature. Updated 2026-11-09.
 
 ```
 forgeops/                              pnpm workspace
+├─ .github/
+│   ├─ workflows/                      ci-frontend, ci-backend, ci-format, security (GitHub reads no subfolders)
+│   ├─ actions/setup/                  shared pnpm + Node setup used by the workflows
+│   └─ dependabot.yml                  weekly update pull requests
 ├─ apps/api/                           Express modular monolith + worker (one image, two stages)
 │   ├─ src/
 │   │   ├─ server.ts  worker.ts        entry points: HTTP API, deployment worker
