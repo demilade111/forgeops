@@ -8,6 +8,24 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-058 — Postgres reported healthy a moment before it shut down (DevOps 7.2)
+- **Situation:** On a freshly wiped Docker engine, `docker compose up --wait` said Postgres was healthy, then
+  `createdb` failed with "the database system is shutting down". CI had the same race waiting to happen.
+- **Task:** Make "healthy" mean the real server is up, so nothing has to retry.
+- **Action:** On a new data folder the Postgres image first runs a temporary server to initialise it, then stops it
+  and starts the real one. `pg_isready` over the local socket said yes to the temporary server. That server only
+  listens on the socket, so I made the health check connect over TCP (`-h 127.0.0.1`), and tested it on a throwaway
+  container: `createdb` straight after "healthy" worked.
+- **Result:** compose and CI wait for the real server; no retry loops needed.
+- **Lesson:** a health check must test the same path the clients use, not an easier one.
+
+## ISS-057b — The local Docker engine was wiped a second time (DevOps 7.2)
+- **Situation:** A day after ISS-057, OrbStack again showed 0 containers and 0 images in the middle of work.
+- **Action:** I recreated only the test services with the same command CI uses and carried on; the one-command
+  start rebuilt the rest.
+- **Result:** no work lost; every check passed on the recreated stack. The cause on the Mac is still unknown.
+- **Lesson:** a second occurrence makes it a pattern; treat local Docker data as disposable and find the cause.
+
 ## ISS-057 — The local Docker engine was suddenly empty (DevOps 7.2)
 - **Situation:** Testing the backend CI steps locally, the tests could not reach Postgres. `docker info` showed
   0 containers, 0 images and 0 volumes on OrbStack, although the whole stack had been running hours earlier.
