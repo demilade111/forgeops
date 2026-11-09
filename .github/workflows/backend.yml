@@ -35,3 +35,24 @@ jobs:
       - run: pnpm --filter @forgeops/api typecheck
       - run: pnpm --filter @forgeops/api build
       - run: pnpm --filter @forgeops/api test
+
+  image:
+    needs: backend
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: write
+    env:
+      REGISTRY: ghcr.io/${{ github.repository_owner }}
+      SOURCE: https://github.com/${{ github.repository }}
+    steps:
+      - uses: actions/checkout@v7
+      - run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+      - run: |
+          for target in api worker migrate; do
+            image="$REGISTRY/forgeops-$target:${{ github.sha }}"
+            docker build -f apps/api/Dockerfile --target "$target" --label "org.opencontainers.image.source=$SOURCE" -t "$image" .
+            docker push "$image"
+          done
