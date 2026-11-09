@@ -2,12 +2,12 @@ import { randomBytes } from "node:crypto";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
-import { loadConfig } from "./config.js";
-import { authRepository } from "./modules/auth/auth.repository.js";
-import { loadGitHubClient } from "./modules/github/github.client.js";
-import { hashPassword } from "./password.js";
-import { encrypt, readEncryptionKey } from "./secrets.js";
-import { createDb } from "./server.js";
+import { loadConfig } from "../config/config.js";
+import { authRepository } from "../modules/auth/auth.repository.js";
+import { loadGitHubClient } from "../modules/github/github.client.js";
+import { hashPassword } from "../lib/password.js";
+import { encrypt, readEncryptionKey } from "../lib/encryption.js";
+import { createDb } from "../database/client.js";
 
 const email = "demo@forgeops.test";
 const source = {

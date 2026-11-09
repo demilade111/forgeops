@@ -1,4 +1,4 @@
-import type { PrismaClient } from "../../generated/prisma/client.js";
+import type { PrismaClient } from "../../database/prisma-client/client.js";
 
 export const authRepository = (db: PrismaClient) => ({
   createUserWithPersonalOrg: (email: string, passwordHash: string) =>

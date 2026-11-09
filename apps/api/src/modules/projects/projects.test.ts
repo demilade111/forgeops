@@ -1,9 +1,9 @@
 import { randomBytes } from "node:crypto";
 import request from "supertest";
 import { beforeEach, expect, it, vi } from "vitest";
-import { HttpError } from "../../http-error.js";
-import { createApp } from "../../server.js";
-import { resetDb, testDb } from "../../test/db.js";
+import { HttpError } from "../../lib/http-error.js";
+import { createApp } from "../../app.js";
+import { resetDb, testDb } from "../../../tests/helpers/db.js";
 import type { GitHubClient } from "../github/github.client.js";
 
 const github = {

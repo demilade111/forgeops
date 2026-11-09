@@ -3,10 +3,16 @@ import request from "supertest";
 import { existsSync } from "node:fs";
 import { Readable } from "node:stream";
 import { afterAll, beforeEach, expect, it, vi } from "vitest";
-import { HttpError } from "../../http-error.js";
-import { createService, createUser, resetDb, testDb, testKey } from "../../test/db.js";
-import { encrypt } from "../../secrets.js";
-import { createApp } from "../../server.js";
+import { HttpError } from "../../../lib/http-error.js";
+import {
+  createService,
+  createUser,
+  resetDb,
+  testDb,
+  testKey,
+} from "../../../../tests/helpers/db.js";
+import { encrypt } from "../../../lib/encryption.js";
+import { createApp } from "../../../app.js";
 import {
   registryHost,
   resetRuntime,
@@ -15,16 +21,16 @@ import {
   viaRouter,
   webApp,
   workerOptions,
-} from "../../test/source.js";
-import type { GitHubClient } from "../github/github.client.js";
-import { projectsRepository } from "../projects/projects.repository.js";
-import { createTeardownHandler } from "../projects/projects.teardown.js";
+} from "../../../../tests/helpers/source.js";
+import type { GitHubClient } from "../../github/github.client.js";
+import { projectsRepository } from "../../projects/projects.repository.js";
+import { createTeardownHandler } from "../../projects/projects.teardown.js";
 import { run, workspace } from "./deployments.build.js";
-import { deploymentsRepository } from "./deployments.repository.js";
+import { deploymentsRepository } from "../deployments.repository.js";
 import { createLogCollector } from "./deployments.logs.js";
 import { createMetricsCollector } from "./deployments.metrics.js";
 import { createWatcher } from "./deployments.watch.js";
-import { createDeploymentHandler } from "./deployments.worker.js";
+import { createDeploymentHandler } from "./deployments.handler.js";
 
 const hello = sourceArchive(webApp);
 

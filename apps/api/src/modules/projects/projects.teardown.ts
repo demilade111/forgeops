@@ -1,6 +1,6 @@
 import { z } from "zod";
-import type { PrismaClient } from "../../generated/prisma/client.js";
-import { removeContainers, removeRoute } from "../deployments/deployments.release.js";
+import type { PrismaClient } from "../../database/prisma-client/client.js";
+import { removeContainers, removeRoute } from "../deployments/jobs/deployments.release.js";
 import { projectsRepository } from "./projects.repository.js";
 
 const message = z.union([

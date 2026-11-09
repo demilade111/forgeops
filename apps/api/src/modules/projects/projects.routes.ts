@@ -1,13 +1,13 @@
 import { Router, type Response } from "express";
 import { z } from "zod";
-import { Prisma, type PrismaClient, type Service } from "../../generated/prisma/client.js";
-import { HttpError, isId, parse } from "../../http-error.js";
-import { decrypt, encrypt } from "../../secrets.js";
+import { Prisma, type PrismaClient, type Service } from "../../database/prisma-client/client.js";
+import { HttpError, isId, parse } from "../../lib/http-error.js";
+import { decrypt, encrypt } from "../../lib/encryption.js";
 import {
   createRequireAuth,
   memberOrganizationId,
   memberOrganizationIds,
-} from "../auth/auth.router.js";
+} from "../auth/auth.middleware.js";
 import type { GitHubClient, Source } from "../github/github.client.js";
 import { githubRepository } from "../github/github.repository.js";
 import { projectsRepository } from "./projects.repository.js";
