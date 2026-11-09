@@ -109,6 +109,10 @@ on our own infrastructure, not Vercel (ADR-079). Step 3 (CD part 1): an `image` 
 dependency rules (ADR-082, `docs/ARCHITECTURE.md`). Behaviour unchanged; all checks and the browser walk-through
 passed.
 
+**Done: controllers and layer folders (2026-11-09).** Every API module now has `routes/ controllers/ services/
+repositories/` folders (plus `middleware/ schemas/ clients/ jobs/ tests/` where needed); auth and alerts gained
+services; frontend types moved into `types/` folders (ADR-083). Empty `src/acceptance` and `src/test` removed.
+
 **Then:** 8 AWS and Terraform. Follow-ups: snapshot env vars per deploy, add the
 `localhost:8080` callback on the GitHub App, rotate the GitHub client secret before going public.
 

@@ -74,10 +74,10 @@ Rules that follow from PD-001:
 - **Several services can point at the same repository** (monorepo: `frontend/`, `api/`, `worker/`).
 - A webhook for one repository may therefore affect several services.
 
-## Code layout (ADR-001, ADR-023, ADR-082)
+## Code layout (ADR-001, ADR-023, ADR-082, ADR-083)
 
 Feature-based architecture with colocation: a modular monolith API with layered modules, and a frontend organised
-by feature. Updated 2026-11-08.
+by feature. Updated 2026-11-09.
 
 ```
 forgeops/                              pnpm workspace
@@ -91,11 +91,15 @@ forgeops/                              pnpm workspace
 │   │   ├─ lib/                        infrastructure without business rules: http-error, password,
 │   │   │                              encryption, queue, cookies
 │   │   ├─ modules/<feature>/          auth, github, projects, deployments, alerts
-│   │   │   ├─ <feature>.routes.ts     HTTP only: auth check, input, status codes
-│   │   │   ├─ <feature>.service.ts    business rules (only where there are rules)
-│   │   │   ├─ <feature>.repository.ts the only place Prisma is used
-│   │   │   ├─ <feature>.schema.ts     Zod request schemas (when they are large)
-│   │   │   └─ jobs/                   code the worker runs (build, release, watch, teardown)
+│   │   │   ├─ routes/                 URL + method + middleware -> which controller handler
+│   │   │   ├─ controllers/            HTTP only: read req, call the service, status codes, cookies
+│   │   │   ├─ services/               business rules and validation; never sees req/res
+│   │   │   ├─ repositories/           the only place Prisma is used
+│   │   │   ├─ middleware/             request guards (auth: session check; github: configured check)
+│   │   │   ├─ schemas/                Zod request schemas
+│   │   │   ├─ clients/                outside APIs (github: the GitHub client)
+│   │   │   ├─ jobs/                   code the worker runs (build, release, watch, teardown, alerts)
+│   │   │   └─ tests/                  the module's tests
 │   │   └─ scripts/seed.ts
 │   ├─ tests/helpers/                  shared test setup; tests/e2e/ is the acceptance run
 │   └─ prisma/                         schema and migrations
@@ -104,7 +108,8 @@ forgeops/                              pnpm workspace
     ├─ layouts/AppShell.tsx            frame around signed-in pages
     ├─ features/<feature>/             landing, auth, github, projects, services, deployments, settings
     │   ├─ pages/  components/  api/   what the feature shows and the calls it makes
-    │   ├─ <feature>.types.ts          its data shapes
+    │   ├─ types/                      its data shapes (<feature>.types.ts)
+    │   ├─ stores/  lib/               feature-only state and helpers, when it has them
     │   └─ index.ts                    its public interface: the only file other features import
     ├─ components/                     generic UI: Logo, ThemeToggle, DeleteSection, ui/ (shadcn)
     ├─ hooks/                          generic hooks: useLoad, useRequest
@@ -114,16 +119,17 @@ forgeops/                              pnpm workspace
 
 **Dependency rules**
 
-- API layers: routes → service → repository → database. Routes never use Prisma; services never see `req`/`res`.
+- API layers: routes → middleware → controller → service → repository → database. Routes only wire URLs;
+  controllers never use Prisma; services never see `req`/`res`. A folder exists only when it holds a file.
 - API modules call each other through services (`githubService`, `findOwnedService`), never another module's
   repository. One deliberate exception: `alerts.raise.ts` takes the caller's transaction, so a deploy status change
   and its alert commit together or not at all.
-- Auth: `modules/auth/auth.middleware.ts` (session check, organization membership) is the auth module's public
+- Auth: `modules/auth/middleware/auth.middleware.ts` (session check, organization membership) is the auth module's public
   entry point for other modules.
 - Frontend features import their own files, `components/`, `hooks/`, `lib/`, `stores/`, and other features only
   through `index.ts`. Feature dependencies form one direction only:
   `auth, github, deployments` ← `projects` ← `services`; `settings` → `auth, github`; `landing` → `auth`.
-- Tests sit next to the file they test; shared setup and the end-to-end run live in `apps/api/tests/`.
+- API tests sit in each module's `tests/` folder (lib and config tests next to their file); shared setup and the end-to-end run live in `apps/api/tests/`.
 
 ## Access control (PD-008, PD-010, PD-012)
 

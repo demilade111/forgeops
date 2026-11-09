@@ -289,6 +289,9 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **One-way dependencies:** if A uses B, B must not use A; a cycle means a piece is in the wrong place (here,
   deployments moved out of services).
 - **Transaction boundary:** writes that must succeed or fail together stay in one transaction, even across modules.
+- **Controller (ADR-083):** the layer between the route and the service. The route says "POST /auth/login goes to
+  `auth.login`"; the controller reads the request, calls the service, and turns the answer into status codes,
+  cookies or redirects. The service never touches `req`/`res`, so the same rule can be called from a worker job.
 
 ### CI with GitHub Actions (DevOps 7.2, ADR-078)
 - **CI (continuous integration):** checks run automatically on every push, not when someone remembers.

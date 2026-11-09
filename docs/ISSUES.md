@@ -8,6 +8,15 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-060 — The local Docker engine was wiped a third time (2026-11-09)
+- **Situation:** Before running the tests for the controller restructure, OrbStack again had 0 containers, 0 images
+  and no ForgeOps volumes; another project's volumes were still there.
+- **Action:** I recreated the test services with the CI command; `createdb` worked first time, which also confirmed
+  the TCP health check from ISS-059.
+- **Result:** no work lost. Three wipes in three days, and only ForgeOps volumes vanish, which points at something
+  removing this project's resources (a `docker compose down -v`, a prune, or a cleanup tool), not OrbStack resetting.
+- **Lesson:** when only one project's data disappears, look for a command scoped to that project.
+
 ## ISS-059 — Postgres reported healthy a moment before it shut down (DevOps 7.2)
 - **Situation:** On a freshly wiped Docker engine, `docker compose up --wait` said Postgres was healthy, then
   `createdb` failed with "the database system is shutting down". CI had the same race waiting to happen.

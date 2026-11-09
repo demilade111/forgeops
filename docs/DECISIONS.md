@@ -935,6 +935,31 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-083 — Every API module split into layer folders with controllers (2026-11-09)
+- **Status:** Accepted (2026-11-09). The product owner asked for routes, controllers, services and repositories as
+  folders in every module. Replaces the "no controller files" and "services only where there are rules" choices of
+  ADR-082; the rest of ADR-082 stands.
+- **Decision:** `modules/<feature>/` holds one folder per job: `routes/` (URL, method, middleware, which handler),
+  `controllers/` (read `req`, call the service, write `res`: status codes, cookies, redirects), `services/`
+  (rules and validation, no `req`/`res`), `repositories/` (the only Prisma code), plus `middleware/`, `schemas/`,
+  `clients/`, `jobs/` and `tests/` when the module has that kind of file. Request flow:
+  route → middleware → controller → service → repository → database. New: an auth service (signup, login, logout,
+  `authenticate`) that the auth middleware now calls instead of the repository; an alerts service; the GitHub
+  callback's installation choice moved into `githubService.connect`; a `requireGitHub` middleware. Frontend: each
+  feature's `<feature>.types.ts` moved into `types/`, `session.store.ts` into `stores/`, `deployment-state.ts`
+  into `lib/`, so a feature root holds only folders and `index.ts`.
+- **Choices inside it:** folders are created only when they hold a file (no empty folders kept with placeholder
+  files): only auth and github have `middleware/`, only projects, auth and alerts have `schemas/`. Controllers are
+  factories returning plain handler functions, matching the existing `xService(db)` and `xRepository(db)` style,
+  with no classes or dependency-injection container. `alerts.raise.ts` sits in `repositories/` (it writes through
+  the caller's transaction) and `alerts.sender.ts` in `jobs/` (the worker runs it). The GitHub install handler
+  still answers 404 JSON for a non-member and redirects only GitHub errors, as before.
+- **Options considered:** one file per layer at the module root (ADR-082: fewer folders, but the product owner
+  finds layer folders easier to scan); routes as controllers (fewer files, but HTTP wiring and request handling
+  mix); classes with dependency injection (testable but more ceremony than this codebase needs).
+- **Consequences:** more files and one more hop per request; each file has one job and each layer is found by
+  folder name. Behaviour unchanged (see evidence in `docs/CURRENT.md`).
+
 ### ADR-082 — Feature-based structure: layered API modules and self-contained frontend features (2026-11-08)
 - **Status:** Accepted (2026-11-08). The product owner asked for a clear structure and approved all four steps.
 - **Problem:** loose files at the API root (`config.ts`, `http-error.ts`, `secrets.ts`, `queue.ts`, `seed.ts`); the
