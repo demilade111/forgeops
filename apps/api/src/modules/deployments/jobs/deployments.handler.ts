@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { PrismaClient } from "../../../database/prisma-client/client.js";
 import { decrypt } from "../../../lib/encryption.js";
 import type { GitHubClient } from "../../github/github.client.js";
-import { githubRepository } from "../../github/github.repository.js";
+import { githubService } from "../../github/github.service.js";
 import {
   StepFailure,
   buildImage,
@@ -53,7 +53,7 @@ export function createDeploymentHandler(
   }: Options,
 ) {
   const repo = deploymentsRepository(db);
-  const installations = githubRepository(db);
+  const installations = githubService(db, github);
 
   const streamLog = (deploymentId: string, step: string) => {
     let latest = "";
@@ -110,11 +110,9 @@ export function createDeploymentHandler(
       [
         "resolve-commit",
         async () => {
-          const installation = await installations.findForOrganization(
-            service.project.organizationId,
-          );
-          if (!installation) throw new StepFailure("GitHub is not connected");
-          installationId = Number(installation.installationId);
+          const id = await installations.installationId(service.project.organizationId);
+          if (id === null) throw new StepFailure("GitHub is not connected");
+          installationId = id;
           if (commitSha) return;
           const sha = await fromGitHub(() =>
             github.branchCommit(installationId, repository, service.branch),
