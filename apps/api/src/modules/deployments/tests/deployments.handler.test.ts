@@ -120,6 +120,7 @@ const host = "api.sample-shop.localhost";
 const checkRoutes = async (prefix = "check-") => {
   const res = await fetch(
     `${workerOptions.caddyAdminUrl}/config/apps/http/servers/forgeops/routes`,
+    { headers: { Origin: new URL(workerOptions.caddyAdminUrl).origin } },
   );
   const routes = (await res.json()) as { "@id"?: string }[];
   return routes.map((r) => r["@id"]).filter((id) => id?.startsWith(prefix));
