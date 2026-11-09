@@ -935,6 +935,34 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-082 — Feature-based structure: layered API modules and self-contained frontend features (2026-11-08)
+- **Status:** Accepted (2026-11-08). The product owner asked for a clear structure and approved all four steps.
+- **Problem:** loose files at the API root (`config.ts`, `http-error.ts`, `secrets.ts`, `queue.ts`, `seed.ts`); the
+  auth middleware lived in `auth.router.ts`, so four modules imported a router; `requireJson` ran for every `/api`
+  request but was hidden in the auth router; routers held schemas, HTTP and business rules together (projects
+  247 lines); `deployments/` mixed API and worker code; three modules used other modules' repositories; unclear
+  names (`generated/`, `acceptance/`, `test/`). Frontend: one file for all 23 API calls, one for all types.
+- **Decision:** the layout and dependency rules in `docs/ARCHITECTURE.md` (Code layout). API: `config/`, `lib/`,
+  `middleware/`, `database/`, `modules/<feature>/` with `routes → service → repository`, worker code in `jobs/`,
+  tests and the e2e run in `apps/api/tests/`. Frontend: `features/<feature>/{pages,components,api}` plus
+  `<feature>.types.ts` and an `index.ts` public interface; generic code in `components/`, `hooks/`, `lib/`.
+  Naming: kebab-case folders, PascalCase components, suffixes `.routes .service .repository .schema .api .types
+  .store`.
+- **Choices inside it:** services only where there are rules (projects, deployments, github); alerts routes stay
+  thin, so no forwarding service. No controller files: in Express the route handler already is the controller.
+  Deployments became its own frontend feature so projects and services do not depend on each other in a circle.
+  Request bodies for services are still validated after the ownership check, keeping existing error behaviour.
+  `lib/utils.ts` keeps its name because shadcn expects that path.
+- **Options considered:** keep the flat layout (no churn, but the coupling above stays); full Clean Architecture
+  with controllers, interfaces and dependency injection (more files that only forward calls); this structure
+  (chosen: clear ownership with the fewest new files).
+- **Left out:** TanStack Query, React Hook Form (new dependencies; `useLoad`/`useRequest` suffice), a shared
+  `packages/api-contracts` (later improvement), renaming `apps/frontend` to `apps/web` (churn for no gain).
+- **Evidence:** behaviour unchanged: lint, typecheck, 150 API tests, 5 frontend tests, the api, worker, migrate and
+  web images build, and the full stack started from them: sign up, dashboard, project, new service form,
+  settings, test alert and log out all worked in the browser.
+- **Consequences:** new code follows the rules above; a cross-feature need goes through `index.ts` or a service.
+
 ### ADR-081 — Images built after green CI and pushed to GHCR, tagged with the commit (DevOps 7.2, CD part 1)
 - **Status:** Accepted (2026-11-08). The product owner approved the image job.
 - **Decision:** each app workflow gets an `image` job with `needs:` on its test job and `if: github.ref ==

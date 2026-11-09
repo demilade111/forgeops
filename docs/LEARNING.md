@@ -281,6 +281,15 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   channel).
 - **SSRF:** if users choose a URL your server calls, they can aim it at your internal services; allow-list hosts.
 
+### Feature-based structure (ADR-082)
+- **Modular monolith:** one deployable app split into business modules that own their code and data access.
+- **Layers:** routes handle HTTP, services hold business rules, repositories talk to the database.
+- **Colocation:** keep a feature's pages, components, API calls, types and tests together.
+- **Public interface (`index.ts`):** the only file other features may import, so inner files can change freely.
+- **One-way dependencies:** if A uses B, B must not use A; a cycle means a piece is in the wrong place (here,
+  deployments moved out of services).
+- **Transaction boundary:** writes that must succeed or fail together stay in one transaction, even across modules.
+
 ### CI with GitHub Actions (DevOps 7.2, ADR-078)
 - **CI (continuous integration):** checks run automatically on every push, not when someone remembers.
 - **Workflow:** a YAML file in `.github/workflows/` at the repository root; GitHub only looks there.

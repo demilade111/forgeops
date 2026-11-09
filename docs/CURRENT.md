@@ -105,6 +105,10 @@ on our own infrastructure, not Vercel (ADR-079). Step 3 (CD part 1): an `image` 
 (ADR-081). Next: `format.yml`, then branch protection
 (needs a public repo or GitHub Pro).
 
+**Done: code structure (2026-11-08).** API restructured by layer and module, frontend by feature, with
+dependency rules (ADR-082, `docs/ARCHITECTURE.md`). Behaviour unchanged; all checks and the browser walk-through
+passed.
+
 **Then:** 8 AWS and Terraform. Follow-ups: snapshot env vars per deploy, add the
 `localhost:8080` callback on the GitHub App, rotate the GitHub client secret before going public.
 
@@ -124,7 +128,7 @@ all `forgeops`; local development only). Port 5433 because Homebrew PostgreSQL 1
 Stop with `docker compose stop`; `docker compose down -v` also deletes the data.
 
 API settings live in `apps/api/.env` (git-ignored; copy from `.env.example`). The Prisma client is generated
-into `apps/api/src/generated/` on install; after editing `schema.prisma`, run
+into `apps/api/src/database/prisma-client/` on install; after editing `schema.prisma`, run
 `pnpm --filter @forgeops/api exec prisma generate`.
 
 Run the frontend: `pnpm --filter @forgeops/frontend dev` (http://localhost:5173). Vite forwards `/api` and
