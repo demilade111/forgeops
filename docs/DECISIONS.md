@@ -968,6 +968,14 @@ Template:
   the OS. The app runs with `node` alone, so the runtime images now delete npm, pnpm, corepack and yarn after
   installing, and `migrate` runs `node_modules/.bin/prisma migrate deploy` instead of `pnpm exec`. Fewer tools in
   the image also means fewer tools an attacker can use inside it.
+- **Second run (2026-11-09):** the API image was clean. `caddy:2.11` left one HIGH, CVE-2026-78661 in
+  `golang.org/x/net` inside the Caddy binary, fixed upstream but in no Caddy release yet. It is accepted in
+  `.trivyignore.yaml` for that file only, with the reason and an expiry date (2026-12-09), after which the scan
+  fails again; the web Caddy never parses untrusted HTML. Caddy 2.11 also changed behaviour: since 2.11.1
+  (CVE-2026-27589, a cross-site request forgery fix) the admin API rejects calls without an `Origin` header, so
+  every admin call from the worker and the tests now sends the admin address as `Origin`. Dependabot no longer
+  proposes major versions of the `node` image (only even, long-term-support versions are used) or of `@types/node`
+  (it must match the Node version).
 - **Consequences:** a push now starts up to five workflow runs. A new CVE in a base image can turn a previously
   green image job red with no code change; the fix is a base image update (Dependabot opens it).
 

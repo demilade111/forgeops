@@ -8,6 +8,17 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-062 — A security upgrade of Caddy broke every deploy test (DevOps 7.3)
+- **Situation:** To clear the image scan I moved from `caddy:2.10` to `caddy:2.11`. The next CI run failed the
+  deploy tests with "client is not allowed to access from origin ''" on every call to Caddy's admin API.
+- **Task:** Keep the patched Caddy and get routing working again, without opening the admin API wider.
+- **Action:** Caddy 2.11.1 fixed CVE-2026-27589, a cross-site request forgery hole in the admin API, by checking
+  the `Origin` header of every admin request. Our worker and test helper called it from Node with no `Origin`. I
+  made all three call sites send the admin address as `Origin`, which matches the allowed origins already listed in
+  `caddy/caddy.json`, and tested it on a branch before `main`.
+- **Result:** the patched Caddy runs with origin checks on; the allowed list did not need to grow.
+- **Lesson:** a security patch can change behaviour; upgrade one thing at a time and let the tests tell you.
+
 ## ISS-061 — The first image scan blocked both releases (DevOps 7.3)
 - **Situation:** I added Trivy between `docker build` and `docker push`. On its first run both image jobs went red:
   129 HIGH or CRITICAL vulnerabilities with known fixes, while every test was green.

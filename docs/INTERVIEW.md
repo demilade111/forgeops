@@ -621,6 +621,90 @@ code that works with both, and only remove the old ones once no version needs th
 
 ---
 
+## 23. CI/CD and supply-chain security (DevOps 7)
+
+**30-second answer:** "Every push runs GitHub Actions. A format check and a security workflow run on every push:
+gitleaks scans the whole git history for secrets and `pnpm audit` blocks high and critical package
+vulnerabilities. The frontend and backend workflows run only when their files change, using `paths`. They lint,
+typecheck and test; the backend runs its 150 tests against real Postgres, RabbitMQ, a registry and Caddy started
+from the same compose file as the laptop. On `main`, after green tests, an image job builds each image, scans it
+with Trivy, and only a clean image is pushed to GHCR, tagged with the commit SHA. Dependabot opens weekly upgrade
+pull requests."
+
+### The flow
+```
+push
+ ├─ ci-format     prettier --check                         every push
+ ├─ security      gitleaks (secrets) + pnpm audit (CVEs)   every push + Monday 06:00 UTC
+ ├─ ci-frontend   lint, typecheck, test, build             apps/frontend/** changed
+ └─ ci-backend    services, lint, typecheck, build, tests  apps/api/** changed
+        └─ main only, after green: docker build → Trivy → docker push ghcr.io/<owner>/forgeops-*:<sha>
+Dependabot (weekly): pull requests for npm packages, GitHub Actions and base images
+```
+
+### Why each tool
+| Tool | What it is for | Alternatives and why not |
+|---|---|---|
+| **GitHub Actions** | runs the pipeline on GitHub's machines on every push | Jenkins (a server to run and patch), GitLab CI (code is on GitHub), CircleCI (another account) |
+| **`paths` triggers** | only the app that changed is tested and built | one workflow for everything (slower, one red X hides which part failed) |
+| **Composite action** (`.github/actions/setup`) | one place for the pnpm + Node setup all workflows share | copy the steps into each workflow (drifts) |
+| **Prettier check** | formatting never reaches `main` unreviewed, so diffs show logic only | rely on editors (not enforced) |
+| **gitleaks** | finds keys and passwords in files and the full git history | GitHub secret scanning (push protection needs a public repo or paid plan), TruffleHog (similar) |
+| **`pnpm audit`** | fails on high or critical CVEs in our npm packages | Snyk (an outside account and token) |
+| **Dependabot** | weekly pull requests that upgrade packages, actions and base images, waiting 7 days after a release | Renovate (more options, another app to install) |
+| **Trivy** | scans the built image (Linux packages, Node, npm packages, binaries) before push | Grype (similar), Docker Scout (Docker account), ECR scanning (only after push, phase 8) |
+| **GHCR** | stores the images next to the code, logged in with the run's `GITHUB_TOKEN` | Docker Hub (second account, stored token), ECR (paid, phase 8) |
+| **Commit-SHA tags** | every image traces to one commit; rollback runs an older tag | `latest` (overwritten, no rollback) |
+| **Digest pinning** for gitleaks and Trivy | runs exactly the bytes we chose even if a tag is moved | the vendors' GitHub actions (their tags were hijacked in March 2026) |
+
+### What happens when...
+- **A secret is committed:** gitleaks fails the `security` run on that push, showing the file and line with the
+  value redacted. Deleting it later does not help, it stays in history, so the key must be rotated.
+- **A dependency gets a new CVE with no code change:** the Monday scheduled run goes red and Dependabot opens an
+  upgrade pull request.
+- **A base image has a fixable HIGH or CRITICAL hole:** Trivy fails the image job and nothing is pushed; the fix is
+  a newer base image. A hole with no fix yet is reported but does not block (`--ignore-unfixed`).
+- **Tests fail:** the image job never starts (`needs:`), so GHCR only ever holds images from green commits.
+- **GitHub Actions is down:** nothing is tested or built; the code is safe in git and the last good images stay in
+  GHCR.
+- **A third-party action is compromised:** pinned images by digest cannot change under us; actions pinned only by
+  tag (checkout, setup-node, pnpm) are the remaining risk.
+
+### Real evidence
+- First security run: gitleaks scanned the whole history and found no secrets; `pnpm audit` found 1 low and 1
+  moderate issue (below the threshold).
+- First image scan blocked both releases on purpose (ISS-061): 105 HIGH/CRITICAL in `caddy:2.10`, 24 in npm and
+  pnpm inside the API image, none in our own code. Fixed by moving to `caddy:2.11` and deleting the package
+  managers from the runtime images. One HIGH left inside the Caddy binary has no Caddy release yet, so it is
+  accepted in `.trivyignore.yaml` with a reason and a 30-day expiry.
+- Upgrading Caddy for the scan broke deploy tests (ISS-062): Caddy 2.11.1 now requires an `Origin` header on admin
+  calls; the worker sends one.
+- Dependabot opened six pull requests within minutes of being enabled.
+
+### Known limits
+- CI is advisory: a private repository on the free plan cannot require green checks before merge.
+- No CodeQL yet (needs the repo public or paid code scanning); no DAST until there is a server (phase 8).
+- No deploy job yet: images reach GHCR, but nothing runs them on a server until phase 8.
+- Actions are pinned by tag, not by commit SHA.
+
+### Questions
+- *CI or CD, which part is which?* CI: format, scans and tests on every push. CD part one: build, scan and
+  publish the image on `main`. CD part two, deploying it, comes with the server.
+- *Why scan before push and not after?* After push the bad image is already where servers pull from.
+- *Why run the scheduled security job if the code did not change?* New CVEs are published every day against code
+  that was fine yesterday.
+- *Why delete npm from a Node image?* The app runs with `node` alone; npm and pnpm carried 24 of the API image's
+  vulnerabilities and would be tools for an attacker inside the container.
+- *How does the workflow log in to GHCR without a password?* GitHub creates a `GITHUB_TOKEN` for each run, and the
+  job asks for `packages: write` only where it pushes.
+- *What do you do when a scanner finds a hole nobody has fixed yet?* Check whether the vulnerable code is
+  reachable in our use, then record a narrow, dated exception (one CVE, one file, a reason, an expiry) so the
+  scan stays strict for everything else and the decision is reviewed again.
+- *Why not let GitHub run workflows from subfolders?* It cannot; it only reads `.github/workflows/`, so the files
+  are grouped by prefix and shared steps live in `.github/actions/`.
+
+---
+
 ## 22. Dockerizing ForgeOps (DevOps 6.2)
 
 **30-second answer:** "ForgeOps runs as three containers built from two Dockerfiles: an API, a worker and a web

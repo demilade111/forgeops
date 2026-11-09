@@ -1,0 +1,9 @@
+vulnerabilities:
+  - id: CVE-2026-78661
+    paths:
+      - usr/bin/caddy
+    statement: >-
+      golang.org/x/net/html denial of service compiled into the Caddy binary of caddy:2.11.9, fixed in x/net 0.62.0
+      but in no Caddy release yet. The web image's Caddy serves our own static files and proxies /api; it never
+      parses untrusted HTML. Accepted until a Caddy release ships the fix (ADR-084).
+    expired_at: 2026-12-09
