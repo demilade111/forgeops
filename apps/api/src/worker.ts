@@ -44,7 +44,8 @@ const startHint = "Run docker compose up -d, then start the worker.";
 if ((await run("docker", ["network", "inspect", appsNetwork], 10_000)).code !== 0) {
   throw new Error(`Docker network ${appsNetwork} is missing. ${startHint}`);
 }
-if (!(await fetch(`${caddyAdminUrl}/config/`).catch(() => null))?.ok) {
+const caddyOrigin = { headers: { Origin: new URL(caddyAdminUrl).origin } };
+if (!(await fetch(`${caddyAdminUrl}/config/`, caddyOrigin).catch(() => null))?.ok) {
   throw new Error(`Caddy is not reachable at ${caddyAdminUrl}. ${startHint}`);
 }
 const encryptionKey = readEncryptionKey(encryptionKeyPath);

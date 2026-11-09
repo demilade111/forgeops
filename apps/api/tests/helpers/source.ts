@@ -39,7 +39,7 @@ export async function resetRuntime() {
   }
   const res = await fetch(`${caddyAdminUrl}/load`, {
     method: "POST",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: new URL(caddyAdminUrl).origin },
     body: caddyConfig,
   });
   if (!res.ok) throw new Error(`Could not reset the test Caddy: ${await res.text()}`);

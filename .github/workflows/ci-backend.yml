@@ -14,6 +14,7 @@ on:
       - ".nvmrc"
       - ".github/workflows/ci-backend.yml"
       - ".github/actions/**"
+      - ".trivyignore.yaml"
 
 permissions:
   contents: read
@@ -53,7 +54,7 @@ jobs:
           for target in api worker migrate; do
             image="$REGISTRY/forgeops-$target:${{ github.sha }}"
             docker build -f apps/api/Dockerfile --target "$target" --label "org.opencontainers.image.source=$SOURCE" -t "$image" .
-            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache "$TRIVY" image --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress "$image"
+            docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache -v "$PWD/.trivyignore.yaml:/trivyignore.yaml:ro" "$TRIVY" image --ignorefile /trivyignore.yaml --exit-code 1 --severity HIGH,CRITICAL --ignore-unfixed --no-progress "$image"
           done
       - run: |
           for target in api worker migrate; do

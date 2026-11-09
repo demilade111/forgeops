@@ -46,7 +46,7 @@ export async function startContainer(
 async function caddy(adminUrl: string, path: string, method = "GET", body?: object) {
   const res = await fetch(`${adminUrl}${path}`, {
     method,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json", Origin: new URL(adminUrl).origin },
     body: body && JSON.stringify(body),
     signal: AbortSignal.timeout(10_000),
   }).catch(() => null);
