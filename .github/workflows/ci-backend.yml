@@ -38,6 +38,9 @@ jobs:
   image:
     needs: backend
     if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: image-backend
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     permissions:
