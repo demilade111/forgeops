@@ -33,6 +33,9 @@ jobs:
   image:
     needs: frontend
     if: github.ref == 'refs/heads/main'
+    concurrency:
+      group: image-frontend
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 15
     permissions:

@@ -8,6 +8,23 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-063 — Two merges a minute apart made the image push fail (DevOps 7.3)
+- **Situation:** I merged two Dependabot pull requests a minute apart. Both started a `ci-backend` run on `main`,
+  and both image jobs pushed `forgeops-api`, `forgeops-worker` and `forgeops-migrate` to GHCR at the same second.
+  The first run pushed fine; the second pushed the api image, then the worker push failed with "authentication
+  required". `main` went red although every test and scan had passed.
+- **Task:** Find out why the push failed and stop it happening again, without weakening the token or the scan.
+- **Action:** I reran the job three times and got three different errors ("unauthenticated", then "permission
+  denied: write_package" twice), even with nothing else running. Comparing the timestamps of both runs showed the
+  first failure was a race: two jobs writing the same packages at once. Comparing the attempts showed why reruns
+  never helped: each rerun rebuilt the api image, which comes out with a different digest, and tried to push it
+  under the tag the first attempt had already created. I stopped rerunning and added a `concurrency` group to both
+  image jobs so pushes to `main` queue one at a time (ADR-085).
+- **Result:** the next push to `main` uses a new tag and goes through the queue; the images from the earlier run
+  already held the same backend code, so nothing was lost.
+- **Lesson:** when a retry fails differently each time, stop retrying and compare timestamps; and a rerun of a
+  build is not the same build.
+
 ## ISS-062 — A security upgrade of Caddy broke every deploy test (DevOps 7.3)
 - **Situation:** To clear the image scan I moved from `caddy:2.10` to `caddy:2.11`. The next CI run failed the
   deploy tests with "client is not allowed to access from origin ''" on every call to Caddy's admin API.

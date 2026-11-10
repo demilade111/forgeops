@@ -935,6 +935,19 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-085 — One image push at a time per workflow (DevOps 7.3, 2026-11-09)
+- **Status:** Accepted (2026-11-09). The product owner approved the fix after ISS-063.
+- **Decision:** the `image` job in `ci-backend.yml` and `ci-frontend.yml` has a job-level `concurrency` group
+  (`image-backend`, `image-frontend`) with `cancel-in-progress: false`. Two pushes to `main` close together now
+  push their images one after the other instead of at the same moment.
+- **Options considered:** no change and rerun by hand (a rerun rebuilds the image and cannot overwrite a tag it
+  already pushed, so it never recovers); `cancel-in-progress: true` (the newest commit always wins, but a push could
+  be stopped halfway and leave a partial set of images); a workflow-level group (would also queue the tests, which
+  are safe to run in parallel).
+- **Consequences:** a second push waits for the first one's image job. GitHub keeps only one waiting job per group,
+  so with three quick merges the middle commit's image job is cancelled and only the newest is pushed, which is the
+  one that matters. A failed push is fixed by the next commit, not by a rerun.
+
 ### ADR-084 — Grouped CI workflows, format check and security scans (DevOps 7.3, 2026-11-09)
 - **Status:** Accepted (2026-11-09). The product owner asked for all the workflows, grouped.
 - **Decision:** GitHub only reads workflows directly inside `.github/workflows/` (subfolders are ignored), so

@@ -307,6 +307,10 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **Composite action:** a reusable set of steps in `.github/actions/<name>/action.yml`, used with
   `uses: ./.github/actions/<name>` after checkout.
 - **Pinning by digest:** `image:tag@sha256:...` runs exactly those bytes even if someone moves the tag.
+- **Race condition:** two jobs touching the same thing at once, so the result depends on timing. Two image pushes
+  to the same packages raced (ISS-063).
+- **`concurrency` group:** jobs with the same group name run one at a time; `cancel-in-progress: false` makes the
+  next one wait instead of stopping the running one (ADR-085).
 
 ### CI with GitHub Actions (DevOps 7.2, ADR-078)
 - **CI (continuous integration):** checks run automatically on every push, not when someone remembers.

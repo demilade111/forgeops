@@ -669,6 +669,9 @@ Dependabot (weekly): pull requests for npm packages, GitHub Actions and base ima
   GHCR.
 - **A third-party action is compromised:** pinned images by digest cannot change under us; actions pinned only by
   tag (checkout, setup-node, pnpm) are the remaining risk.
+- **Two pushes to `main` land a minute apart:** the image jobs queue (`concurrency`), so they never write the same
+  packages at once. Before that fix they raced and one push failed (ISS-063); rerunning could not help because a
+  rebuilt image has a new digest and cannot replace the tag already pushed.
 
 ### Real evidence
 - First security run: gitleaks scanned the whole history and found no secrets; `pnpm audit` found 1 low and 1
@@ -702,6 +705,9 @@ Dependabot (weekly): pull requests for npm packages, GitHub Actions and base ima
   scan stays strict for everything else and the decision is reviewed again.
 - *Why not let GitHub run workflows from subfolders?* It cannot; it only reads `.github/workflows/`, so the files
   are grouped by prefix and shared steps live in `.github/actions/`.
+- *Your image push failed and a rerun didn't fix it. Why?* Two runs pushed the same images at once; the first
+  attempt had already pushed one tag, and each rerun rebuilt a slightly different image under that same tag, which
+  the registry refused. I queued the image jobs with `concurrency` instead of retrying.
 
 ---
 
