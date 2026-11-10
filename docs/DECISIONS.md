@@ -935,6 +935,18 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-086 — CodeQL code scanning in the security workflow (DevOps 7.3, 2026-11-09)
+- **Status:** Accepted (2026-11-09). The product owner made the repository public and approved CodeQL.
+- **Decision:** a `codeql` job in `security.yml` runs `github/codeql-action` v4 (`init` then `analyze`) for
+  `javascript-typescript` with `build-mode: none`, on every push and every Monday. It needs `security-events: write`
+  to upload results, given to that job only. Findings appear under the repository's Security tab.
+- **Options considered:** GitHub's default setup (a switch in Settings, but the configuration lives outside the
+  repository and is not reviewed in pull requests); Semgrep (fast, many rules, another account and app); ESLint
+  security plugins (only single-file patterns, no tracking of user input across files).
+- **Consequences:** free because the repository is public. It reads source only, so it adds no install or build
+  time. The job fails only if the analysis itself fails; findings are reviewed in the Security tab, not by a red X.
+  Replaces the "CodeQL not added yet" note in ADR-084.
+
 ### ADR-085 — One image push at a time per workflow (DevOps 7.3, 2026-11-09)
 - **Status:** Accepted (2026-11-09). The product owner approved the fix after ISS-063.
 - **Decision:** the `image` job in `ci-backend.yml` and `ci-frontend.yml` has a job-level `concurrency` group

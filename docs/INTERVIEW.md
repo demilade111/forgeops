@@ -635,7 +635,7 @@ pull requests."
 ```
 push
  ├─ ci-format     prettier --check                         every push
- ├─ security      gitleaks (secrets) + pnpm audit (CVEs)   every push + Monday 06:00 UTC
+ ├─ security      gitleaks + pnpm audit + CodeQL          every push + Monday 06:00 UTC
  ├─ ci-frontend   lint, typecheck, test, build             apps/frontend/** changed
  └─ ci-backend    services, lint, typecheck, build, tests  apps/api/** changed
         └─ main only, after green: docker build → Trivy → docker push ghcr.io/<owner>/forgeops-*:<sha>
@@ -652,6 +652,7 @@ Dependabot (weekly): pull requests for npm packages, GitHub Actions and base ima
 | **gitleaks** | finds keys and passwords in files and the full git history | GitHub secret scanning (push protection needs a public repo or paid plan), TruffleHog (similar) |
 | **`pnpm audit`** | fails on high or critical CVEs in our npm packages | Snyk (an outside account and token) |
 | **Dependabot** | weekly pull requests that upgrade packages, actions and base images, waiting 7 days after a release | Renovate (more options, another app to install) |
+| **CodeQL** | reads our TypeScript for unsafe patterns, such as user input reaching a query or a redirect | Semgrep (another account), ESLint security plugins (one file at a time, no data-flow tracking) |
 | **Trivy** | scans the built image (Linux packages, Node, npm packages, binaries) before push | Grype (similar), Docker Scout (Docker account), ECR scanning (only after push, phase 8) |
 | **GHCR** | stores the images next to the code, logged in with the run's `GITHUB_TOKEN` | Docker Hub (second account, stored token), ECR (paid, phase 8) |
 | **Commit-SHA tags** | every image traces to one commit; rollback runs an older tag | `latest` (overwritten, no rollback) |
@@ -686,7 +687,7 @@ Dependabot (weekly): pull requests for npm packages, GitHub Actions and base ima
 
 ### Known limits
 - CI is advisory: a private repository on the free plan cannot require green checks before merge.
-- No CodeQL yet (needs the repo public or paid code scanning); no DAST until there is a server (phase 8).
+- No DAST until there is a server (phase 8). CodeQL findings show in the Security tab and do not fail the run.
 - No deploy job yet: images reach GHCR, but nothing runs them on a server until phase 8.
 - Actions are pinned by tag, not by commit SHA.
 
