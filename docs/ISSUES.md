@@ -8,6 +8,20 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-064 — A health test failed once and passed on rerun (DevOps 7.3)
+- **Situation:** On a Dependabot pull request, CI failed one of 150 tests: "GET /health/ready returns ok when the
+  database answers" got 503 instead of 200 after 2.4 seconds. The rerun passed, and the update had nothing to do
+  with the database.
+- **Task:** Find out why a test flips without a code change, rather than accept "it passed on rerun".
+- **Action:** The readiness route runs `SELECT 1`, and every database client is created with a 2-second connection
+  limit. That test is the first query in its file, so it pays for opening a new connection. Normally that is fast,
+  but in another green run the same test took 1.8 seconds: on a busy runner, after the deploy tests, opening the
+  connection sits right at the limit. I kept 2 seconds for the API, where a readiness check should fail fast, and
+  gave the test client 10 seconds (ADR-088).
+- **Result:** the test no longer depends on how busy the runner is; production behaviour is unchanged.
+- **Lesson:** a flaky test is a real timing assumption; find it and decide where the limit belongs, instead of
+  pressing rerun.
+
 ## ISS-063 — Two merges a minute apart made the image push fail (DevOps 7.3)
 - **Situation:** I merged two Dependabot pull requests a minute apart. Both started a `ci-backend` run on `main`,
   and both image jobs pushed `forgeops-api`, `forgeops-worker` and `forgeops-migrate` to GHCR at the same second.
