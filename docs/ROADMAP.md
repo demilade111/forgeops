@@ -223,7 +223,7 @@ _Learn:_ authn vs authz, cookies, sessions, hashing, token lifecycle, common web
 - [x] 2.2.6 Implement session creation
 - [x] 2.2.7 Implement authenticated `GET /me`
 - [x] 2.2.8 Implement logout and session invalidation
-- [ ] 2.2.9 Add rate limiting
+- [x] 2.2.9 Add rate limiting
 - [ ] 2.2.10 Test invalid credentials and concurrent requests (invalid credentials done; concurrency open)
 
 ### 2.3 — Frontend authentication

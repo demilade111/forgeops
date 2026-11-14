@@ -109,6 +109,7 @@ services:
       SMTP_URL: smtp://mailpit:1025
       APP_URL: http://localhost:8080
       PORT: 4000
+      TRUST_PROXY_HOPS: 1
       ENCRYPTION_KEY_PATH: /run/secrets/env-encryption.key
       GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
       GITHUB_CLIENT_SECRET_PATH: /run/secrets/github-client-secret

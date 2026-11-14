@@ -16,7 +16,12 @@ const github = {
   sourceArchive: vi.fn(async () => null),
 } satisfies GitHubClient;
 
-const app = createApp({ db: testDb, github, encryptionKey: randomBytes(32) });
+const app = createApp({
+  db: testDb,
+  github,
+  encryptionKey: randomBytes(32),
+  rateLimits: false,
+});
 
 const service = {
   name: "api",

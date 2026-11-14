@@ -3,7 +3,7 @@ import { beforeEach, expect, it } from "vitest";
 import { createApp } from "../../../app.js";
 import { createService, resetDb, testDb } from "../../../../tests/helpers/db.js";
 
-const app = createApp({ db: testDb });
+const app = createApp({ db: testDb, rateLimits: false });
 
 async function signedIn(email = "dev@example.com") {
   const agent = request.agent(app);

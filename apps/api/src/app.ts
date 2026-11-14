@@ -1,6 +1,7 @@
 import express from "express";
 import type { PrismaClient } from "./database/prisma-client/client.js";
 import { errorHandler } from "./middleware/error-handler.js";
+import { createRateLimits } from "./middleware/rate-limit.js";
 import { requireJson } from "./middleware/require-json.js";
 import { createAlertsRouter } from "./modules/alerts/routes/alerts.routes.js";
 import { createAuthRouter } from "./modules/auth/routes/auth.routes.js";
@@ -16,6 +17,8 @@ type AppOptions = {
   github?: GitHubClient | null;
   encryptionKey?: Buffer | null;
   emailAlerts?: boolean;
+  trustProxyHops?: number;
+  rateLimits?: boolean;
 };
 
 export function createApp({
@@ -25,10 +28,13 @@ export function createApp({
   github = null,
   encryptionKey = null,
   emailAlerts = false,
+  trustProxyHops = 0,
+  rateLimits = true,
 }: AppOptions) {
   const app = express();
 
   app.disable("x-powered-by");
+  app.set("trust proxy", trustProxyHops);
   app.use(express.json());
 
   app.get("/health/live", (_req, res) => res.json({ status: "ok" }));
@@ -41,6 +47,12 @@ export function createApp({
     }
   });
 
+  if (rateLimits) {
+    const limits = createRateLimits();
+    app.use("/api", limits.api);
+    app.post(["/api/auth/signup", "/api/auth/login"], limits.auth);
+    app.post("/api/auth/login", limits.account);
+  }
   app.use("/api", requireJson);
   app.use("/api", createAuthRouter(db, { secureCookies }));
   app.use("/api", createGitHubRouter(db, github, { secureCookies }));

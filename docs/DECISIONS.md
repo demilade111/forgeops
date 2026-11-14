@@ -935,6 +935,24 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-089 — Rate limiting with express-rate-limit (FGO-02.02.09, 2026-11-14)
+- **Status:** Accepted (2026-11-14). The product owner approved the library after CodeQL flagged 7 routes.
+- **Decision:** `express-rate-limit` 8.7.3 (8.7.4 was 5 days old, inside our 7-day cooldown), counting in memory:
+  - every `/api` route: 300 requests a minute per IP;
+  - `POST /api/auth/signup` and `/login`: 10 a minute per IP;
+  - `POST /api/auth/login`: 5 failed attempts per 15 minutes per email (trimmed and lower-cased like the schema),
+    successful logins not counted.
+  Over the limit the API answers 429 with `RATE_LIMITED` and the standard `RateLimit` header, before any password
+  hashing or database work. `/health/*` is not limited. Express trusts exactly `TRUST_PROXY_HOPS` proxies (0 by
+  default, 1 in compose where Caddy sits in front), so the client IP comes from Caddy's `X-Forwarded-For` and a
+  client cannot spoof it. `createApp({ rateLimits: false })` turns limits off for tests that share one app.
+- **Options considered:** our own ~30-line counter (no dependency, but CodeQL would not recognise it and we would
+  own the edge cases such as IPv6 and headers); `rate-limiter-flexible` (more algorithms, more to learn); limits in
+  Caddy (no per-email limit, and the API would stay unprotected when reached directly); Redis store (shared across
+  API instances, but a new service while there is one API).
+- **Consequences:** counts reset when the API restarts and are per instance; moving to several API instances means
+  adding a Redis store. A lockout attack can block a real user's login for up to 15 minutes, never longer.
+
 ### ADR-088 — Tests connect to the database with a 10-second limit (2026-11-14)
 - **Status:** Accepted (2026-11-14), after ISS-064.
 - **Decision:** `createDb(url, connectionTimeoutMillis = 2000)`. The API, worker and seed keep 2 seconds; the test

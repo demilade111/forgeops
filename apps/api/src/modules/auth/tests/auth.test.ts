@@ -3,7 +3,7 @@ import { beforeEach, expect, it } from "vitest";
 import { createApp } from "../../../app.js";
 import { resetDb, testDb } from "../../../../tests/helpers/db.js";
 
-const app = createApp({ db: testDb });
+const app = createApp({ db: testDb, rateLimits: false });
 const credentials = { email: "dev@example.com", password: "a-long-password" };
 
 beforeEach(() => resetDb());

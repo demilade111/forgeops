@@ -3,6 +3,7 @@ import { z } from "zod";
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  TRUST_PROXY_HOPS: z.coerce.number().int().min(0).max(5).default(0),
   DATABASE_URL: z.url({ protocol: /^postgres(ql)?$/ }),
   ENCRYPTION_KEY_PATH: z.string().min(1),
   RABBITMQ_URL: z.url({ protocol: /^amqps?$/ }).optional(),
@@ -51,6 +52,7 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
   return {
     production: c.NODE_ENV === "production",
     port: c.PORT,
+    trustProxyHops: c.TRUST_PROXY_HOPS,
     databaseUrl: c.DATABASE_URL,
     encryptionKeyPath: c.ENCRYPTION_KEY_PATH,
     rabbitmqUrl: c.RABBITMQ_URL ?? null,

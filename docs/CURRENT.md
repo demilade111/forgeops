@@ -107,7 +107,8 @@ setup action, a Prettier check, gitleaks, `pnpm audit`, Trivy before every image
 Step 5 (2026-11-09): image pushes queued with `concurrency` after a race between two runs (ADR-085, ISS-063);
 the repository is public and `security.yml` runs CodeQL (ADR-086). `main` now requires a pull request with
 `format`, `secrets`, `dependencies` and `codeql` passing (ADR-087). The flaky `/health/ready` test is fixed: tests
-connect with a 10 s limit, the API keeps 2 s (ADR-088, ISS-064). Next: rate limiting (2.2.9) or phase 8.
+connect with a 10 s limit, the API keeps 2 s (ADR-088, ISS-064). Rate limiting (2.2.9, ADR-089) is built with
+express-rate-limit. Next: phase 8 (AWS and Terraform, needs cost approval).
 
 **Done: code structure (2026-11-08).** API restructured by layer and module, frontend by feature, with
 dependency rules (ADR-082, `docs/ARCHITECTURE.md`). Behaviour unchanged; all checks and the browser walk-through
