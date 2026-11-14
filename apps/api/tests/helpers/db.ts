@@ -4,7 +4,7 @@ import { createDb } from "../../src/database/client.js";
 
 export const testKey = randomBytes(32);
 
-export const testDb = createDb(process.env.TEST_DATABASE_URL!);
+export const testDb = createDb(process.env.TEST_DATABASE_URL!, 10_000);
 
 export const resetDb = () =>
   testDb.$executeRaw`TRUNCATE "User", "Organization", "Session", "Outbox" CASCADE`;
