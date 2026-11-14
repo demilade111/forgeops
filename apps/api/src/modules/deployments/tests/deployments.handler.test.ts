@@ -695,7 +695,7 @@ it("saves the build log while the build is still running", async () => {
 });
 
 it("shows the live app's own output to members of its organization", async () => {
-  const app = createApp({ db: testDb, encryptionKey: testKey });
+  const app = createApp({ db: testDb, encryptionKey: testKey, rateLimits: false });
   const agent = request.agent(app);
   await agent
     .post("/api/auth/signup")

@@ -621,6 +621,45 @@ code that works with both, and only remove the old ones once no version needs th
 
 ---
 
+## 24. Rate limiting (2.2.9)
+
+**30-second answer:** "CodeQL flagged seven routes with no rate limiting. Login runs scrypt, about 200 ms a check,
+so an attacker could guess passwords freely and tie up the API at the same time. I added express-rate-limit: 300
+requests a minute per IP on the whole API, 10 a minute per IP on login and sign-up, and 5 failed logins per 15
+minutes per email, so a botnet can't hammer one account. Over the limit it returns 429 before any hashing or
+database work. Because Caddy sits in front, Express trusts exactly one proxy hop, so each real client gets its own
+counter and nobody can spoof their IP."
+
+### Why each choice
+| Choice | Why | Alternatives |
+|---|---|---|
+| **express-rate-limit** | standard middleware, `RateLimit` headers, Redis store later, CodeQL recognises it | own counter (we own the edge cases), rate-limiter-flexible (more than we need) |
+| **Three limits** | API-wide flood, auth from one IP, one account from many IPs | one global limit (too loose for login or too tight for the dashboard) |
+| **Successful logins not counted** | a real user who logs in often is never blocked | count everything (punishes normal use) |
+| **In memory** | one API instance, no new service | Redis (shared counts, another stateful service) |
+| **`TRUST_PROXY_HOPS`** | exactly one trusted hop behind Caddy, 0 when reached directly | `trust proxy: true` (any client can fake `X-Forwarded-For`) |
+
+### What happens when...
+- **One machine floods login:** the 11th request in a minute gets 429; scrypt never runs.
+- **A botnet guesses one password from many IPs:** the 6th failure for that email gets 429 for 15 minutes.
+- **Someone locks a real user out on purpose:** at most 15 minutes; the user can still sign in after the window.
+- **A client sends a fake `X-Forwarded-For`:** Express takes the last address, which Caddy added; the fake one is
+  ignored. Tested.
+- **The API restarts:** counts reset (in memory). Acceptable for one instance.
+- **We run three API instances:** each counts separately, so the real limit is three times higher; that is when the
+  store moves to Redis.
+
+### Questions
+- *Per IP or per user?* Both: per IP stops one machine, per email stops many machines aiming at one account.
+- *Why not limit in Caddy?* Caddy cannot see which email a login is for, and the API would be unprotected if reached
+  another way.
+- *What's a lockout attack and how do you limit it?* Failing logins on purpose to block a real user; a short window
+  and not counting successes keep the damage small.
+- *Why is `trust proxy: true` dangerous?* Express would believe any `X-Forwarded-For`, so an attacker sends a new
+  fake IP each time and is never limited.
+
+---
+
 ## 23. CI/CD and supply-chain security (DevOps 7)
 
 **30-second answer:** "Every push runs GitHub Actions. A format check and a security workflow run on every push:

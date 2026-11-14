@@ -4,9 +4,8 @@ import { createDb } from "./database/client.js";
 import { readEncryptionKey } from "./lib/encryption.js";
 import { loadGitHubClient } from "./modules/github/clients/github.client.js";
 
-const { port, databaseUrl, production, github, encryptionKeyPath, smtpUrl } = loadConfig(
-  process.env,
-);
+const { port, databaseUrl, production, github, encryptionKeyPath, smtpUrl, trustProxyHops } =
+  loadConfig(process.env);
 
 createApp({
   db: createDb(databaseUrl),
@@ -14,6 +13,7 @@ createApp({
   github: github ? loadGitHubClient(github) : null,
   encryptionKey: readEncryptionKey(encryptionKeyPath),
   emailAlerts: smtpUrl !== null,
+  trustProxyHops,
 }).listen(port, (error) => {
   if (error) throw error;
   console.log(`API listening on http://localhost:${port}`);

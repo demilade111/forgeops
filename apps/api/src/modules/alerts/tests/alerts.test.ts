@@ -10,7 +10,12 @@ const mailpit = process.env.TEST_MAILPIT_URL!;
 const smtpUrl = process.env.TEST_SMTP_URL!;
 if (!mailpit || !smtpUrl) throw new Error("TEST_MAILPIT_URL and TEST_SMTP_URL must be set");
 
-const app = createApp({ db: testDb, encryptionKey: testKey, emailAlerts: true });
+const app = createApp({
+  db: testDb,
+  encryptionKey: testKey,
+  emailAlerts: true,
+  rateLimits: false,
+});
 const slackUrl = "https://hooks.slack.com/services/T000/B000/abc123";
 const deployments = deploymentsRepository(testDb);
 

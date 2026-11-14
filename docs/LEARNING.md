@@ -139,6 +139,17 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   the same time. Otherwise attackers can find out which emails have accounts.
 - **Transactions:** user + personal organization + membership are created in one write, all or nothing.
 
+### Rate limiting (2.2.9, ADR-089, done)
+- **Rate limit:** a cap on requests per caller per time window; over it the API answers **429 Too Many Requests**
+  before doing any work, so a flood costs almost nothing.
+- **Brute force:** guessing passwords again and again. Our slow **scrypt** check (~200 ms each) makes each guess
+  expensive for us, so without a limit it also becomes a **denial of service**.
+- **Per IP vs per account:** per IP stops one machine; per account (by email) stops a **botnet** of many machines
+  guessing one password. Per account opens a **lockout attack**, so the window is short (15 minutes).
+- **Trust proxy:** behind Caddy every request comes from Caddy's address; Express must trust exactly one hop and
+  read the client IP from `X-Forwarded-For`, or one user's limit blocks everyone, or a client can fake its IP.
+- **In-memory store:** counts live in the API process; with several API instances they move to Redis.
+
 ### Login screens (M1-S1 frontend, done)
 - **The frontend never touches the token.** The cookie is `HttpOnly`; the browser attaches it to every
   same-origin request. Nothing is kept in `localStorage`, where an XSS bug could read it.
