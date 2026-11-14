@@ -225,6 +225,9 @@ _Learn:_ authn vs authz, cookies, sessions, hashing, token lifecycle, common web
 - [x] 2.2.8 Implement logout and session invalidation
 - [x] 2.2.9 Add rate limiting
 - [ ] 2.2.10 Test invalid credentials and concurrent requests (invalid credentials done; concurrency open)
+- [ ] 2.2.11 Smoke-test rate limiting: sabotage each limit and confirm a test fails; attack login through Caddy
+  (11th request gets 429, a fake `X-Forwarded-For` does not reset the count, the form shows the message); record
+  the results in `INTERVIEW.md` §24
 
 ### 2.3 — Frontend authentication
 - [x] 2.3.1 Build registration form
