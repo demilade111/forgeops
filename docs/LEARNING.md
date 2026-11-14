@@ -324,8 +324,9 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   was tested locally.
 - **Paths trigger + separate files:** each app has its own workflow, so a frontend-only change starts no backend
   runner, and each can fail on its own.
-- **Branch protection:** CI only reports; a rule on `main` with required checks is what blocks a red merge. Not
-  available on a private repo on the free plan.
+- **Branch protection:** CI only reports; a rule on `main` with required checks is what blocks a red merge. On the
+  public repo it is a **ruleset** (a named set of rules for matching branches): pull request required, four checks
+  required, no force-push or delete (ADR-087).
 - **CI vs CD:** CI checks the code and throws its output away; CD builds the artifact (the image) and keeps it.
   Every job is a new empty runner, so the image job checks out again and builds inside the Dockerfile.
 - **Registry:** the shelf between the runner that builds (deleted after) and the server that runs. Build once, run

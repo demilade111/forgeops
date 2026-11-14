@@ -686,7 +686,8 @@ Dependabot (weekly): pull requests for npm packages, GitHub Actions and base ima
 - Dependabot opened six pull requests within minutes of being enabled.
 
 ### Known limits
-- CI is advisory: a private repository on the free plan cannot require green checks before merge.
+- Frontend and backend tests show on pull requests but are not required, because their `paths` filters mean they
+  do not run on every change (ADR-087).
 - No DAST until there is a server (phase 8). CodeQL findings show in the Security tab and do not fail the run.
 - No deploy job yet: images reach GHCR, but nothing runs them on a server until phase 8.
 - Actions are pinned by tag, not by commit SHA.

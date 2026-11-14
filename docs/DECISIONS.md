@@ -935,6 +935,19 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-087 — Pull requests and passing checks required on main (DevOps 7.3, 2026-11-14)
+- **Status:** Accepted (2026-11-14). The product owner asked for the best option.
+- **Decision:** a repository ruleset, "protect main", on the default branch: changes arrive only through a pull
+  request (no approval required, as there is one maintainer); `format`, `secrets`, `dependencies` and `codeql` must
+  pass; force-pushes and deleting `main` are blocked. No bypass list, so the owner follows the same rule.
+- **Options considered:** checks only, keeping direct pushes (each commit must pass on another branch first, an
+  awkward flow); also requiring the frontend and backend jobs (they use `paths` filters, so a docs-only pull request
+  would wait forever for checks that never start, unless a summary job is added); classic branch protection (works,
+  but rulesets are GitHub's newer model and can be layered and audited).
+- **Consequences:** every change, including docs, goes through a branch and a pull request. Frontend and backend
+  tests still run and show on pull requests that touch those apps, but do not block a merge; adding a summary job
+  would make them required. Not up-to-date-with-`main` is allowed, because Dependabot rebases its own branches.
+
 ### ADR-086 — CodeQL code scanning in the security workflow (DevOps 7.3, 2026-11-09)
 - **Status:** Accepted (2026-11-09). The product owner made the repository public and approved CodeQL.
 - **Decision:** a `codeql` job in `security.yml` runs `github/codeql-action` v4 (`init` then `analyze`) for
