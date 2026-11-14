@@ -106,7 +106,8 @@ on our own infrastructure, not Vercel (ADR-079). Step 3 (CD part 1): an `image` 
 setup action, a Prettier check, gitleaks, `pnpm audit`, Trivy before every image push, and Dependabot (ADR-084).
 Step 5 (2026-11-09): image pushes queued with `concurrency` after a race between two runs (ADR-085, ISS-063);
 the repository is public and `security.yml` runs CodeQL (ADR-086). `main` now requires a pull request with
-`format`, `secrets`, `dependencies` and `codeql` passing (ADR-087). Next: the flaky `/health/ready` test.
+`format`, `secrets`, `dependencies` and `codeql` passing (ADR-087). The flaky `/health/ready` test is fixed: tests
+connect with a 10 s limit, the API keeps 2 s (ADR-088, ISS-064). Next: rate limiting (2.2.9) or phase 8.
 
 **Done: code structure (2026-11-08).** API restructured by layer and module, frontend by feature, with
 dependency rules (ADR-082, `docs/ARCHITECTURE.md`). Behaviour unchanged; all checks and the browser walk-through

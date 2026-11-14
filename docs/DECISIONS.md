@@ -935,6 +935,16 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-088 — Tests connect to the database with a 10-second limit (2026-11-14)
+- **Status:** Accepted (2026-11-14), after ISS-064.
+- **Decision:** `createDb(url, connectionTimeoutMillis = 2000)`. The API, worker and seed keep 2 seconds; the test
+  helper passes 10 seconds.
+- **Options considered:** raise the limit everywhere (a readiness check should fail fast when the database is
+  unreachable, so production keeps 2 s); warm the connection in a `beforeAll` (fixes one file, while any file's
+  first query can hit the same limit); retry the test (hides the cause).
+- **Consequences:** a slow first connection on a busy CI runner no longer fails a test; a truly unreachable test
+  database now takes 10 s to fail instead of 2.
+
 ### ADR-087 — Pull requests and passing checks required on main (DevOps 7.3, 2026-11-14)
 - **Status:** Accepted (2026-11-14). The product owner asked for the best option.
 - **Decision:** a repository ruleset, "protect main", on the default branch: changes arrive only through a pull
