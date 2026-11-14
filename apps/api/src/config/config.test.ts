@@ -9,6 +9,7 @@ it("applies defaults", () => {
   expect(loadConfig(base)).toEqual({
     production: false,
     port: 4000,
+    trustProxyHops: 0,
     databaseUrl: DATABASE_URL,
     encryptionKeyPath: ENCRYPTION_KEY_PATH,
     rabbitmqUrl: null,
