@@ -8,6 +8,23 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-065 — A stopped server was still billing for its disk (AWS 8.2)
+- **Situation:** Before building anything on AWS, I opened Billing for my existing account. It had no credits
+  (not on the Free plan) and showed about $0.70 every month since August 2026, mostly under "EC2 - Other". The EC2
+  page for Ohio showed no servers, disks, snapshots or Elastic IPs.
+- **Task:** Find what I was paying for, so that later costs on the bill would clearly be ForgeOps.
+- **Action:** In Cost Explorer I filtered to EC2-Other and grouped by usage type. The cost was
+  `EBS:VolumeUsage.gp3` at $0.64 a month: an 8 GB gp3 disk ($0.08 per GB a month). The usage type had no region
+  prefix, which AWS uses for N. Virginia (us-east-1), so the disk was in a region the console was not showing. I
+  first assumed a deleted server had left its disk behind, but before deleting I opened the volume: it was
+  "In-use", the root disk of a stopped server from an earlier project. I set a $1 monthly budget alarm first
+  (ADR-090).
+- **Result:** cause found without deleting the wrong thing: a stopped server pays nothing for compute but keeps
+  paying for its disk. The project was no longer needed, so I terminated the server on 2026-11-16, which deletes
+  its root disk by default. Still to confirm: the Volumes list is empty and the next bill has no EBS line.
+- **Lesson:** "stopped" is not "free", and the console shows one region at a time; read the bill by usage type,
+  and check a resource's state before deleting it.
+
 ## ISS-064 — A health test failed once and passed on rerun (DevOps 7.3)
 - **Situation:** On a Dependabot pull request, CI failed one of 150 tests: "GET /health/ready returns ok when the
   database answers" got 503 instead of 200 after 2.4 seconds. The rerun passed, and the update had nothing to do

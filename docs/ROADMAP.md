@@ -614,19 +614,19 @@ _Learn:_ ACID, race conditions, unique constraints, outbox pattern, exactly-once
 ⚠️ No paid cloud resources are created without explicit approval.
 
 ### 8.1 — Cloud architecture requirements
-- [ ] 8.1.1 Estimate initial application resource needs
-- [ ] 8.1.2 Compare EC2, ECS and EKS
-- [ ] 8.1.3 Identify which components require managed services
-- [ ] 8.1.4 Define availability and cost objectives
-- [ ] 8.1.5 Design public and private network boundaries
-- [ ] 8.1.6 Define database placement
-- [ ] 8.1.7 Define outbound internet requirements
-- [ ] 8.1.8 Draw AWS architecture v1
-- [ ] 8.1.9 Approve infrastructure ADRs
+- [x] 8.1.1 Estimate initial application resource needs
+- [x] 8.1.2 Compare EC2, ECS and EKS
+- [x] 8.1.3 Identify which components require managed services
+- [x] 8.1.4 Define availability and cost objectives
+- [x] 8.1.5 Design public and private network boundaries
+- [x] 8.1.6 Define database placement
+- [x] 8.1.7 Define outbound internet requirements
+- [x] 8.1.8 Draw AWS architecture v1
+- [x] 8.1.9 Approve infrastructure ADRs
 
 ### 8.2 — AWS security and account setup
 - [ ] 8.2.1 Configure MFA and account access
-- [ ] 8.2.2 Configure billing budget and alerts
+- [x] 8.2.2 Configure billing budget and alerts
 - [ ] 8.2.3 Create least-privilege IAM roles
 - [ ] 8.2.4 Define workload credentials
 - [ ] 8.2.5 Configure logging and audit settings
