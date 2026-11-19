@@ -1,6 +1,6 @@
 # ForgeOps — Current Work
 
-_Last updated: 2026-11-07_
+_Last updated: 2026-11-16_
 
 ## Project status
 
@@ -109,6 +109,14 @@ the repository is public and `security.yml` runs CodeQL (ADR-086). `main` now re
 `format`, `secrets`, `dependencies` and `codeql` passing (ADR-087). The flaky `/health/ready` test is fixed: tests
 connect with a 10 s limit, the API keeps 2 s (ADR-088, ISS-064). Rate limiting (2.2.9, ADR-089) is built with
 express-rate-limit. Next: phase 8 (AWS and Terraform, needs cost approval).
+
+**In progress: 8 AWS and Terraform (2026-11-16).** The product owner kept their existing AWS account (paid plan, no
+credits). 8.2.2 done: monthly budget `forgeops-monthly` of $1 (ADR-090). Practice rule: apply, practise, destroy.
+Billing showed about $0.70 a month: the 8 GB gp3 disk of a stopped server from an earlier project in us-east-1
+(ISS-065); server terminated 2026-11-16, empty Volumes list not yet confirmed.
+The CLI signs in with `aws login` (short-term credentials, root for now, ADR-091). Deferred by the owner: root
+MFA and an IAM user. 8.1 design done: ADR-092 accepted (one EC2 t3.small with Docker Compose in us-east-2,
+secrets in Parameter Store), diagrams in `docs/diagrams/`. Next: 8.4.1 install Terraform (needs approval).
 
 **Done: code structure (2026-11-08).** API restructured by layer and module, frontend by feature, with
 dependency rules (ADR-082, `docs/ARCHITECTURE.md`). Behaviour unchanged; all checks and the browser walk-through

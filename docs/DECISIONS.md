@@ -935,6 +935,73 @@ Template:
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
 
+### ADR-092 — AWS architecture v1: one EC2 server running Docker Compose (FGO-08.01, 2026-11-18)
+- **Status:** Accepted (2026-11-18) by the product owner.
+- **Diagram:** `docs/diagrams/aws-architecture-v1.excalidraw` (open it at excalidraw.com, menu, Open).
+- **Decision:**
+  ```
+  internet → http://<public IP>
+  region us-east-2 (Ohio)
+   └─ VPC 10.0.0.0/16
+       ├─ Internet Gateway
+       └─ public subnet 10.0.1.0/24 (route 0.0.0.0/0 → Internet Gateway)
+           └─ EC2 t3.small, 20 GB gp3, Elastic IP
+               ├─ security group: 80 and 443 from anywhere, 22 from the owner's IP only
+               ├─ IAM role: read /forgeops/* from Parameter Store, nothing else
+               └─ Docker Compose: caddy, web, api, worker, postgres, rabbitmq, migrate
+  Parameter Store (SecureString, KMS): env-encryption key, GitHub App key, GitHub client secret, DB password
+  GHCR: images built by CI on main
+  ```
+  - **Compute (8.1.2):** one EC2 instance with Docker Compose, not ECS or EKS. Postgres and RabbitMQ run as
+    containers on it (8.1.3, 8.1.6), not RDS or Amazon MQ.
+  - **Start-up:** user data installs Docker and the Compose plugin, writes the secrets from Parameter Store to
+    `/opt/forgeops/secrets/` (root only), and runs `docker compose -f docker-compose.prod.yml pull` and `up -d`.
+    The prod compose file uses `image: ghcr.io/demilade111/forgeops-*:<commit>` instead of `build:`.
+  - **Secrets (8.2.6):** Parameter Store standard parameters, put there with the AWS CLI from the laptop, never in
+    Terraform code, state or user data. The server reads them through its IAM role (8.2.4), so no AWS keys sit on it.
+  - **Network (8.1.5, 8.1.7):** one public subnet; outbound internet is open so the server can reach GHCR, GitHub
+    and package mirrors. No NAT gateway, no load balancer.
+  - **Availability and cost (8.1.4):** one server, no redundancy; a failed server is replaced with destroy and
+    apply. Run only while practising (ADR-090): about $0.03 an hour.
+- **Options considered:** ECS Fargate (no server to manage, but more AWS pieces and about $35 a month for these
+  containers); EKS (about $73 a month for the control plane alone; Kubernetes is phase 9, locally); RDS for
+  Postgres (backups and failover, but about $14 a month more); private subnets with a NAT gateway (database fully
+  unreachable from the internet, but about $33 a month); scp of the secret files by hand (free, but a manual step
+  after every apply); Secrets Manager (rotation we do not need, $0.40 per secret a month).
+- **Consequences:** cheap and reproducible, and the whole stack matches the local compose file. Data in Postgres is
+  lost on destroy; acceptable for a demo, a backup plan comes in 11.4. HTTPS needs a domain, still open (URL scheme
+  ADR). A single server and a public subnet are the first things to change for real users: RDS in private subnets,
+  then more servers behind a load balancer.
+
+### ADR-091 — CLI and Terraform sign in with `aws login` (FGO-08.02.01, 2026-11-16)
+- **Status:** Accepted (2026-11-16) for practice. The product owner chose to skip an IAM user for now.
+- **Decision:** the AWS CLI (2.34) and Terraform use short-term credentials from `aws login`: a browser sign-in
+  that stores temporary keys in `~/.aws`, which expire after hours. No long-term access keys are created, and never
+  for the root user. For now the sign-in is the root user (verified: `aws sts get-caller-identity` returns
+  `arn:aws:iam::<account>:root`), default region `us-east-1` until 8.1 picks one. Root MFA is deferred.
+- **Options considered:** root access keys (permanent full control if leaked; rejected); an IAM user with access
+  keys (limited and deletable, the usual answer; deferred); IAM Identity Center (short-term and per person, more
+  setup than one person needs).
+- **Consequences:** Terraform acts with full root power, so the $1 budget alarm (ADR-090) is the safety net. Before
+  anyone else gets access, or before the account holds anything that matters, move to an IAM user or role with only
+  the permissions Terraform needs (8.2.3) and turn on root MFA. Terraform must read the `aws login` credentials;
+  checked when Terraform is installed (8.4.1).
+
+### ADR-090 — AWS account and cost guardrails (FGO-08.02.02, 2026-11-16)
+- **Status:** Accepted (2026-11-16). The product owner chose to keep the existing account and set the budget.
+- **Decision:** use the product owner's existing AWS account. It is on the paid plan with no credits, so every
+  resource is billed to the card. Guardrails:
+  - a monthly cost budget `forgeops-monthly` of $1, emailing at 85%, 100% and when the forecast passes $1;
+  - nothing runs between practice sessions: `terraform apply`, practise, `terraform destroy`;
+  - before building, know what is already on the bill (ISS-065: a stopped server's disk).
+  ForgeOps has no real users, so it does not need to run all the time. Estimated cost of the planned server
+  (t3.small, public IPv4, 20 GB gp3, us-east-1 prices): about $0.03 an hour, about $20 a month if left on.
+- **Options considered:** a new account on the Free plan (about $100 to $200 in credits for 6 months and paused
+  instead of billed when they run out, but a second account to secure and manage); a $5 budget (fewer emails, later
+  warning).
+- **Consequences:** a forgotten `destroy` costs real money, so the alarm is the safety net. While the stopped server's
+  disk stays (about $0.66 a month), the $1 alarm may fire. Region is not chosen yet (8.1).
+
 ### ADR-089 — Rate limiting with express-rate-limit (FGO-02.02.09, 2026-11-14)
 - **Status:** Accepted (2026-11-14). The product owner approved the library after CodeQL flagged 7 routes.
 - **Decision:** `express-rate-limit` 8.7.3 (8.7.4 was 5 days old, inside our 7-day cooldown), counting in memory:
