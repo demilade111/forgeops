@@ -292,6 +292,46 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
   channel).
 - **SSRF:** if users choose a URL your server calls, they can aim it at your internal services; allow-list hosts.
 
+### AWS account and network basics (8.1, 8.2)
+- **Server:** a computer that stays on and answers requests. **EC2** rents one from AWS.
+- **Region:** a place where AWS has data centers, such as Ohio (`us-east-2`) or N. Virginia (`us-east-1`). Every
+  resource lives in one region, and the console shows one region at a time.
+- **Availability Zone:** a separate building inside a region with its own power and network (`us-east-2a`, `2b`,
+  `2c`).
+- **EBS volume:** a server's disk. It is billed by size ($0.08 per GB a month for gp3) and keeps billing while the server
+  is stopped (ISS-065). Stopped means no compute charge, not free.
+- **Root user:** the account's master login. Protect it with MFA and use it almost never.
+- **Temporary credentials (STS):** access key ID (`ASIA...`), secret and session token that expire after hours.
+  `aws login` gets them through a browser sign-in (OAuth, answer sent back to `127.0.0.1` on the laptop).
+  Long-term keys (`AKIA...`) never expire on their own, so a leak lasts until someone notices (ADR-091).
+- **IAM user:** a named login inside the account with only the rights it needs; deleting it cuts off a leak.
+- **Budget alarm:** AWS Budgets emails before or when spending passes a limit (ADR-090).
+- **Cost Explorer usage type:** names what you pay for; the prefix is the region (`USE2-` Ohio, `USW2-` Oregon,
+  `EUN1-` Stockholm, none for N. Virginia).
+- **Public IP:** the address the internet uses to reach the server. **Private IP:** its address inside AWS.
+  **Elastic IP:** a public IP that stays the same when the server restarts.
+- **Internet Gateway:** the door between the internet and the VPC; it swaps the public IP for the private IP on the
+  way in and back on the way out (**NAT**).
+- **Port:** the number on every packet that says which program it is for (22 SSH, 80 HTTP, 443 HTTPS, 5432
+  Postgres). The browser takes it from the scheme: `http://` means 80, `https://` means 443.
+- **Security group:** the firewall in front of the server; it lets a packet in only if its port and source are on
+  the list. Plan for ForgeOps: 443 and 80 open to all, 22 only from one IP, nothing else.
+- **SSH:** encrypted login to the server on port 22. Two checks: the security group lets you reach the port, then
+  SSH checks your key. **Session Manager** logs in through AWS with no open port.
+- **VPC:** your own private network in AWS. **Subnet:** a slice of its address range. A subnet is **public** when
+  its **route table** sends internet traffic to the Internet Gateway.
+
+### Terraform and putting ForgeOps online (ADR-093, ADR-094)
+- **Terraform:** code that describes AWS resources. `init` downloads the provider, `plan` compares the code with the
+  **state** (Terraform's record of what it built) and with AWS, `apply` makes them match, `destroy` deletes it all.
+- **User data:** a script AWS runs once, on the server's first boot. Here it installs Docker, fetches the secrets,
+  writes the compose file and starts everything. Change it and the server must be rebuilt.
+- **Parameter Store SecureString:** an encrypted value in AWS. The server reads it with its **IAM role**, so no
+  keys are stored on it.
+- **sslip.io:** free DNS that turns a name containing an IP into that IP, so we get a name without buying one.
+- **Let's Encrypt:** a free certificate authority. Caddy proves it controls the name and gets a certificate for it.
+- **Secure cookie:** a cookie the browser keeps only over HTTPS. It is why login needed HTTPS.
+
 ### Feature-based structure (ADR-082)
 - **Modular monolith:** one deployable app split into business modules that own their code and data access.
 - **Layers:** routes handle HTTP, services hold business rules, repositories talk to the database.

@@ -18,6 +18,7 @@ it("applies defaults", () => {
     caddyHttpUrl: null,
     smtpUrl: null,
     appUrl: "http://localhost:5173",
+    appsBaseUrl: "http://localhost",
     github: null,
   });
 });
@@ -30,6 +31,15 @@ it("reads the Caddy URLs without a trailing slash", () => {
       CADDY_HTTP_URL: "http://127.0.0.1:80/",
     }),
   ).toMatchObject({ caddyAdminUrl: "http://127.0.0.1:2019", caddyHttpUrl: "http://127.0.0.1:80" });
+});
+
+it("reads the apps base URL without a trailing slash", () => {
+  expect(loadConfig({ ...base, APPS_BASE_URL: "https://3-15-22-9.sslip.io/" })).toMatchObject({
+    appsBaseUrl: "https://3-15-22-9.sslip.io",
+  });
+  expect(() => loadConfig({ ...base, APPS_BASE_URL: "ftp://example.com" })).toThrow(
+    "APPS_BASE_URL",
+  );
 });
 
 it("reads PORT and NODE_ENV", () => {

@@ -26,6 +26,7 @@ export const workerOptions = {
   registryHost,
   caddyAdminUrl,
   caddyHttpUrl,
+  appsBaseUrl: "http://localhost",
   encryptionKey: testKey,
   health: { timeoutMs: 5000, intervalMs: 200 },
   startupMs: 1000,

@@ -614,19 +614,19 @@ _Learn:_ ACID, race conditions, unique constraints, outbox pattern, exactly-once
 ⚠️ No paid cloud resources are created without explicit approval.
 
 ### 8.1 — Cloud architecture requirements
-- [ ] 8.1.1 Estimate initial application resource needs
-- [ ] 8.1.2 Compare EC2, ECS and EKS
-- [ ] 8.1.3 Identify which components require managed services
-- [ ] 8.1.4 Define availability and cost objectives
-- [ ] 8.1.5 Design public and private network boundaries
-- [ ] 8.1.6 Define database placement
-- [ ] 8.1.7 Define outbound internet requirements
-- [ ] 8.1.8 Draw AWS architecture v1
-- [ ] 8.1.9 Approve infrastructure ADRs
+- [x] 8.1.1 Estimate initial application resource needs
+- [x] 8.1.2 Compare EC2, ECS and EKS
+- [x] 8.1.3 Identify which components require managed services
+- [x] 8.1.4 Define availability and cost objectives
+- [x] 8.1.5 Design public and private network boundaries
+- [x] 8.1.6 Define database placement
+- [x] 8.1.7 Define outbound internet requirements
+- [x] 8.1.8 Draw AWS architecture v1
+- [x] 8.1.9 Approve infrastructure ADRs
 
 ### 8.2 — AWS security and account setup
 - [ ] 8.2.1 Configure MFA and account access
-- [ ] 8.2.2 Configure billing budget and alerts
+- [x] 8.2.2 Configure billing budget and alerts
 - [ ] 8.2.3 Create least-privilege IAM roles
 - [ ] 8.2.4 Define workload credentials
 - [ ] 8.2.5 Configure logging and audit settings
@@ -634,25 +634,25 @@ _Learn:_ ACID, race conditions, unique constraints, outbox pattern, exactly-once
 - [ ] 8.2.7 Document credential recovery and rotation
 
 ### 8.3 — VPC and networking
-- [ ] 8.3.1 Choose VPC CIDR range
-- [ ] 8.3.2 Design subnet ranges
-- [ ] 8.3.3 Configure public subnet routing
+- [x] 8.3.1 Choose VPC CIDR range
+- [x] 8.3.2 Design subnet ranges
+- [x] 8.3.3 Configure public subnet routing
 - [ ] 8.3.4 Configure private subnet routing
 - [ ] 8.3.5 Evaluate NAT and endpoint costs
-- [ ] 8.3.6 Configure security groups
+- [x] 8.3.6 Configure security groups
 - [ ] 8.3.7 Configure application load balancing
-- [ ] 8.3.8 Configure DNS
-- [ ] 8.3.9 Configure TLS certificates
-- [ ] 8.3.10 Verify network connectivity
+- [x] 8.3.8 Configure DNS
+- [x] 8.3.9 Configure TLS certificates
+- [x] 8.3.10 Verify network connectivity
 - [ ] 8.3.11 Simulate blocked network access
 
 _Learn:_ IP addressing, CIDR, routing, NAT, DNS, TLS, firewalls, load balancing, VPC architecture.
 
 ### 8.4 — Terraform foundations
-- [ ] 8.4.1 Install Terraform and configure providers
-- [ ] 8.4.2 Define variables and outputs
-- [ ] 8.4.3 Provision first AWS resource
-- [ ] 8.4.4 Explain Terraform state
+- [x] 8.4.1 Install Terraform and configure providers
+- [x] 8.4.2 Define variables and outputs
+- [x] 8.4.3 Provision first AWS resource
+- [x] 8.4.4 Explain Terraform state
 - [ ] 8.4.5 Configure remote state
 - [ ] 8.4.6 Configure state locking
 - [ ] 8.4.7 Create networking module
@@ -661,14 +661,14 @@ _Learn:_ IP addressing, CIDR, routing, NAT, DNS, TLS, firewalls, load balancing,
 - [ ] 8.4.10 Create environment configurations
 
 ### 8.5 — ForgeOps infrastructure provisioning
-- [ ] 8.5.1 Provision VPC through Terraform
-- [ ] 8.5.2 Provision subnets and routing
-- [ ] 8.5.3 Provision security groups
-- [ ] 8.5.4 Provision IAM roles
-- [ ] 8.5.5 Provision chosen compute environment
+- [x] 8.5.1 Provision VPC through Terraform
+- [x] 8.5.2 Provision subnets and routing
+- [x] 8.5.3 Provision security groups
+- [x] 8.5.4 Provision IAM roles
+- [x] 8.5.5 Provision chosen compute environment
 - [ ] 8.5.6 Provision database infrastructure
 - [ ] 8.5.7 Configure load balancer
-- [ ] 8.5.8 Configure DNS and HTTPS
+- [x] 8.5.8 Configure DNS and HTTPS
 - [ ] 8.5.9 Configure infrastructure logging
 - [ ] 8.5.10 Validate complete deployment
 
@@ -681,7 +681,7 @@ _Learn:_ IP addressing, CIDR, routing, NAT, DNS, TLS, firewalls, load balancing,
 - [ ] 8.6.6 Test recovery from failed apply
 - [ ] 8.6.7 Write Python resource-auditing command
 - [ ] 8.6.8 Write infrastructure teardown runbook
-- [ ] 8.6.9 Verify no unintended billable resources remain
+- [x] 8.6.9 Verify no unintended billable resources remain
 
 **Gate:** ForgeOps cloud infrastructure can be provisioned, inspected and safely destroyed using documented Terraform workflows.
 

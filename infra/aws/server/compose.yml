@@ -1,0 +1,142 @@
+name: forgeops
+
+x-app-env: &app-env
+  DATABASE_URL: postgresql://forgeops:${DB_PASSWORD}@postgres:5432/forgeops
+  RABBITMQ_URL: amqp://forgeops:${RABBITMQ_PASSWORD}@rabbitmq:5672
+  SMTP_URL: smtp://mailpit:1025
+  APP_URL: https://forgeops.${DOMAIN}
+  APPS_BASE_URL: https://${DOMAIN}
+  ENCRYPTION_KEY_PATH: /run/secrets/env-encryption.key
+  GITHUB_APP_ID: ${GITHUB_APP_ID}
+  GITHUB_APP_SLUG: ${GITHUB_APP_SLUG}
+  GITHUB_APP_PRIVATE_KEY_PATH: /run/secrets/github-app.pem
+  GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID}
+  GITHUB_CLIENT_SECRET_PATH: /run/secrets/github-client-secret
+
+services:
+  postgres:
+    image: postgres:18
+    environment:
+      POSTGRES_USER: forgeops
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: forgeops
+    volumes:
+      - postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD", "pg_isready", "-h", "127.0.0.1", "-U", "forgeops", "-d", "forgeops"]
+      interval: 2s
+      retries: 30
+    restart: unless-stopped
+
+  rabbitmq:
+    image: rabbitmq:4
+    environment:
+      RABBITMQ_DEFAULT_USER: forgeops
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      retries: 30
+    restart: unless-stopped
+
+  registry:
+    image: registry:3
+    ports:
+      - "127.0.0.1:5001:5000"
+    volumes:
+      - registry-data:/var/lib/registry
+    restart: unless-stopped
+
+  mailpit:
+    image: axllent/mailpit:v1.27
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2.11
+    command: caddy run --config /etc/caddy/caddy.json --resume
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy.json:/etc/caddy/caddy.json:ro
+      - caddy-config:/config
+      - caddy-data:/data
+    environment:
+      CADDY_ADMIN: caddy-admin:2019
+    networks:
+      default: {}
+      admin:
+        aliases:
+          - caddy-admin
+      apps: {}
+    restart: unless-stopped
+
+  migrate:
+    image: ghcr.io/demilade111/forgeops-migrate:${RELEASE}
+    environment:
+      DATABASE_URL: postgresql://forgeops:${DB_PASSWORD}@postgres:5432/forgeops
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  api:
+    image: ghcr.io/demilade111/forgeops-api:${RELEASE}
+    environment:
+      <<: *app-env
+      PORT: 4000
+      TRUST_PROXY_HOPS: 1
+    volumes:
+      - ./secrets/env-encryption.key:/run/secrets/env-encryption.key:ro
+      - ./secrets/github-app.pem:/run/secrets/github-app.pem:ro
+      - ./secrets/github-client-secret:/run/secrets/github-client-secret:ro
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  web:
+    image: ghcr.io/demilade111/forgeops-web:${RELEASE}
+    restart: unless-stopped
+    depends_on:
+      - api
+
+  worker:
+    image: ghcr.io/demilade111/forgeops-worker:${RELEASE}
+    environment:
+      <<: *app-env
+      REGISTRY_HOST: localhost:5001
+      CADDY_ADMIN_URL: http://caddy-admin:2019
+      CADDY_HTTP_URL: http://caddy:80
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./secrets/env-encryption.key:/run/secrets/env-encryption.key:ro
+      - ./secrets/github-app.pem:/run/secrets/github-app.pem:ro
+      - ./secrets/github-client-secret:/run/secrets/github-client-secret:ro
+    networks:
+      - default
+      - admin
+    restart: unless-stopped
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      rabbitmq:
+        condition: service_healthy
+      registry:
+        condition: service_started
+      caddy:
+        condition: service_started
+
+networks:
+  admin:
+    name: forgeops-admin
+  apps:
+    name: forgeops-apps
+
+volumes:
+  caddy-config:
+  caddy-data:
+  postgres-data:
+  rabbitmq-data:
+  registry-data:

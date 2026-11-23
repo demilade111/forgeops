@@ -160,7 +160,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-016 | Secret management | Local `.env` (git-ignored) in development; AWS Secrets Manager for ForgeOps' own secrets in the cloud. App reads secrets only from env/config | Proposed (direction agreed 2026-10-24) |
 | ADR-017 | Automatic build engine | Not selected (PD-002) | **Open** |
 | ADR-018 | Scheduled job execution mechanism | Not selected (PD-003) | **Open** |
-| ADR-019 | Managed URL scheme and traffic routing for web services | `http://<service>.<project>.localhost` in M1; Caddy reverse proxy, routes added at runtime through its admin API | **Accepted** (2026-11-05) |
+| ADR-019 | Managed URL scheme and traffic routing for web services | `http://<service>.<project>.localhost` in M1; Caddy reverse proxy, routes added at runtime through its admin API; on AWS `<service>.<project>.<ip>.sslip.io` with HTTPS (ADR-093) | **Accepted** (2026-11-05) |
 | ADR-020 | Alert channel | Email to workspace members (Mailpit locally, SMTP such as Amazon SES in the cloud) and an optional Slack incoming webhook (ADR-070) | **Accepted** (2026-11-06) |
 | ADR-021 | Source of basic CPU/memory metrics | `docker stats` sampled every 15 s by the worker into Postgres, kept 24 hours (ADR-069) | **Accepted** (2026-11-06) |
 | ADR-022 | Failed-rollout criteria that trigger automatic rollback | Watch 5 minutes after go-live, check every 10 s; 3 failed checks in a row or a crash rolls back to the previous good version (ADR-067) | **Accepted** (2026-11-06) |
@@ -934,6 +934,124 @@ Template:
 - **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
+
+### ADR-094 — Terraform builds the server and its boot script starts ForgeOps (FGO-08.04, 08.05, 2026-11-23)
+- **Status:** Accepted (2026-11-23); the product owner asked for the whole build.
+- **Decision:**
+  - Layout: one root module in `infra/aws/`, one file per concern (`network.tf`, `security.tf`, `iam.tf`,
+    `compute.tf`, `variables.tf`, `outputs.tf`). Server files live in `infra/aws/server/`. Local state, ignored
+    by git, with `*.tfvars` (owner's IP, GitHub App IDs, release).
+  - AWS provider `~> 6.0`; AMI read from the public SSM parameter for the latest Amazon Linux 2023; IMDSv2
+    required; 20 GB encrypted gp3; Docker from the OS packages and the Compose plugin pinned to v5.7.0 with its
+    checksum (v5.8.0 was inside the 7-day cooldown).
+  - The Elastic IP is created first and attached with `aws_eip_association`, so the boot script can be given the
+    public name without a dependency cycle. `user_data_replace_on_change` builds a new server when the script
+    changes, because user data only runs on first boot.
+  - `release` is a full commit SHA on main; the same SHA picks all four GHCR images. The compose file and Caddy
+    config are embedded in user data (base64), so the server needs no git checkout.
+  - Secrets that must outlive a server (encryption key, GitHub App key, OAuth client secret) come from Parameter
+    Store at boot, owned by uid 1000 (the `node` user in the images), mode 400. The Postgres and RabbitMQ
+    passwords are generated on the server at first boot instead of stored in Parameter Store: their data lives and
+    dies with that server, so nothing else needs them.
+  - 2 GB swap file, because 2 GB of RAM is tight while the worker builds an app image.
+- **Options considered:** Terraform modules now (cleaner later, but one environment does not need them, 8.4.7 to
+  8.4.9 stay open); remote state in S3 (needed for a team, 8.4.5); cloning the repo on the server (needs git and a
+  pinned checkout, more moving parts); keeping the DB password in Parameter Store (ADR-092 first said so; it adds a
+  manual step and protects nothing that survives destroy).
+- **Consequences:** `terraform apply` gives a working HTTPS dashboard in about 3 minutes with no manual step. A
+  lost state file means resources must be found and deleted by hand. Changing compose or Caddy files replaces the
+  server and its data.
+
+### ADR-093 — Public names and HTTPS on AWS through sslip.io (FGO-08.06, 2026-11-23)
+- **Status:** Accepted (2026-11-23) by the product owner. Extends ADR-019 to the cloud; local stays `.localhost`.
+- **Context:** in production the API sets its session cookies `Secure`, so the browser keeps them only over HTTPS,
+  and HTTPS needs a host name, not a bare IP. Deployed apps use `<service>.<project>.localhost`, which only resolves
+  on the owner's laptop.
+- **Decision:** names come from sslip.io, a free public DNS service that answers any name containing an IP with that
+  IP. With the Elastic IP `3.15.22.9`:
+  ```
+  dashboard     https://forgeops.3-15-22-9.sslip.io
+  deployed app  https://<service>.<project>.3-15-22-9.sslip.io
+  ```
+  The router Caddy is the only public entry (80 and 443) and gets Let's Encrypt certificates for these names,
+  including app routes the worker adds at runtime. One Caddy server listens on both ports with automatic redirects
+  off, so the worker's health checks keep using plain HTTP inside Docker; only the dashboard name gets an explicit
+  HTTP to HTTPS redirect. The apps' base address is a setting (`APPS_BASE_URL`, default `http://localhost`), so
+  the code has no AWS-specific names.
+- **Options considered:** a bought domain (stable, professional name, but about $12 a year and DNS records to keep
+  in step with the IP); dashboard only through an SSH tunnel (free and private, but nobody else can open it);
+  keeping the Elastic IP between practice sessions so the name never changes (about $3.60 a month while idle).
+- **Consequences:** free, real HTTPS, nothing to buy. The name changes with the IP after every destroy and apply,
+  so the GitHub App and OAuth callback URLs must be updated each time. sslip.io is a third party: if it is down,
+  nobody can find the server. Let's Encrypt limits certificates per domain, so many app names in one week can hit
+  that limit. A bought domain replaces this before anyone else relies on the URLs.
+
+### ADR-092 — AWS architecture v1: one EC2 server running Docker Compose (FGO-08.01, 2026-11-18)
+- **Status:** Accepted (2026-11-18) by the product owner.
+- **Diagram:** `docs/diagrams/aws-architecture-v1.excalidraw` (open it at excalidraw.com, menu, Open).
+- **Decision:**
+  ```
+  internet → http://<public IP>
+  region us-east-2 (Ohio)
+   └─ VPC 10.0.0.0/16
+       ├─ Internet Gateway
+       └─ public subnet 10.0.1.0/24 (route 0.0.0.0/0 → Internet Gateway)
+           └─ EC2 t3.small, 20 GB gp3, Elastic IP
+               ├─ security group: 80 and 443 from anywhere, 22 from the owner's IP only
+               ├─ IAM role: read /forgeops/* from Parameter Store, nothing else
+               └─ Docker Compose: caddy, web, api, worker, postgres, rabbitmq, migrate
+  Parameter Store (SecureString, KMS): env-encryption key, GitHub App key, GitHub client secret, DB password
+  GHCR: images built by CI on main
+  ```
+  - **Compute (8.1.2):** one EC2 instance with Docker Compose, not ECS or EKS. Postgres and RabbitMQ run as
+    containers on it (8.1.3, 8.1.6), not RDS or Amazon MQ.
+  - **Start-up:** user data installs Docker and the Compose plugin, writes the secrets from Parameter Store to
+    `/opt/forgeops/secrets/` (root only), and runs `docker compose -f docker-compose.prod.yml pull` and `up -d`.
+    The prod compose file uses `image: ghcr.io/demilade111/forgeops-*:<commit>` instead of `build:`.
+  - **Secrets (8.2.6):** Parameter Store standard parameters, put there with the AWS CLI from the laptop, never in
+    Terraform code, state or user data. The server reads them through its IAM role (8.2.4), so no AWS keys sit on it.
+  - **Network (8.1.5, 8.1.7):** one public subnet; outbound internet is open so the server can reach GHCR, GitHub
+    and package mirrors. No NAT gateway, no load balancer.
+  - **Availability and cost (8.1.4):** one server, no redundancy; a failed server is replaced with destroy and
+    apply. Run only while practising (ADR-090): about $0.03 an hour.
+- **Options considered:** ECS Fargate (no server to manage, but more AWS pieces and about $35 a month for these
+  containers); EKS (about $73 a month for the control plane alone; Kubernetes is phase 9, locally); RDS for
+  Postgres (backups and failover, but about $14 a month more); private subnets with a NAT gateway (database fully
+  unreachable from the internet, but about $33 a month); scp of the secret files by hand (free, but a manual step
+  after every apply); Secrets Manager (rotation we do not need, $0.40 per secret a month).
+- **Consequences:** cheap and reproducible, and the whole stack matches the local compose file. Data in Postgres is
+  lost on destroy; acceptable for a demo, a backup plan comes in 11.4. HTTPS needs a domain, still open (URL scheme
+  ADR). A single server and a public subnet are the first things to change for real users: RDS in private subnets,
+  then more servers behind a load balancer.
+
+### ADR-091 — CLI and Terraform sign in with `aws login` (FGO-08.02.01, 2026-11-16)
+- **Status:** Accepted (2026-11-16) for practice. The product owner chose to skip an IAM user for now.
+- **Decision:** the AWS CLI (2.34) and Terraform use short-term credentials from `aws login`: a browser sign-in
+  that stores temporary keys in `~/.aws`, which expire after hours. No long-term access keys are created, and never
+  for the root user. For now the sign-in is the root user (verified: `aws sts get-caller-identity` returns
+  `arn:aws:iam::<account>:root`), default region `us-east-1` until 8.1 picks one. Root MFA is deferred.
+- **Options considered:** root access keys (permanent full control if leaked; rejected); an IAM user with access
+  keys (limited and deletable, the usual answer; deferred); IAM Identity Center (short-term and per person, more
+  setup than one person needs).
+- **Consequences:** Terraform acts with full root power, so the $1 budget alarm (ADR-090) is the safety net. Before
+  anyone else gets access, or before the account holds anything that matters, move to an IAM user or role with only
+  the permissions Terraform needs (8.2.3) and turn on root MFA. Terraform must read the `aws login` credentials;
+  checked when Terraform is installed (8.4.1).
+
+### ADR-090 — AWS account and cost guardrails (FGO-08.02.02, 2026-11-16)
+- **Status:** Accepted (2026-11-16). The product owner chose to keep the existing account and set the budget.
+- **Decision:** use the product owner's existing AWS account. It is on the paid plan with no credits, so every
+  resource is billed to the card. Guardrails:
+  - a monthly cost budget `forgeops-monthly` of $1, emailing at 85%, 100% and when the forecast passes $1;
+  - nothing runs between practice sessions: `terraform apply`, practise, `terraform destroy`;
+  - before building, know what is already on the bill (ISS-065: a stopped server's disk).
+  ForgeOps has no real users, so it does not need to run all the time. Estimated cost of the planned server
+  (t3.small, public IPv4, 20 GB gp3, us-east-1 prices): about $0.03 an hour, about $20 a month if left on.
+- **Options considered:** a new account on the Free plan (about $100 to $200 in credits for 6 months and paused
+  instead of billed when they run out, but a second account to secure and manage); a $5 budget (fewer emails, later
+  warning).
+- **Consequences:** a forgotten `destroy` costs real money, so the alarm is the safety net. While the stopped server's
+  disk stays (about $0.66 a month), the $1 alarm may fire. Region is not chosen yet (8.1).
 
 ### ADR-089 — Rate limiting with express-rate-limit (FGO-02.02.09, 2026-11-14)
 - **Status:** Accepted (2026-11-14). The product owner approved the library after CodeQL flagged 7 routes.

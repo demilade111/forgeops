@@ -5,3 +5,5 @@ allowBuilds:
   "@prisma/engines": false
   esbuild: false
   prisma: false
+overrides:
+  "@prisma/config>effect": 3.22.4
