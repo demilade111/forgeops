@@ -8,6 +8,27 @@ Good for questions like: *"Tell me about a bug you found"*, *"a time you debugge
 
 ---
 
+## ISS-067 — The test run failed before Postgres was ready (AWS 8.6)
+- **Situation:** After adding the `APPS_BASE_URL` setting I started the local services and ran the API tests right
+  away. Every test file failed in global setup with "Test database migration failed. Is PostgreSQL running?".
+- **Task:** Tell whether my change broke something or the environment was not ready.
+- **Action:** I checked `docker compose ps`: Postgres was still starting, because its first start after a while
+  takes longer than the 8 seconds I waited. I waited for its health check to say healthy, then reran.
+- **Result:** 155 of 155 tests passed. No code change was needed.
+- **Lesson:** wait for the health check, not for a fixed number of seconds.
+
+## ISS-066 — Turning on HTTPS would have failed every deploy's health check (AWS 8.6)
+- **Situation:** To put ForgeOps on the internet with HTTPS (ADR-093), Caddy had to get certificates. By default
+  Caddy then answers every plain HTTP request with a redirect to HTTPS. The worker checks a new app's health by
+  calling Caddy over plain HTTP inside Docker.
+- **Task:** Get HTTPS without breaking deploys, ideally without changing the health check code.
+- **Action:** Before writing anything I ran Caddy 2.11 locally in Docker with a test config: one server listening
+  on 80 and 443 with automatic redirects turned off, then added a route at runtime through the admin API, the way
+  the worker does, and called it over both HTTP and HTTPS.
+- **Result:** both answered 200, and the runtime route got a certificate too. The health check code stayed the
+  same, and only the dashboard got an explicit redirect to HTTPS. On AWS the first real check passed.
+- **Lesson:** a five-minute experiment with the real tool beat both guessing from docs and writing a workaround.
+
 ## ISS-065 — A stopped server was still billing for its disk (AWS 8.2)
 - **Situation:** Before building anything on AWS, I opened Billing for my existing account. It had no credits
   (not on the Free plan) and showed about $0.70 every month since August 2026, mostly under "EC2 - Other". The EC2

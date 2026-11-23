@@ -321,6 +321,17 @@ Organized by phase. Each entry: concept → plain explanation → where it shows
 - **VPC:** your own private network in AWS. **Subnet:** a slice of its address range. A subnet is **public** when
   its **route table** sends internet traffic to the Internet Gateway.
 
+### Terraform and putting ForgeOps online (ADR-093, ADR-094)
+- **Terraform:** code that describes AWS resources. `init` downloads the provider, `plan` compares the code with the
+  **state** (Terraform's record of what it built) and with AWS, `apply` makes them match, `destroy` deletes it all.
+- **User data:** a script AWS runs once, on the server's first boot. Here it installs Docker, fetches the secrets,
+  writes the compose file and starts everything. Change it and the server must be rebuilt.
+- **Parameter Store SecureString:** an encrypted value in AWS. The server reads it with its **IAM role**, so no
+  keys are stored on it.
+- **sslip.io:** free DNS that turns a name containing an IP into that IP, so we get a name without buying one.
+- **Let's Encrypt:** a free certificate authority. Caddy proves it controls the name and gets a certificate for it.
+- **Secure cookie:** a cookie the browser keeps only over HTTPS. It is why login needed HTTPS.
+
 ### Feature-based structure (ADR-082)
 - **Modular monolith:** one deployable app split into business modules that own their code and data access.
 - **Layers:** routes handle HTTP, services hold business rules, repositories talk to the database.

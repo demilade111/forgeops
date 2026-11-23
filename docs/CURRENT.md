@@ -1,6 +1,6 @@
 # ForgeOps — Current Work
 
-_Last updated: 2026-11-16_
+_Last updated: 2026-11-23_
 
 ## Project status
 
@@ -116,7 +116,13 @@ Billing showed about $0.70 a month: the 8 GB gp3 disk of a stopped server from a
 (ISS-065); server terminated 2026-11-16, empty Volumes list not yet confirmed.
 The CLI signs in with `aws login` (short-term credentials, root for now, ADR-091). Deferred by the owner: root
 MFA and an IAM user. 8.1 design done: ADR-092 accepted (one EC2 t3.small with Docker Compose in us-east-2,
-secrets in Parameter Store), diagrams in `docs/diagrams/`. Next: 8.4.1 install Terraform (needs approval).
+secrets in Parameter Store), diagrams in `docs/diagrams/`.
+2026-11-23: Terraform 1.17 builds 17 resources in `infra/aws/` (ADR-094). The 4 GHCR images are public. Three
+secrets are in Parameter Store. Public names come from sslip.io with Let's Encrypt HTTPS (ADR-093); app URLs use
+the new `APPS_BASE_URL` setting (tests 155/155). Verified: `https://forgeops.3-13-5-82.sslip.io` serves the
+dashboard with a Let's Encrypt certificate, `/health/ready` returns 200, HTTP redirects to HTTPS, all 8 containers
+run. Next: point the GitHub App and OAuth callbacks at the server, sign up, deploy the sample app (8.5.10), then
+merge so CI builds images with `APPS_BASE_URL` and bump `release`. Destroy after each session.
 
 **Done: code structure (2026-11-08).** API restructured by layer and module, frontend by feature, with
 dependency rules (ADR-082, `docs/ARCHITECTURE.md`). Behaviour unchanged; all checks and the browser walk-through

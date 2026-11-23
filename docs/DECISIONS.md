@@ -160,7 +160,7 @@ history, rollback, metrics, alerts) become one frontend pass before M1-S13. Exis
 | ADR-016 | Secret management | Local `.env` (git-ignored) in development; AWS Secrets Manager for ForgeOps' own secrets in the cloud. App reads secrets only from env/config | Proposed (direction agreed 2026-10-24) |
 | ADR-017 | Automatic build engine | Not selected (PD-002) | **Open** |
 | ADR-018 | Scheduled job execution mechanism | Not selected (PD-003) | **Open** |
-| ADR-019 | Managed URL scheme and traffic routing for web services | `http://<service>.<project>.localhost` in M1; Caddy reverse proxy, routes added at runtime through its admin API | **Accepted** (2026-11-05) |
+| ADR-019 | Managed URL scheme and traffic routing for web services | `http://<service>.<project>.localhost` in M1; Caddy reverse proxy, routes added at runtime through its admin API; on AWS `<service>.<project>.<ip>.sslip.io` with HTTPS (ADR-093) | **Accepted** (2026-11-05) |
 | ADR-020 | Alert channel | Email to workspace members (Mailpit locally, SMTP such as Amazon SES in the cloud) and an optional Slack incoming webhook (ADR-070) | **Accepted** (2026-11-06) |
 | ADR-021 | Source of basic CPU/memory metrics | `docker stats` sampled every 15 s by the worker into Postgres, kept 24 hours (ADR-069) | **Accepted** (2026-11-06) |
 | ADR-022 | Failed-rollout criteria that trigger automatic rollback | Watch 5 minutes after go-live, check every 10 s; 3 failed checks in a row or a crash rolls back to the previous good version (ADR-067) | **Accepted** (2026-11-06) |
@@ -934,6 +934,57 @@ Template:
 - **Options considered:** polling vs server-sent events or WebSockets (live push, but a new endpoint and connection
   handling); a data library such as TanStack Query (caching and refetching, another dependency).
 - **Consequences:** simple and enough for one user; S8 (logs) can switch to streaming if polling becomes heavy.
+
+### ADR-094 — Terraform builds the server and its boot script starts ForgeOps (FGO-08.04, 08.05, 2026-11-23)
+- **Status:** Accepted (2026-11-23); the product owner asked for the whole build.
+- **Decision:**
+  - Layout: one root module in `infra/aws/`, one file per concern (`network.tf`, `security.tf`, `iam.tf`,
+    `compute.tf`, `variables.tf`, `outputs.tf`). Server files live in `infra/aws/server/`. Local state, ignored
+    by git, with `*.tfvars` (owner's IP, GitHub App IDs, release).
+  - AWS provider `~> 6.0`; AMI read from the public SSM parameter for the latest Amazon Linux 2023; IMDSv2
+    required; 20 GB encrypted gp3; Docker from the OS packages and the Compose plugin pinned to v5.7.0 with its
+    checksum (v5.8.0 was inside the 7-day cooldown).
+  - The Elastic IP is created first and attached with `aws_eip_association`, so the boot script can be given the
+    public name without a dependency cycle. `user_data_replace_on_change` builds a new server when the script
+    changes, because user data only runs on first boot.
+  - `release` is a full commit SHA on main; the same SHA picks all four GHCR images. The compose file and Caddy
+    config are embedded in user data (base64), so the server needs no git checkout.
+  - Secrets that must outlive a server (encryption key, GitHub App key, OAuth client secret) come from Parameter
+    Store at boot, owned by uid 1000 (the `node` user in the images), mode 400. The Postgres and RabbitMQ
+    passwords are generated on the server at first boot instead of stored in Parameter Store: their data lives and
+    dies with that server, so nothing else needs them.
+  - 2 GB swap file, because 2 GB of RAM is tight while the worker builds an app image.
+- **Options considered:** Terraform modules now (cleaner later, but one environment does not need them, 8.4.7 to
+  8.4.9 stay open); remote state in S3 (needed for a team, 8.4.5); cloning the repo on the server (needs git and a
+  pinned checkout, more moving parts); keeping the DB password in Parameter Store (ADR-092 first said so; it adds a
+  manual step and protects nothing that survives destroy).
+- **Consequences:** `terraform apply` gives a working HTTPS dashboard in about 3 minutes with no manual step. A
+  lost state file means resources must be found and deleted by hand. Changing compose or Caddy files replaces the
+  server and its data.
+
+### ADR-093 — Public names and HTTPS on AWS through sslip.io (FGO-08.06, 2026-11-23)
+- **Status:** Accepted (2026-11-23) by the product owner. Extends ADR-019 to the cloud; local stays `.localhost`.
+- **Context:** in production the API sets its session cookies `Secure`, so the browser keeps them only over HTTPS,
+  and HTTPS needs a host name, not a bare IP. Deployed apps use `<service>.<project>.localhost`, which only resolves
+  on the owner's laptop.
+- **Decision:** names come from sslip.io, a free public DNS service that answers any name containing an IP with that
+  IP. With the Elastic IP `3.15.22.9`:
+  ```
+  dashboard     https://forgeops.3-15-22-9.sslip.io
+  deployed app  https://<service>.<project>.3-15-22-9.sslip.io
+  ```
+  The router Caddy is the only public entry (80 and 443) and gets Let's Encrypt certificates for these names,
+  including app routes the worker adds at runtime. One Caddy server listens on both ports with automatic redirects
+  off, so the worker's health checks keep using plain HTTP inside Docker; only the dashboard name gets an explicit
+  HTTP to HTTPS redirect. The apps' base address is a setting (`APPS_BASE_URL`, default `http://localhost`), so
+  the code has no AWS-specific names.
+- **Options considered:** a bought domain (stable, professional name, but about $12 a year and DNS records to keep
+  in step with the IP); dashboard only through an SSH tunnel (free and private, but nobody else can open it);
+  keeping the Elastic IP between practice sessions so the name never changes (about $3.60 a month while idle).
+- **Consequences:** free, real HTTPS, nothing to buy. The name changes with the IP after every destroy and apply,
+  so the GitHub App and OAuth callback URLs must be updated each time. sslip.io is a third party: if it is down,
+  nobody can find the server. Let's Encrypt limits certificates per domain, so many app names in one week can hit
+  that limit. A bought domain replaces this before anyone else relies on the URLs.
 
 ### ADR-092 — AWS architecture v1: one EC2 server running Docker Compose (FGO-08.01, 2026-11-18)
 - **Status:** Accepted (2026-11-18) by the product owner.

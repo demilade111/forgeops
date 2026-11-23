@@ -843,6 +843,37 @@ Prometheus with cAdvisor, which is built for this."
 - *Why only the live container?* During a deploy two containers run; mixing them would make the chart lie.
 - *What would you add next?* Per-app memory limits, request rate, error rate and response time (the golden signals).
 
+## 19. ForgeOps on AWS with Terraform (phase 8)
+
+**30-second answer:** "ForgeOps runs on one EC2 server in Ohio, built entirely by Terraform: a VPC with one public
+subnet, a security group that opens only 80 and 443 to the world and SSH to my IP, and an IAM role that can read
+only ForgeOps' secrets from Parameter Store. On first boot a user-data script installs Docker, pulls the secrets,
+and starts the same Docker Compose stack I run locally, using the images CI pushed to GHCR. Caddy gets Let's Encrypt
+certificates for sslip.io names, so it is real HTTPS without buying a domain. `terraform apply` to a working
+dashboard takes about three minutes, and I destroy it when I stop practising."
+
+### Why each choice
+- **EC2 + Compose, not ECS or EKS:** about $0.03 an hour, and it matches local exactly. ECS Fargate was about $35 a
+  month for these containers; EKS $73 for the control plane alone.
+- **Parameter Store, not Secrets Manager:** free; rotation is the only thing I would pay for, and I do not need it.
+- **sslip.io:** free names for HTTPS; the cost is that the name changes with the IP.
+- **Secrets at boot, not in Terraform:** anything in Terraform code or state is readable by whoever reads the state.
+
+### What happens when...
+- **The server dies:** everything on it is gone, including Postgres. `apply` builds a new one; data loss is
+  accepted for a demo. Real fix: RDS in private subnets and backups.
+- **Parameter Store is unreachable at boot:** the script stops (`set -e`), nothing starts, and the cloud-init log
+  says which command failed.
+- **I lose the state file:** Terraform forgets what it built; I would find and delete resources by tag. Real fix:
+  S3 remote state with locking.
+- **My home IP changes:** SSH is refused; update `ssh_cidr` and apply. The site keeps working.
+
+### Questions
+- *Why does the boot script run only once?* User data runs on first boot. That is why changing it rebuilds the server.
+- *How do you keep secrets out of user data?* User data only says where secrets are; the server fetches them with its
+  role. Anyone who can read user data sees no secret.
+- *Why not open port 5432?* Nothing outside needs the database; containers reach it on the Docker network.
+
 ## 18. Automatic rollback (M1-S10)
 
 **30-second answer:** "After a deploy goes live, ForgeOps watches it for five minutes. A timer in the worker checks
