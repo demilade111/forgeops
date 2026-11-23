@@ -24,6 +24,7 @@ const {
   github,
   smtpUrl,
   appUrl,
+  appsBaseUrl,
 } = loadConfig(process.env);
 if (!rabbitmqUrl) throw new Error("Invalid configuration\nRABBITMQ_URL is required for the worker");
 if (!registryHost) {
@@ -83,6 +84,7 @@ const deploy = createDeploymentHandler(db, loadGitHubClient(github), {
   registryHost,
   caddyAdminUrl,
   caddyHttpUrl,
+  appsBaseUrl,
   encryptionKey,
 });
 const teardown = createTeardownHandler(db, { caddyAdminUrl });

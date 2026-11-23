@@ -18,3 +18,10 @@ logs/
 .idea/
 *.swp
 notes/
+
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+CLAUDE.md
+docs/

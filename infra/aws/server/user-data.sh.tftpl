@@ -1,0 +1,54 @@
+#!/bin/bash
+set -euo pipefail
+
+dnf install -y docker
+systemctl enable --now docker
+usermod -aG docker ec2-user
+
+COMPOSE_VERSION=v5.7.0
+PLUGIN_DIR=/usr/local/lib/docker/cli-plugins
+BASE=https://github.com/docker/compose/releases/download/$COMPOSE_VERSION
+mkdir -p "$PLUGIN_DIR"
+cd "$PLUGIN_DIR"
+curl -fsSLO "$BASE/docker-compose-linux-x86_64"
+curl -fsSLO "$BASE/docker-compose-linux-x86_64.sha256"
+sha256sum -c docker-compose-linux-x86_64.sha256
+mv docker-compose-linux-x86_64 docker-compose
+rm docker-compose-linux-x86_64.sha256
+chmod 755 docker-compose
+
+fallocate -l 2G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo "/swapfile swap swap defaults 0 0" >> /etc/fstab
+
+mkdir -p /opt/forgeops/secrets
+chmod 700 /opt/forgeops /opt/forgeops/secrets
+cd /opt/forgeops
+
+secret() {
+  aws ssm get-parameter --region ${region} --with-decryption --name "/forgeops/$1" \
+    --query Parameter.Value --output text > "secrets/$2"
+}
+secret encryption-key env-encryption.key
+secret github-app-key github-app.pem
+secret github-client-secret github-client-secret
+chown 1000:1000 secrets/*
+chmod 400 secrets/*
+
+echo "${compose}" | base64 -d > compose.yml
+echo "${caddy}" | base64 -d > caddy.json
+
+umask 077
+cat > .env <<EOF
+RELEASE=${release}
+DOMAIN=${domain}
+GITHUB_APP_ID=${github_app_id}
+GITHUB_APP_SLUG=${github_app_slug}
+GITHUB_CLIENT_ID=${github_client_id}
+DB_PASSWORD=$(openssl rand -hex 24)
+RABBITMQ_PASSWORD=$(openssl rand -hex 24)
+EOF
+
+docker compose up -d
