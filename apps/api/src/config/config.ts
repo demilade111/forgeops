@@ -15,6 +15,7 @@ const schema = z.object({
   CADDY_HTTP_URL: z.url({ protocol: /^https?$/ }).optional(),
   SMTP_URL: z.url({ protocol: /^smtps?$/ }).optional(),
   APP_URL: z.url({ protocol: /^https?$/ }).default("http://localhost:5173"),
+  APPS_BASE_URL: z.url({ protocol: /^https?$/ }).default("http://localhost"),
   GITHUB_APP_ID: z.coerce.number().int().positive().optional(),
   GITHUB_APP_SLUG: z.string().min(1).optional(),
   GITHUB_APP_PRIVATE_KEY_PATH: z.string().min(1).optional(),
@@ -61,6 +62,7 @@ export function loadConfig(env: NodeJS.ProcessEnv) {
     caddyHttpUrl: c.CADDY_HTTP_URL?.replace(/\/+$/, "") ?? null,
     smtpUrl: c.SMTP_URL ?? null,
     appUrl: c.APP_URL.replace(/\/+$/, ""),
+    appsBaseUrl: c.APPS_BASE_URL.replace(/\/+$/, ""),
     github: hasApp
       ? {
           appId: c.GITHUB_APP_ID!,

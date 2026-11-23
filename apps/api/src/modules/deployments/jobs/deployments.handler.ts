@@ -29,6 +29,7 @@ type Options = {
   registryHost: string;
   caddyAdminUrl: string;
   caddyHttpUrl: string;
+  appsBaseUrl: string;
   encryptionKey: Buffer;
   retryDelays?: number[];
   timeouts?: { build: number; push: number };
@@ -44,6 +45,7 @@ export function createDeploymentHandler(
     registryHost,
     caddyAdminUrl,
     caddyHttpUrl,
+    appsBaseUrl,
     encryptionKey,
     retryDelays = [1000, 2000, 4000],
     timeouts = { build: 15 * 60_000, push: 5 * 60_000 },
@@ -52,6 +54,7 @@ export function createDeploymentHandler(
     watchMs = 5 * 60_000,
   }: Options,
 ) {
+  const apps = new URL(appsBaseUrl);
   const repo = deploymentsRepository(db);
   const installations = githubService(db, github);
 
@@ -98,8 +101,8 @@ export function createDeploymentHandler(
     const tag = `${imageName}:${deploymentId}`;
     const dir = workspace(deploymentId);
     const container = `fo-${deploymentId}`;
-    const host = `${service.name}.${service.project.name}.localhost`;
-    const url = `http://${host}`;
+    const host = `${service.name}.${service.project.name}.${apps.hostname}`;
+    const url = `${apps.protocol}//${host}`;
     let commitSha = deployment.commitSha;
     let installationId = 0;
     let context = "";

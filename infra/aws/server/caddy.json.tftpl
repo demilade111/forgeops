@@ -1,0 +1,46 @@
+{
+  "admin": {
+    "origins": ["caddy-admin:2019"]
+  },
+  "apps": {
+    "http": {
+      "servers": {
+        "forgeops": {
+          "listen": [":80", ":443"],
+          "automatic_https": {
+            "disable_redirects": true
+          },
+          "routes": [
+            {
+              "match": [{ "host": ["forgeops.${domain}"], "protocol": "http" }],
+              "handle": [
+                {
+                  "handler": "static_response",
+                  "status_code": 308,
+                  "headers": { "Location": ["https://{http.request.host}{http.request.uri}"] }
+                }
+              ]
+            },
+            {
+              "match": [{ "host": ["forgeops.${domain}"], "path": ["/api/*", "/health/*"] }],
+              "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "api:4000" }] }]
+            },
+            {
+              "match": [{ "host": ["forgeops.${domain}"] }],
+              "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "web:80" }] }]
+            },
+            {
+              "handle": [
+                {
+                  "handler": "static_response",
+                  "status_code": 404,
+                  "body": "No service at this address"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  }
+}
